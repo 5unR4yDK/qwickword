@@ -13,27 +13,32 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   (App Router, TypeScript, Tailwind, ESLint, `src/` dir) and serves the default placeholder page
   at `/` with HTTP 200 and no errors. `node_modules` is NOT committed (standard practice) and is
   not present in this folder either — see the platform note below before running `npm install` here.
-- **Platform note — read this before any future npm/git work in this folder:** this project folder
-  is bridged into the build sandbox over a FUSE mount, which has two quirks discovered tonight:
-  (1) files/dirs can be *renamed* but never *deleted* (`rm`/`unlink` fails with "Operation not
-  permitted"; `mv`/rename succeeds) — so cleanup means renaming cruft out of the way and
-  `.gitignore`-ing it, not deleting it; (2) atomic lock-file-then-rename writes (what `git init` /
-  `git config` / `git commit` use internally to write `.git/config`, refs, etc.) land as a
-  correctly-sized file full of NUL bytes instead of real content — i.e. **git does not reliably
-  work when run directly inside this mounted folder**. Workaround used tonight and recommended for
-  future runs: do `npm install`, `next dev`/`build`, and all `git` operations (`init`, `add`,
+- **Platform note — read this before any future npm/git work in this folder (corrected 2026-07-13
+  after Andreas caught an error in an earlier version of this note):** this project folder
+  is bridged into the build sandbox over a FUSE mount, which has real, documented bugs — but file
+  deletion is NOT one of them, contrary to what an earlier version of this note said. Two things:
+  (1) Deletion needs a one-time permission grant: `rm` from bash fails with "Operation not
+  permitted" until the `allow_cowork_file_delete` tool is called once for the folder; after that,
+  `rm` works normally. Do not conclude a file cannot be deleted — call that tool first. (Known
+  related bug: it can return "Permission denied" without showing the confirmation dialog it is
+  supposed to — see anthropics/claude-code issue 46788.) (2) Git's internal writes are genuinely
+  broken on this mount, independent of the delete permission — retested and reconfirmed after
+  enabling deletion. `git init` / `git config` / `git commit` write via a temp-file-then-rename
+  pattern, and on this Windows FUSE bridge that pattern lands as a correctly-sized file full of NUL
+  bytes instead of real content (`fatal: bad config line 1`). This matches known open issues:
+  anthropics/claude-code 55206, 62932, 38993, 40264, 69866, 42520, 45433 — stale caching and
+  null-byte padding on the Windows sandbox-to-host FUSE bridge, not something specific to this repo.
+  Workaround (still needed, still recommended): do `npm install`, `next dev`/`build`, and all `git`
+  operations (`init`, `add`,
   `commit`) in a scratch directory on the sandbox's native disk (e.g. `/sessions/<id>/scratch/...`,
   NOT under `mnt/`), then copy the resulting source files and the finished `.git` directory back
-  into this folder with plain `cp` (plain copy writes are fine on this mount; it's specifically the
-  lock+rename pattern that breaks, and outright deletes that are blocked). Two harmless leftover
-  artifacts from tonight's false starts were renamed to `.trash-broken-scaffold-2026-07-13/` and
-  a few similarly-named `.trash-broken-git-*` folders from repeated attempts (all gitignored) —
-  safe for Andreas to delete by hand from Windows whenever convenient; they cost disk space but
-  nothing else. Also found: the `Read`/`Write`/`Edit` file tools and the `bash` tool's view of this
-  same folder can disagree for a while after an edit — `bash cat`/`wc` may show stale content even
-  though `Read`/`Write`/`Edit` (the Andreas-visible, authoritative side) already has the update.
-  If a bash script needs a just-edited file's content, rewrite it directly from bash too rather
-  than trusting a bash read of an Edit-tool change.
+  into this folder with plain `cp` (plain copy writes are fine on this mount; it is specifically the
+  lock+rename pattern that breaks). The same stale-cache bug can make `bash cat`/`wc` show old
+  content for a file just edited via `Read`/`Write`/`Edit` — those tools are the authoritative,
+  Andreas-visible side; if a bash script needs a just-edited file's content, rewrite it directly
+  from bash too rather than trusting a bash read of an Edit-tool change. Tonight's leftover
+  `.trash-broken-*` folders from before this was understood have been deleted via
+  `allow_cowork_file_delete` — nothing left to clean up.
 - **Daily.co:** account created; domain `quickword.daily.co`; API key present in `.env.local`
   (`DAILY_API_KEY`, `DAILY_DOMAIN`). Proceed with real Daily video integration (M1 / Phase 0 item 3).
 - **Hard-expiry design (locked):** create rooms with `exp = now + duration`,
@@ -64,10 +69,17 @@ the platform note above and build/verify in a scratch dir first, then sync sourc
   Phase 3 items (B2B landing, team workspace, real-usage "reclaimed hours & cost" admin dashboard) and
   a Phase 4 SSO/SAML item to ROADMAP.md.
 - 2026-07-13 (nightly): Built Phase 0 item 1 — scaffolded Next.js 16.2.10 (App Router, TypeScript,
-  Tailwind, ESLint, `src/` dir) via `create-next-app`. Discovered this folder's FUSE mount blocks
-  deletes and corrupts git's lock-file writes (see the platform note in "Current state" above);
-  worked around it by building/verifying/git-initing in a sandbox scratch dir and copying the
-  finished source + `.git` into this folder. Verified `npm run dev` → "Ready" in ~300ms and
-  `GET /` → HTTP 200 with the default placeholder page, no errors. Repo initialised on `main` with
-  an initial commit. Two harmless renamed-not-deleted artifacts left in the folder root (gitignored,
-  see platform note). Next: Phase 0 item 2 (env var + mock-mode fallback).
+  Tailwind, ESLint, `src/` dir) via `create-next-app`. Hit corrupted git writes on this folder's
+  FUSE mount (see the platform note in "Current state" above); worked around it by
+  building/verifying/git-initing in a sandbox scratch dir and copying the finished source + `.git`
+  into this folder. Verified `npm run dev` → "Ready" in ~300ms and `GET /` → HTTP 200 with the
+  default placeholder page, no errors. Repo initialised on `main` with an initial commit.
+  Next: Phase 0 item 2 (env var + mock-mode fallback).
+- 2026-07-13 (correction, interactive): Andreas caught an error in the platform note above — it had
+  wrongly claimed files in this folder can never be deleted. Verified against the actual
+  `allow_cowork_file_delete` tool and a fresh test: deletion just needs a one-time permission grant,
+  not a hard block; called it and deleted the leftover `.trash-broken-*` folders. Re-tested the git
+  corruption in isolation (a throwaway `.git` in a scratch subfolder) to confirm it is a real,
+  separate bug and not a side effect of the delete restriction — it is; matches several open
+  anthropics/claude-code GitHub issues on the Windows FUSE bridge. Platform note rewritten to be
+  accurate; no change to the actual app code from this correction.
