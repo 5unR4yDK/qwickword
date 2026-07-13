@@ -26,9 +26,3 @@ yarn-error.log*
 # TypeScript (Next.js regenerates this on dev/build; don't commit it)
 *.tsbuildinfo
 next-env.d.ts
-
-# Leftover, harmless artifacts from scaffolding on 2026-07-13 — this workspace mount does not
-# allow deleting files once written (rename is allowed, unlink is not), so these were renamed
-# out of the way instead. Safe to ignore; safe for Andreas to delete by hand from Windows.
-.trash-broken-*
-.leftover-symlink-ignore-me
