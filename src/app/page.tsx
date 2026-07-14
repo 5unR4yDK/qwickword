@@ -1,6 +1,9 @@
 import Image from "next/image";
+import { getDailyConfig } from "@/lib/daily-config";
 
 export default function Home() {
+  const { mockMode, domain } = getDailyConfig();
+
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -13,6 +16,17 @@ export default function Home() {
           priority
         />
         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+          <p
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              mockMode
+                ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                : "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+            }`}
+          >
+            {mockMode
+              ? "Mock mode — no Daily API key configured"
+              : `Live mode (domain: ${domain})`}
+          </p>
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
             To get started, edit the page.tsx file.
           </h1>
