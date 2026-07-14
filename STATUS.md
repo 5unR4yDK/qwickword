@@ -39,20 +39,47 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   from bash too rather than trusting a bash read of an Edit-tool change. Tonight's leftover
   `.trash-broken-*` folders from before this was understood have been deleted via
   `allow_cowork_file_delete` — nothing left to clean up.
+  **2026-07-14 addendum:** confirmed a second, distinct symptom of the same underlying bug: it isn't
+  only git's internal lock+rename writes that can land corrupted — regular file writes made to this
+  mount (via a prior run's copy-back step) can also end up with the tail silently NUL-padded, or
+  truncated mid-sentence in the copy that `bash` reads (via `cat`, `cp`, or `git diff`), even though
+  the `Read`/`Write`/`Edit` tools show the correct, complete, Andreas-visible content the whole time.
+  Concretely tonight: `.gitignore`, `ROADMAP.md`, and `STATUS.md` all showed as "modified" against
+  HEAD when `git status` ran directly against this folder — but the real corruption was in what HEAD
+  had recorded (ROADMAP.md's HEAD blob and STATUS.md's working copy, inconsistently) plus NUL-padding
+  on `.gitignore`. Fix applied: re-derived each file's true content from the `Read` tool (the
+  Andreas-visible ground truth) and rewrote all three from a bash heredoc directly in the scratch
+  build dir before committing, rather than trusting any `cp`/`cat` of the mount for these files.
+  Lesson for future runs: **never** trust `git diff`/`git status` output against files in this folder
+  at face value if the diff looks like mid-word truncation or a "binary files differ" surprise on a
+  text file — re-verify the true content with `Read` first. Separately (harmless but noisy): the FUSE
+  bridge presents every file as mode 755 regardless of its real Windows permissions, which made
+  `git status` show a spurious mode-only diff on a freshly-added file tonight. Fixed by setting
+  `core.fileMode = false` in this repo's `.git/config` (done tonight) — future runs shouldn't see this.
 - **Daily.co:** account created; domain `quickword.daily.co`; API key present in `.env.local`
   (`DAILY_API_KEY`, `DAILY_DOMAIN`). Proceed with real Daily video integration (M1 / Phase 0 item 3).
 - **Hard-expiry design (locked):** create rooms with `exp = now + duration`,
   `eject_at_room_exp: true`, and `eject_after_elapsed = duration` as a per-participant backstop.
   Validate exact property names against the live Daily API on first keyed run; log any correction.
+- **Env config / mock mode (Phase 0 item 2, done 2026-07-14):** `src/lib/daily-config.ts` reads
+  `DAILY_API_KEY` / `DAILY_DOMAIN` from `process.env` once, server-side. If either is missing or
+  empty, the app runs in **mock mode** (`mockMode: true`) instead of throwing — a warning is logged
+  once to the server console, and nothing crashes. With both present (the current `.env.local`),
+  it runs in **live mode**. The home page shows a small status line reflecting whichever mode is
+  active, so the mode is visible without reading logs. No API route calls Daily yet (that's Phase 0
+  item 3) — this item only establishes the config + fallback plumbing those routes will use.
 - **Deployed:** no.
 - **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
   and the later Vercel deploy approval).
 
 ## Next actions (for the next run)
 The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 2: read `DAILY_API_KEY` / `DAILY_DOMAIN` from `.env.local` with a
-mock fallback so the app runs without a key. Before doing any `npm install` or `git` work, re-read
-the platform note above and build/verify in a scratch dir first, then sync source + `.git` back in.
+Currently that is Phase 0, item 3: `POST /api/rooms` creating a real Daily room with `exp`,
+`eject_at_room_exp: true`, and `eject_after_elapsed`. Validate the exact Daily API property names
+against the live API (the key in `.env.local` is real) and correct BUILD_PLAN.md if anything differs.
+Before doing any `npm install` or `git` work, re-read the platform note above and build/verify in a
+scratch dir first, then sync source + `.git` back in — and re-verify any file this note flags with
+`Read` before trusting a bash view of it.
 
 ---
 
@@ -83,3 +110,13 @@ the platform note above and build/verify in a scratch dir first, then sync sourc
   separate bug and not a side effect of the delete restriction — it is; matches several open
   anthropics/claude-code GitHub issues on the Windows FUSE bridge. Platform note rewritten to be
   accurate; no change to the actual app code from this correction.
+- 2026-07-14 (nightly): Found `.gitignore`, `ROADMAP.md`, and `STATUS.md` all corrupted at rest on
+  this folder's mount (NUL-padding and mid-sentence truncation — see the platform note addendum
+  above) before doing any new work; re-derived true content from the `Read` tool and rewrote all
+  three cleanly. Then built Phase 0 item 2 — `src/lib/daily-config.ts` reads `DAILY_API_KEY` /
+  `DAILY_DOMAIN` with a mock-mode fallback (see "Current state" above). Verified by running
+  `npm run dev` twice in the scratch dir: once with `.env.local` present (logs "Daily: live mode",
+  home page shows "Live mode (domain: quickword.daily.co)") and once with it renamed aside (logs a
+  one-time "Daily: mock mode" warning, home page shows "Mock mode — no Daily API key configured"),
+  both booting with `GET /` → HTTP 200 and no errors. `npm run lint` and `npm run build` both clean.
+  Committed in the scratch dir and synced back. Next: Phase 0 item 3 (real `POST /api/rooms`).

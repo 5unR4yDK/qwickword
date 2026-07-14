@@ -30,8 +30,14 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       *(2026-07-13: done — Next.js 16.2.10, App Router, TypeScript, Tailwind, ESLint, `src/` dir.
       Verified: `next dev` → "Ready" in ~300ms, `GET /` → HTTP 200, default placeholder page, no
       errors. See STATUS.md for a platform note on where this was built/verified.)*
-- [ ] Read `DAILY_API_KEY` / `DAILY_DOMAIN` from `.env.local`; add a mock fallback so the app runs
+- [x] Read `DAILY_API_KEY` / `DAILY_DOMAIN` from `.env.local`; add a mock fallback so the app runs
       without a key. *Done when:* app boots in both keyed and mock modes.
+      *(2026-07-14: done — `src/lib/daily-config.ts` reads both vars once server-side; falls back to
+      `mockMode: true` with a one-time console warning when either is missing, instead of throwing.
+      Verified: `npm run dev` booted clean with `.env.local` present (HTTP 200, "Daily: live mode"
+      logged, home page shows a live-mode banner) and with it temporarily renamed aside (HTTP 200,
+      "Daily: mock mode" warning logged, home page shows a mock-mode banner). `npm run lint` and
+      `npm run build` both clean.)*
 - [ ] API route `POST /api/rooms` that creates a Daily room with `exp = now + duration`,
       `eject_at_room_exp: true`, and `eject_after_elapsed = duration`. Validate the exact property
       names against the live Daily API and correct BUILD_PLAN.md if any differ; log the check.
@@ -125,4 +131,7 @@ Goal: the version people evangelize. Re-prioritize this phase based on what Phas
 1. Read STATUS.md, then this file. Find the first `[ ]` item that is not `[needs-andreas]` and is not
    past an uncrossed `[gate]`.
 2. Build exactly that item. Keep scope to the one item; resist wandering.
-3. Verify against the item's "Done 
+3. Verify against the item's "Done when" criteria where given. Commit to git.
+4. Mark it `[x]` (or `[~]` with a note if only partly done) and record what works in STATUS.md.
+5. If the only remaining items are `[needs-andreas]` or gated, write a clear ASKS.md entry and stop
+   for the night rather than crossing a gate.
