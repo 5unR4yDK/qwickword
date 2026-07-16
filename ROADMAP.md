@@ -49,8 +49,20 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       `eject_after_elapsed` all set exactly as requested. Room deleted after the check. No correction
       to BUILD_PLAN.md needed — it already had the right property names. See STATUS.md for full
       detail including mock-mode behaviour and validation bounds.)*
-- [ ] Create-link page: choose a duration, click "Create Quick Word", get a shareable link.
+- [x] Create-link page: choose a duration, click "Create Quick Word", get a shareable link.
       *Done when:* the link is generated and copyable.
+      *(2026-07-16: done — `src/components/create-link-form.tsx` (Client Component) embedded in
+      `src/app/page.tsx` (Server Component). Duration picker is a minimal preset row (1/2/5/10/15/30
+      min) calling `POST /api/rooms`; on success shows a copyable link built as
+      `{origin}/{room.name}` (this app's own future `/[room]` route, not the raw Daily URL — see
+      next roadmap item). Verified via production build (clean lint/build/TypeScript) plus curl
+      end-to-end in both mock mode and live mode (real Daily room created, config confirmed, deleted
+      after). Real click-through browser testing (Playwright) was attempted but blocked by a sandbox
+      limitation (Chromium needs system libraries only installable via `sudo`, which isn't available
+      here) — see STATUS.md for the honest limitation and what was verified instead. Also pulled
+      `MIN_DURATION_SECONDS`/`MAX_DURATION_SECONDS` out of `daily-rooms.ts` into a new
+      `src/lib/duration.ts` (no server-only deps) so the client-side picker can safely import the
+      same bounds without pulling the Daily fetch/API-key logic into the browser bundle.)*
 - [ ] Call page `/[room]`: join the Daily room (prebuilt UI is fine for MVP) and show a countdown
       synced to the room's `exp`. *Done when:* two browser tabs can connect and see the same countdown.
 - [ ] Hard-end experience: at expiry the participant is ejected and lands on a "Time's up" screen

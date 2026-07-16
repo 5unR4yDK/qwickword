@@ -7,7 +7,7 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** M1 (Daily integration) — `POST /api/rooms` built and verified live. Phase 0, items 1–3
+- **Phase:** M1 (Daily integration) — create-link page built and verified. Phase 0, items 1–4
   of ROADMAP.md complete.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
@@ -57,6 +57,26 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   bridge presents every file as mode 755 regardless of its real Windows permissions, which made
   `git status` show a spurious mode-only diff on a freshly-added file tonight. Fixed by setting
   `core.fileMode = false` in this repo's `.git/config` (done tonight) — future runs shouldn't see this.
+  **2026-07-16 addendum — this is worse than "just-edited files can look stale," it's non-deterministic
+  across separate bash calls:** tonight, after editing three files via the `Edit`/`Write` tools, I
+  rewrote them again directly in the scratch dir via bash heredoc (matching the `Read`-tool-verified
+  true content exactly), and a `md5sum` comparison between that scratch copy and this mount showed
+  them **matching**. Minutes later, with no edits by me in between, I re-ran the exact same
+  `md5sum`/`tail`/`xxd` check against this mount and got **NUL-padded, mid-word-truncated garbage** —
+  the same corruption pattern as before, on files a `Read` tool call had just confirmed were correct.
+  So a bash read of this mount can flip between correct and corrupted from one call to the next, with
+  no edit in between, not just immediately after a write. **Practical rule for future runs:** never
+  trust a bash read of this mount for anything that needs to be correct byte-for-byte (especially
+  `git add`/commit content) — not even a bash read that "matched" a moment ago. The only two reliable
+  operations on this mount are: (1) reading file content via the `Read` tool, and (2) writing file
+  content via the `Write`/`Edit` tools. For git commits: don't `cp`/`rsync` source files from this
+  mount into the scratch dir and trust that copy. Instead, write the exact content directly into the
+  scratch dir via a bash heredoc (quoted delimiter, e.g. `<<'EOF'`, so `$`/backticks in the code
+  aren't shell-expanded), using the content you already have from a `Write`/`Edit` tool call or a
+  fresh `Read`, and commit that. The one exception is `.git` itself: copying the *existing, historical*
+  `.git` directory from this mount into scratch with `cp -r` (before this run's new commit) has been
+  reliable across all runs so far — it's a read of long-settled object files, not something just
+  written this session.
 - **Daily.co:** account created; domain `quickword.daily.co`; API key present in `.env.local`
   (`DAILY_API_KEY`, `DAILY_DOMAIN`). Proceed with real Daily video integration (M1 / Phase 0 item 3).
 - **Hard-expiry design (locked):** create rooms with `exp = now + duration`,
@@ -98,20 +118,70 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     connection-refused, and `ps aux` showed no next process). Worked around by starting the server
     and running every curl test against it inside a single bash call. Noting this for future runs
     doing any dev-server testing.
+- **Create-link page (Phase 0 item 4, done 2026-07-16):** `src/app/page.tsx` (Server Component) now
+  renders the real product page instead of the create-next-app placeholder: the mock/live mode
+  banner (unchanged from item 2/3), a short positioning line, and `<CreateLinkForm />`.
+  `src/components/create-link-form.tsx` (Client Component, `"use client"`) is the interactive piece:
+  a row of duration presets (1/2/5/10/15/30 min, from a new `DURATION_PRESETS_SECONDS` — see below),
+  a "Create Quick Word" button that `POST`s to `/api/rooms`, a loading state, an error state (network
+  failure, non-JSON response, or a `{error}` body all handled distinctly), and on success a readonly
+  input with the link plus a "Copy link" button (`navigator.clipboard`) and a "Create another" reset.
+  - **Link shape (a design call, not yet reviewed by Andreas):** the shareable link is
+    `{window.location.origin}/{room.name}` — this app's own future `/[room]` path — not the raw
+    Daily room URL (`https://quickword.daily.co/...`) that `POST /api/rooms` returns in `url`. This
+    is forward-compatible with the very next roadmap item ("Call page `/[room]`"), which is what
+    will actually render the join UI and the hard "Time's up" screen — Daily's own prebuilt room UI
+    wouldn't give us that custom hard-end experience. **Consequence:** a link created tonight will
+    404 if opened, because `/[room]` doesn't exist yet. That's expected — it's exactly what the next
+    roadmap item builds. Flagging so this isn't mistaken for a bug if Andreas clicks a test link
+    before then.
+  - **New file `src/lib/duration.ts`:** `MIN_DURATION_SECONDS`/`MAX_DURATION_SECONDS` moved here out
+    of `daily-rooms.ts` (which re-exports them for backwards compatibility with
+    `src/app/api/rooms/route.ts`), plus the new `DURATION_PRESETS_SECONDS` list and a
+    `formatDuration()` helper. Rationale: this file has zero server-only dependencies (no `fetch`,
+    no env var access), so the duration-picker UI (a Client Component, code that ships to the
+    browser) can safely import the same bounds/presets the API route validates against, without
+    pulling `daily-rooms.ts`'s Daily API key / fetch logic into the client bundle. Confirmed this is
+    the idiomatic Next.js 16 pattern against `node_modules/next/dist/docs/01-app/01-getting-started/
+    05-server-and-client-components.md` ("Preventing environment poisoning") before writing it this
+    way, per AGENTS.md's instruction to check the bundled docs rather than assume App Router
+    behaviour from training data.
+  - **Duration presets (my call, not yet reviewed by Andreas):** 1/2/5/10/15/30 min is a minimal
+    working set, not the polished picker. Phase 1's dedicated "Duration presets (1, 2, 5, 10 min)
+    plus a custom value" item will revisit/replace this.
+  - **Verified:** `npm run lint` and `npm run build` both clean (TypeScript included in `next build`
+    — no type errors). Production build still shows `/` as static (`○`) and `/api/rooms` as dynamic
+    (`ƒ`), unchanged from item 3. Ran the dev server and drove it with real HTTP requests in both
+    modes: **mock mode** — `GET /` shows "Mock mode", "Create Quick Word", and the preset labels;
+    `POST /api/rooms {"durationSeconds":300}` returns a fabricated `mock.daily.co` room; an
+    out-of-range duration still correctly 400s. **Live mode** — `GET /` shows "Live mode
+    (domain: quickword.daily.co)"; `POST /api/rooms {"durationSeconds":120}` created a real Daily
+    room, which I independently re-fetched from Daily's own API and confirmed `config.exp` set,
+    `eject_at_room_exp: true`, `eject_after_elapsed: 120` — then deleted the test room. This
+    re-confirms item 3's route still works correctly after today's `duration.ts` refactor.
+  - **Not verified — honest limitation:** I could not click-test the actual button-press → fetch →
+    render-link flow in a real browser. I installed Playwright and downloaded a Chromium binary, but
+    launching it segfaults immediately (`Host system is missing dependencies... sudo npx playwright
+    install-deps` — no `sudo` available in this environment; confirmed the same for Firefox too, same
+    root cause). What I verified instead: the API endpoint the component calls returns exactly the
+    response shape (`url`, `name`, `exp`, `durationSeconds`, `mockMode`) the component's TypeScript
+    types expect (and `next build`'s TypeScript pass would have caught a mismatch); the SSR'd initial
+    HTML contains all the interactive elements (preset buttons, the Create button); and a careful
+    manual trace of the `fetch`/`useState` logic in `create-link-form.tsx`. This is materially weaker
+    than an actual click-through test — if Andreas gets a chance to open the page and click through
+    once, that would be good confirmation this run's confidence is warranted.
 - **Deployed:** no.
 - **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
   and the later Vercel deploy approval).
 
 ## Next actions (for the next run)
 The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 4: the create-link page (choose a duration, click "Create Quick
-Word", get a shareable link) — the first real consumer of `POST /api/rooms` from a browser, calling
-it with a `durationSeconds` chosen via UI rather than curl. The 60–3600s validation bounds on the
-route (see above) aren't a locked product decision — feel free to revisit them when building the
-duration picker.
-Before doing any `npm install` or `git` work, re-read the platform note above and build/verify in a
-scratch dir first, then sync source + `.git` back in — and re-verify any file this note flags with
-`Read` before trusting a bash view of it.
+Currently that is Phase 0, item 5: the call page `/[room]` — join the Daily room (prebuilt Daily UI
+is fine for MVP) and show a countdown synced to the room's `exp`. This is also the first thing that
+makes tonight's shareable links actually resolve instead of 404ing (see the "Link shape" note above).
+Before doing any `npm install` or `git` work, re-read the platform note above (**and its 2026-07-16
+addendum**) and build/verify in a scratch dir first, then sync source + `.git` back in — and
+re-verify any file this note flags with `Read` before trusting a bash view of it.
 
 ---
 
@@ -165,3 +235,25 @@ scratch dir first, then sync source + `.git` back in — and re-verify any file 
   keeping server start + all curl tests inside one bash call; noted for future runs. Built/tested in
   the scratch dir per the platform note, then synced back and committed. Next: Phase 0 item 4
   (create-link page — the first browser-side caller of this route).
+- 2026-07-16 (nightly): Found last night's item-3 work (`src/lib/daily-rooms.ts`,
+  `src/app/api/rooms/route.ts`, plus the ROADMAP.md/STATUS.md edits) present on disk (correct per the
+  `Read` tool) but **never actually committed** — `git log` still stopped at item 2. The prior run's
+  "committed in the scratch dir and synced back" claim didn't happen or didn't land; the `.git`
+  copy-back step is exactly the kind of write this mount can silently drop. Committed it properly
+  first (commit `0d7fee1`) before starting anything new, so tonight's diff wouldn't be tangled up with
+  last night's. Then built Phase 0 item 4 — the create-link page (see "Current state" above for full
+  detail): `src/app/page.tsx` rewritten from the `create-next-app` placeholder into the real product
+  page, new `src/components/create-link-form.tsx` (duration picker + create button + copyable link),
+  new `src/lib/duration.ts` (client-safe shared constants), `src/lib/daily-rooms.ts` updated to
+  source its bounds from there, and a minimal `layout.tsx` title/description fix (full branding stays
+  Phase 1's job). Hit the FUSE mount's stale/corrupted-bash-read bug harder than previous nights — see
+  the platform note's 2026-07-16 addendum above for what changed and the new rule (never trust a bash
+  read of this mount for git content, always heredoc known-good content directly into the scratch
+  dir). Verified: clean `npm run lint` and `npm run build` (TypeScript included); curl-driven
+  end-to-end test of the full create-room flow in both mock mode and live mode (the live-mode room
+  was independently re-verified against Daily's own API and deleted after). Attempted real
+  browser click-through testing with Playwright; blocked by a sandbox limitation (no `sudo` to install
+  Chromium's/Firefox's system dependencies) — documented as an honest gap above rather than claimed as
+  verified. Committed to git tonight (last night's overdue item-3 commit first, then item 4).
+  Next: Phase 0 item 5 (call page `/[room]` — join the Daily room and show a synced countdown; also
+  what makes tonight's links resolve instead of 404ing).
