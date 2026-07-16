@@ -7,7 +7,8 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** M0 (scaffold) — done. Phase 0, item 1 of ROADMAP.md complete.
+- **Phase:** M1 (Daily integration) — `POST /api/rooms` built and verified live. Phase 0, items 1–3
+  of ROADMAP.md complete.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
   (App Router, TypeScript, Tailwind, ESLint, `src/` dir) and serves the default placeholder page
@@ -66,17 +67,48 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   empty, the app runs in **mock mode** (`mockMode: true`) instead of throwing — a warning is logged
   once to the server console, and nothing crashes. With both present (the current `.env.local`),
   it runs in **live mode**. The home page shows a small status line reflecting whichever mode is
-  active, so the mode is visible without reading logs. No API route calls Daily yet (that's Phase 0
-  item 3) — this item only establishes the config + fallback plumbing those routes will use.
+  active, so the mode is visible without reading logs.
+- **`POST /api/rooms` (Phase 0 item 3, done 2026-07-15):** `src/lib/daily-rooms.ts` exports
+  `createHardExpiryRoom(durationSeconds)`; `src/app/api/rooms/route.ts` is the route handler
+  (`export const dynamic = "force-dynamic"` so it's never statically cached — confirmed in the
+  build output as `ƒ /api/rooms`, dynamic). Property names validated against the live Daily REST
+  API docs (`docs.daily.co/reference/rest-api/rooms/create-room` and `.../rooms/config`, fetched
+  2026-07-15): request body is `{ privacy, properties: { exp, eject_at_room_exp,
+  eject_after_elapsed, ... } }`, auth is `Authorization: Bearer <key>`, endpoint is
+  `POST https://api.daily.co/v1/rooms`. These exactly match what BUILD_PLAN.md already said — no
+  correction needed there. Room names are left to Daily to auto-generate (unique/unguessable, no
+  `name` sent) rather than derived from anything guessable.
+  - **Validation bounds (my call, not yet reviewed by Andreas):** `durationSeconds` must be an
+    integer in `[60, 3600]` (1–60 min). Phase 1's duration-presets item will likely replace/tighten
+    this; flagging so it isn't mistaken for a deliberate product decision.
+  - **Verified live (not just against docs):** with the real key in `.env.local`, called the route
+    with `durationSeconds: 120`, got back a real `https://quickword.daily.co/<name>` URL, then
+    independently called Daily's own `GET /rooms/:name` with the API key and confirmed the room's
+    `config` showed `exp` (matching what was requested), `eject_at_room_exp: true`, and
+    `eject_after_elapsed: 120`. Deleted the test room afterward via `DELETE /rooms/:name` (Daily
+    confirmed `{"deleted":true}`) so no test debris is left in the Daily account.
+  - **Verified mock mode:** with `.env.local` temporarily renamed aside, the same route returned a
+    fabricated `https://mock.daily.co/mock-<random>` result with no network call and no crash;
+    invalid input (`durationSeconds` missing, non-numeric, too short, too long, or malformed JSON
+    body) returns `400` with a clear error message in both modes.
+  - `npm run lint` and `npm run build` both clean; `/api/rooms` shows as dynamic (`ƒ`) in the build
+    route table, `/` still prerenders static (`○`) as before.
+  - **Platform note:** this run's bash tool runs each call in its own isolated process — a `next dev`
+    server started with `&` in one call is gone by the next call (confirmed: a follow-up `curl` got
+    connection-refused, and `ps aux` showed no next process). Worked around by starting the server
+    and running every curl test against it inside a single bash call. Noting this for future runs
+    doing any dev-server testing.
 - **Deployed:** no.
 - **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
   and the later Vercel deploy approval).
 
 ## Next actions (for the next run)
 The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 3: `POST /api/rooms` creating a real Daily room with `exp`,
-`eject_at_room_exp: true`, and `eject_after_elapsed`. Validate the exact Daily API property names
-against the live API (the key in `.env.local` is real) and correct BUILD_PLAN.md if anything differs.
+Currently that is Phase 0, item 4: the create-link page (choose a duration, click "Create Quick
+Word", get a shareable link) — the first real consumer of `POST /api/rooms` from a browser, calling
+it with a `durationSeconds` chosen via UI rather than curl. The 60–3600s validation bounds on the
+route (see above) aren't a locked product decision — feel free to revisit them when building the
+duration picker.
 Before doing any `npm install` or `git` work, re-read the platform note above and build/verify in a
 scratch dir first, then sync source + `.git` back in — and re-verify any file this note flags with
 `Read` before trusting a bash view of it.
@@ -120,3 +152,16 @@ scratch dir first, then sync source + `.git` back in — and re-verify any file 
   one-time "Daily: mock mode" warning, home page shows "Mock mode — no Daily API key configured"),
   both booting with `GET /` → HTTP 200 and no errors. `npm run lint` and `npm run build` both clean.
   Committed in the scratch dir and synced back. Next: Phase 0 item 3 (real `POST /api/rooms`).
+- 2026-07-15 (nightly): Built Phase 0 item 3 — real `POST /api/rooms` (`src/lib/daily-rooms.ts` +
+  `src/app/api/rooms/route.ts`). Validated `exp` / `eject_at_room_exp` / `eject_after_elapsed`
+  against the live Daily REST API docs first (no BUILD_PLAN.md correction needed — it was already
+  right), then proved it end to end against Daily's real API: created a live room via the route,
+  independently fetched it back with Daily's own `GET /rooms/:name`, confirmed the config matched
+  exactly what was requested, and deleted the test room afterward. Also verified mock mode (fabricated
+  room, no network call, no crash) and input validation (bad/missing/out-of-range `durationSeconds`,
+  malformed JSON all return clean `400`s). `npm run lint` and `npm run build` both clean; `/api/rooms`
+  correctly shows as dynamic in the build output. Learned this run's bash tool kills background
+  processes between calls (a `next dev &` from one call is gone by the next) — worked around by
+  keeping server start + all curl tests inside one bash call; noted for future runs. Built/tested in
+  the scratch dir per the platform note, then synced back and committed. Next: Phase 0 item 4
+  (create-link page — the first browser-side caller of this route).

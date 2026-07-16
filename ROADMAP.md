@@ -38,10 +38,17 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       logged, home page shows a live-mode banner) and with it temporarily renamed aside (HTTP 200,
       "Daily: mock mode" warning logged, home page shows a mock-mode banner). `npm run lint` and
       `npm run build` both clean.)*
-- [ ] API route `POST /api/rooms` that creates a Daily room with `exp = now + duration`,
+- [x] API route `POST /api/rooms` that creates a Daily room with `exp = now + duration`,
       `eject_at_room_exp: true`, and `eject_after_elapsed = duration`. Validate the exact property
       names against the live Daily API and correct BUILD_PLAN.md if any differ; log the check.
       *Done when:* calling the route returns a real room URL whose config shows the expiry set.
+      *(2026-07-15: done — `src/lib/daily-rooms.ts` + `src/app/api/rooms/route.ts`. Property names
+      (`exp`, `eject_at_room_exp`, `eject_after_elapsed`) validated against the live Daily REST API
+      docs and confirmed by calling the route with a real key: created a live room, then fetched it
+      back from `GET /rooms/:name` on Daily's own API and saw `exp`/`eject_at_room_exp`/
+      `eject_after_elapsed` all set exactly as requested. Room deleted after the check. No correction
+      to BUILD_PLAN.md needed — it already had the right property names. See STATUS.md for full
+      detail including mock-mode behaviour and validation bounds.)*
 - [ ] Create-link page: choose a duration, click "Create Quick Word", get a shareable link.
       *Done when:* the link is generated and copyable.
 - [ ] Call page `/[room]`: join the Daily room (prebuilt UI is fine for MVP) and show a countdown
