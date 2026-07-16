@@ -18,13 +18,17 @@
 // so there is no client-side "extend" bypass.
 
 import { getDailyConfig } from "./daily-config";
+import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "./duration";
 
 const DAILY_API_BASE = "https://api.daily.co/v1";
 
-/** 1 minute to 60 minutes. Phase 1 will turn this into real UI presets; this is
- *  just a sane bound so the API route can't be used to mint day-long rooms. */
-export const MIN_DURATION_SECONDS = 60;
-export const MAX_DURATION_SECONDS = 60 * 60;
+// Re-exported so existing callers (e.g. src/app/api/rooms/route.ts) can keep
+// importing the bounds from here. The values themselves now live in
+// ./duration.ts, which has no server-only dependencies (no fetch, no env
+// access), so the duration picker UI (a Client Component) can import the same
+// constants without pulling this file's Daily API/fetch logic into the
+// client bundle. See src/lib/duration.ts for the rationale.
+export { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS };
 
 export type CreateRoomResult = {
   /** The full joinable room URL, e.g. https://quickword.daily.co/abc123 */
