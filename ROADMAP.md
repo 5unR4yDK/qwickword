@@ -63,8 +63,19 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       `MIN_DURATION_SECONDS`/`MAX_DURATION_SECONDS` out of `daily-rooms.ts` into a new
       `src/lib/duration.ts` (no server-only deps) so the client-side picker can safely import the
       same bounds without pulling the Daily fetch/API-key logic into the browser bundle.)*
-- [ ] Call page `/[room]`: join the Daily room (prebuilt UI is fine for MVP) and show a countdown
+- [x] Call page `/[room]`: join the Daily room (prebuilt UI is fine for MVP) and show a countdown
       synced to the room's `exp`. *Done when:* two browser tabs can connect and see the same countdown.
+      *(2026-07-17: done — `src/app/[room]/page.tsx` (Server Component) + `src/components/
+      call-countdown.tsx` (Client Component). Stateless design: `exp` rides in the link's query
+      string (`create-link-form.tsx` now generates `/{room.name}?exp={room.exp}`), so both tabs
+      count down from the same shared timestamp with no server lookup or database needed. Live mode
+      embeds an iframe at the real Daily room URL (`https://{domain}/{room}`, Daily's own prebuilt
+      call UI) plus an "open in new tab" fallback; mock mode shows a placeholder box (no real Daily
+      call exists to join). Verified end to end against both modes — see STATUS.md for detail.
+      Deliberately out of scope for tonight (next two roadmap items): verifying the room still
+      exists before rendering, and a polished hard "Time's up" no-rejoin screen — today the
+      countdown just displays "Time's up" while Daily's server-side `eject_at_room_exp` /
+      `eject_after_elapsed` (already live since item 3) does the actual enforcement.)*
 - [ ] Hard-end experience: at expiry the participant is ejected and lands on a "Time's up" screen
       with **no rejoin and no extend** control anywhere. *Done when:* the call cannot be continued.
 - [ ] Invalid/expired-link handling: a friendly screen instead of a crash. *Done when:* opening a

@@ -7,7 +7,7 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** M1 (Daily integration) — create-link page built and verified. Phase 0, items 1–4
+- **Phase:** M2 (Timer + call UX) under way — call page built and verified. Phase 0, items 1–5
   of ROADMAP.md complete.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
@@ -170,18 +170,67 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     manual trace of the `fetch`/`useState` logic in `create-link-form.tsx`. This is materially weaker
     than an actual click-through test — if Andreas gets a chance to open the page and click through
     once, that would be good confirmation this run's confidence is warranted.
+- **Call page `/[room]` (Phase 0 item 5, done 2026-07-17):** `src/app/[room]/page.tsx` (Server
+  Component, async — this Next.js version has `params`/`searchParams` as Promises, confirmed
+  against `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.md`
+  and `.../page.md` before writing it, per AGENTS.md) plus a new Client Component,
+  `src/components/call-countdown.tsx`.
+  - **Stateless design (my call, consistent with Phase 1's not-yet-formalised "no database" item):**
+    rather than looking up the room from Daily or a datastore, the shareable link now carries the
+    room's `exp` (Unix seconds) as a query param — `create-link-form.tsx` generates
+    `/{room.name}?exp={room.exp}` instead of last night's bare `/{room.name}`. Both tabs opening the
+    same link get the same `exp`, so `CallCountdown` (each tab computes `exp*1000 - Date.now()`
+    independently, ticking every second) shows the same remaining time in both without any server
+    push channel. If `exp` is missing/malformed, the page shows a small inline note instead of
+    crashing (the polished "invalid/expired link" screen is next roadmap item, not this one).
+  - **Join UI:** in live mode, an `<iframe>` embeds the real Daily room URL
+    (`https://{domain}/{room}`, i.e. Daily's own prebuilt call UI — no new npm dependency added) with
+    `allow="camera; microphone; fullscreen; display-capture; autoplay"`, plus an "open in new tab"
+    link as a fallback. In mock mode (no Daily key), there's no real room to join, so the iframe is
+    replaced with a plain placeholder box naming the room. This page does not yet verify the room
+    still exists on Daily before rendering — that check belongs to the next roadmap item.
+  - **Hydration note:** `CallCountdown` renders a "--:--" placeholder until its first `useEffect`
+    tick, specifically so the server-rendered HTML (no access to the client's clock) matches the
+    first client render — avoids a React hydration-mismatch warning from using `Date.now()` during
+    render.
+  - **Verified:** `npm run lint` and `npm run build` both clean (TypeScript included); build output
+    shows `/[room]` as dynamic (`ƒ`), as expected since it reads `searchParams`. Ran the dev server
+    and curl-tested both modes end to end: **mock mode** — created a room via `POST /api/rooms`, then
+    `GET /{name}?exp={exp}` returned HTTP 200 with the "Mock call" placeholder and the correct room
+    name; `GET /{name}` (no `exp`) correctly showed the missing-timing-info fallback instead of
+    crashing. **Live mode** — created a real Daily room, then `GET /{name}?exp={exp}` returned HTTP
+    200 with an `<iframe src="https://quickword.daily.co/{name}">` matching the real room exactly,
+    plus the "open in new tab" link; deleted the test room afterward via Daily's own API (confirmed
+    `{"deleted":true}`), no debris left. **Not independently verified:** an actual two-tab
+    click-through in a real browser — blocked by the same Playwright/Chromium sandbox limitation
+    logged on 2026-07-16 (no `sudo` to install system deps). What's verified instead: the countdown
+    logic is a pure function of a shared `exp` plus each tab's own `Date.now()`, so two tabs given the
+    same link are guaranteed to compute the same remaining time by construction, not just by having
+    been observed to do so once.
 - **Deployed:** no.
 - **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
   and the later Vercel deploy approval).
 
 ## Next actions (for the next run)
 The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 5: the call page `/[room]` — join the Daily room (prebuilt Daily UI
-is fine for MVP) and show a countdown synced to the room's `exp`. This is also the first thing that
-makes tonight's shareable links actually resolve instead of 404ing (see the "Link shape" note above).
+Currently that is Phase 0, item 6: invalid/expired-link handling — a friendly screen instead of a
+crash when a link is dead or malformed. Tonight's `/[room]` page already has a minimal inline
+fallback for a missing `exp` param, but does not yet check whether the room actually still exists on
+Daily (live mode) or handle a malformed room name — that's this next item's job. Also worth
+considering while there: what should happen when a mock-mode link is opened after tonight's window
+(mock rooms aren't persisted anywhere, so "expired" has no real meaning for them yet — decide and
+document rather than leaving it implicit).
 Before doing any `npm install` or `git` work, re-read the platform note above (**and its 2026-07-16
 addendum**) and build/verify in a scratch dir first, then sync source + `.git` back in — and
-re-verify any file this note flags with `Read` before trusting a bash view of it.
+re-verify any file this note flags with `Read` before trusting a bash view of it. One more thing
+confirmed working tonight (2026-07-17): a **local `git clone` of the mount's own `.git` directory
+into the scratch dir** (`git clone /path/to/mount/QuickWord/.git scratch/quickword`) reconstructs a
+byte-correct working tree entirely from git's object store and native-disk writes — no bash `cat`/`cp`
+of the mount's working-tree files involved at all. This is a cleaner variant of the existing
+"heredoc known-good content into scratch" workaround and worth using as the default way to start a
+scratch build; verified by checking the cloned `page.tsx` was exactly 1318 bytes (matching the
+`Read`-tool-verified true content), vs. a corrupted 3445-byte NUL-padded read of the same file
+directly off the mount in the same run (see run history below for the full detail).
 
 ---
 
@@ -257,3 +306,25 @@ re-verify any file this note flags with `Read` before trusting a bash view of it
   verified. Committed to git tonight (last night's overdue item-3 commit first, then item 4).
   Next: Phase 0 item 5 (call page `/[room]` — join the Daily room and show a synced countdown; also
   what makes tonight's links resolve instead of 404ing).
+- 2026-07-17 (nightly): Before starting, found `git status` against this folder showing `ROADMAP.md`,
+  `STATUS.md`, `layout.tsx`, `page.tsx`, and `daily-rooms.ts` all "modified" against HEAD — investigated
+  before trusting it, per the standing platform-note rule. Confirmed it was the known bash-read
+  corruption, not a real diff: `git show HEAD:src/app/page.tsx` (reads git's object store) was exactly
+  1318 bytes and byte-identical to the correct content; a plain `cat`/`wc` of the same file directly on
+  the mount showed 3445 bytes, NUL-padded after the correct content ends. So HEAD was fine; only bash's
+  live view of the mount's working tree was corrupted. No fix needed for that — moved on to tonight's
+  build. Built Phase 0 item 5 — the call page (see "Current state" above for full detail):
+  `src/app/[room]/page.tsx` (Server Component) + `src/components/call-countdown.tsx` (Client Component),
+  and updated `create-link-form.tsx` so generated links carry `?exp=` for a stateless, shared countdown
+  anchor. Checked the bundled Next.js docs for the `params`/`searchParams`-as-Promise convention before
+  writing the route, per AGENTS.md. Verified: clean `npm run lint` and `npm run build`; curl-driven
+  end-to-end test of the create → join flow in both mock mode (placeholder box, correct room name, and
+  a working missing-`exp` fallback) and live mode (real Daily room, iframe pointing at the exact
+  `quickword.daily.co` URL, test room deleted after via Daily's own API, `{"deleted":true}` confirmed).
+  Two-tab synced-countdown behaviour verified by construction (both tabs derive remaining time from the
+  same shared `exp` and their own clock) rather than by an actual two-tab browser test, since Playwright
+  is still blocked in this sandbox (same root cause as 2026-07-16). Built/tested this run's changes in a
+  scratch dir cloned directly from the mount's `.git` (see "Next actions" above for why this is a
+  cleaner variant of the existing workaround), then wrote the final files to the mount via the
+  `Write`/`Edit` tools (the reliable side of this mount) and committed from the scratch clone before
+  copying `.git` back. Next: Phase 0 item 6 (invalid/expired-link handling).
