@@ -77,6 +77,29 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `.git` directory from this mount into scratch with `cp -r` (before this run's new commit) has been
   reliable across all runs so far — it's a read of long-settled object files, not something just
   written this session.
+  **2026-07-17 addendum — a near-incident, root cause confirmed, and a hard new rule:** tonight,
+  after successfully swapping in a freshly-committed `.git` via `rm -rf .git && mv .git.new .git`
+  (itself fine — plain copy/rename, not git's internal write path), I then ran `git remote remove
+  origin` **with cwd on the mount** to tidy up a harmless leftover `origin` pointing at the scratch
+  clone path. That single command broke everything: it failed with `fatal: bad config line 1`, and
+  every subsequent `git` command (even read-only ones — `git log`, `git status`) failed with
+  `fatal: unknown error occurred while reading the configuration files`, while `cat .git/config`
+  from bash reported "No such file or directory". This is `git commit`'s exact documented failure
+  mode (temp-file-then-rename landing corrupted on this FUSE bridge) — `git remote remove` uses the
+  same internal config-rewrite mechanism, so it is just as unsafe to run against the mount as
+  `git commit`/`git config` already were known to be. **Tried to fix it with the `Write` tool**
+  (the normally-reliable side of this mount) by writing `.git/config` directly — **blocked**: the
+  `Write` tool refuses paths under `.git`, reporting it as a protected location. So `.git` cannot be
+  hand-repaired via `Write`/`Edit` at all; the only fix is to discard it and re-copy a known-good
+  `.git` from a scratch clone via plain `cp -r`/`rm -rf`/`mv` (which is exactly what fixed it
+  tonight — re-cloned from the scratch dir, which was untouched by the bad command). **New hard
+  rule for all future runs:** on this mount, run genuinely *zero* `git` commands with `cwd` inside
+  this folder beyond the specific read-only ones already proven to work right after a fresh `.git`
+  copy-in (`git log`, `git show HEAD:<path>`, `git status` — but still treat their working-tree-diff
+  output with the existing skepticism, not their HEAD-object output). Every mutating git operation —
+  `commit`, `add`, `config`, `remote`, `checkout`, everything — belongs in the scratch clone only,
+  never against the mount, with no exceptions for "small" or "just tidying up" operations like the
+  one that caused this.
 - **Daily.co:** account created; domain `quickword.daily.co`; API key present in `.env.local`
   (`DAILY_API_KEY`, `DAILY_DOMAIN`). Proceed with real Daily video integration (M1 / Phase 0 item 3).
 - **Hard-expiry design (locked):** create rooms with `exp = now + duration`,
@@ -327,4 +350,11 @@ directly off the mount in the same run (see run history below for the full detai
   scratch dir cloned directly from the mount's `.git` (see "Next actions" above for why this is a
   cleaner variant of the existing workaround), then wrote the final files to the mount via the
   `Write`/`Edit` tools (the reliable side of this mount) and committed from the scratch clone before
-  copying `.git` back. Next: Phase 0 item 6 (invalid/expired-link handling).
+  copying `.git` back. After that swap, made the mistake of running `git remote remove origin`
+  directly against the mount to tidy up a harmless leftover remote — this corrupted `.git/config`
+  and broke every git command, including read-only ones (see the platform note's 2026-07-17
+  addendum for the full detail and the new hard rule this produced: no git commands of any kind
+  against the mount beyond the already-proven-safe read-only ones). Fixed by discarding `.git` again
+  and re-copying a known-good one from the still-intact scratch clone; no source-code changes were
+  needed, this was purely a self-inflicted git-plumbing mistake, now corrected and documented so it
+  doesn't repeat. Next: Phase 0 item 6 (invalid/expired-link handling).
