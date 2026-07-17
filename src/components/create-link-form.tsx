@@ -77,7 +77,10 @@ export default function CreateLinkForm() {
     }
 
     const room = data as CreateRoomResponse;
-    const link = `${window.location.origin}/${room.name}`;
+    // `exp` (the room's Unix expiry timestamp) rides along in the query
+    // string so the call page (`/[room]`) can show a countdown without any
+    // server-side lookup or database — see src/app/[room]/page.tsx.
+    const link = `${window.location.origin}/${room.name}?exp=${room.exp}`;
     setState({
       status: "success",
       link,
