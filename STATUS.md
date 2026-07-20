@@ -7,9 +7,9 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** M2 (Timer + call UX) complete — call page built and verified, including invalid/expired
-  link handling. Phase 0, items 1–7 of ROADMAP.md complete. Items 8–9 (README, Vercel deploy) remain;
-  item 9 is `[needs-andreas][gate]`.
+- **Phase:** Phase 0 (MVP) is now complete except for deployment. Items 1–8 of ROADMAP.md are done
+  and verified, including tonight's README (item 8). Item 9 (Vercel deploy) is
+  `[needs-andreas][gate]` — see ASKS.md for the exact approval steps needed to unblock it.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
   (App Router, TypeScript, Tailwind, ESLint, `src/` dir) and serves the default placeholder page
@@ -390,24 +390,49 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     (curl) against a live dev server in both modes, including a real Daily API round-trip for the
     existence check, not just code-traced.
 - **Deployed:** no.
-- **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
-  and the later Vercel deploy approval).
+- **Blockers waiting on Andreas:** the Vercel deploy approval (Phase 0's last item, `[needs-andreas]
+  [gate]`) is now the only thing blocking further Phase 0 progress — see ASKS.md for the three
+  specific things needed (new dedicated project confirmation, env vars, domain preference). The
+  low-urgency Daily API key rotation note is still open too, not blocking.
+- **README (Phase 0 item 8, done 2026-07-20):** `README.md` rewritten from the `create-next-app`
+  placeholder into real project docs — what Quick Word is, the stack (Next.js + Daily.co), `npm
+  install`/`npm run dev`, the two `.env.local` vars (`DAILY_API_KEY`, `DAILY_DOMAIN`) and the
+  mock-mode fallback behaviour when they're absent, `npm run lint`/`build`/`start`, a short
+  project-layout map (`src/app`, `src/lib`, `src/components`), and a one-line deployment note
+  pointing at the still-gated Vercel item. Content is transcribed from BUILD_PLAN.md/STATUS.md, not
+  a new product decision, per the item's own scope.
+  - **Verified:** ran `npm install`, `npm run lint`, and `npm run build` clean in the scratch build
+    dir. Booted the dev server twice — once with no `.env.local` (mock mode: home page banner reads
+    "Mock mode — no Daily API key configured", matching the README) and once with the real
+    `.env.local` copied in *only for this local test* (never committed — it's gitignored throughout;
+    live mode: banner reads "Live mode (domain: quickword.daily.co)", also matching the README).
+    Both confirm the README's mock/live mode description is accurate, not just plausible.
 
 ## Next actions (for the next run)
-The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 8: a short README explaining how to run the app locally
-(`npm install`, `.env.local` / mock-mode behaviour, `npm run dev`, `npm run lint`, `npm run build`).
-This should be a quick one — mostly transcribing what's already true from BUILD_PLAN.md and this
-file, not new product decisions. After that, the only remaining Phase 0 item is item 9
-(`[needs-andreas][gate]`, the Vercel deploy) — when item 8 is done, Phase 0 is otherwise complete and
-the next run should append a clear ASKS.md entry for the deploy approval rather than crossing the
-gate, then move on to Phase 1's first item if it wants to keep building (check with the standing
-"don't stall" instruction in AGENTS.md/CLAUDE.md's scheduled-task rules for whether that's expected).
+Phase 0 is now complete except item 9 (`[needs-andreas][gate]`, the Vercel deploy) — see ASKS.md for
+the three specific approval steps Andreas needs to confirm. Per the scheduled task's standing "don't
+stall" instruction, tonight's run built item 8 (the one non-gated item available) and stopped there
+rather than also starting Phase 1, on the reading that "one item per night" (ROADMAP.md's own stated
+rule, and the scheduled-task file's "keep scope tight") takes priority when at least one item *did*
+get built this run — "don't stall" is about not doing nothing, not about doing two items. If Andreas
+disagrees and would rather future runs proceed straight into Phase 1 whenever Phase 0's only
+remaining item is gated, say so and this should change. Once Andreas responds to the ASKS.md entry,
+the next run should build Phase 0 item 9 (create the new Vercel project, set the two env vars,
+deploy, smoke-test the live URL) before moving to Phase 1's first item (pre-join screen).
 **Before doing any git work, run `git log --oneline` against the mount and compare it to what this
-file and ROADMAP.md claim is done** — tonight's run started by discovering last night's item 6 had
-never actually been committed despite the previous entry's claim (see "Current state" above for the
-full story and the fix). That claim-vs-`git log` check should be the first thing every future run does,
-not just a reaction to visibly-wrong `git status` output.
+file and ROADMAP.md claim is done** — tonight's run repeated this check and again found a gap: items
+6 and 7 (both claimed committed by their respective run-history entries below) were still missing
+from `git log` on the mount, exactly the same silent-drop failure already seen on item 3
+(2026-07-16) and on item 6 itself the first time (2026-07-19's entry describes recovering it as
+`f78e689` — that commit *also* never made it back to the mount). Recovered again tonight (see run
+history below) as a single commit, `8007f12`. **This has now happened three separate times**
+(items 3, 6, and — despite an explicit same-night recovery attempt — 6+7 together), always at the
+"copy the finished `.git` back onto the mount" step, which every prior run believed had worked.
+**Given the pattern, do not trust this step to have worked just because it completed without an
+error** — the check worth Andreas doing some morning (from a normal Windows shell, not this
+sandbox) is `git log --oneline` inside `C:\Users\acnic\ClaudeCoding\QuickWord`, compared against
+this file's run history. If it's ever more than one commit behind what STATUS.md claims, that's this
+same bug recurring, not a one-off.
 Before doing any `npm install` or `git` work, re-read the platform note above (**and its 2026-07-16
 addendum**) and build/verify in a scratch dir first, then sync source + `.git` back in — and
 re-verify any file this note flags with `Read` before trusting a bash view of it. One more thing
@@ -588,3 +613,32 @@ throwaway scratch dir, not touching the mount).
   prior commit) — noted in "Next actions" for future runs. Built/tested in the scratch clone, wrote
   final files to the mount via `Write`/`Edit`, committed from the scratch clone, copied `.git` back —
   no mutating git commands run against the mount itself. Next: Phase 0 item 8 (a short README).
+- 2026-07-20 (nightly): Before starting, ran the standing `git log` vs. STATUS.md/ROADMAP.md check
+  and found items 6 and 7 both missing from the mount's git history again — `git log` stopped at
+  2026-07-17's doc-only commit, despite last night's entry claiming a recovery commit (`f78e689`) for
+  item 6 and a further commit for item 7. The files themselves were present and correct on disk (per
+  `Read`), so nothing was lost, but the "copy `.git` back to the mount" step has now silently dropped
+  a commit three separate times (item 3 on 2026-07-16, item 6 on 2026-07-19, and item 6 again plus
+  item 7 tonight). Recovered by cloning `.git` into a scratch dir on `/tmp` (not `/sessions`, which
+  turned out to be at 100% disk usage tonight — see below), copying in the mount's working-tree files
+  for the 9 affected paths, verifying each one byte-for-byte (`wc -c` matched the sizes already
+  confirmed via `Read`, zero NUL bytes in any of them — the mount's read-corruption bug did not
+  reproduce tonight), re-running `npm install`/`lint`/`build` plus a mock-mode curl smoke test (valid
+  link, expired link, malformed name — all matched documented behaviour) to confirm the recovered code
+  actually still works, then committing as `8007f12`. Then built Phase 0 item 8 — the README (see
+  "Current state" above for full detail): rewrote `README.md` from the `create-next-app` placeholder,
+  verified its `npm install`/`lint`/`build`/mock-vs-live-mode claims by actually running them (live
+  mode tested by copying the real `.env.local` into the scratch dir only, never committed). Committed
+  as its own commit, then this documentation update (ROADMAP.md item 8 checked off and item 9
+  annotated, STATUS.md, ASKS.md's Vercel-deploy entry rewritten with three specific, concrete asks) as
+  a third commit. **New platform issue found and worked around tonight:** `/sessions` (where the
+  scratch dir has lived every prior night, per the platform note above) was at 100% disk usage,
+  and `npm install` failed with `ENOSPC` until the scratch build was moved to `/tmp` instead (which
+  had headroom) and a stale 141 MB `~/.npm` cache under `/sessions` was cleared. Noting this in case
+  `/tmp` isn't persistent/large enough on some future night — if so, clearing `/sessions` scratch
+  debris from prior nights is the first thing to check before assuming the disk itself is out of room.
+  Phase 0 is now complete except item 9, which is gated on Andreas — appended a specific three-part
+  ask to ASKS.md (new dedicated Vercel project, the two env vars, a domain preference) rather than
+  crossing the gate. Made a scope call, documented in "Next actions" above and open to being
+  overridden: read "one item per night" as taking priority over "don't stall" once at least one item
+  (item 8) had actually been built this run, so did not also start Phase 1 tonight.

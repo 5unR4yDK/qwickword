@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quick Word
 
-## Getting Started
+A meeting tool where you set the maximum call length in advance and it **cannot be extended**.
+When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
+clock. If you need more time, you schedule another Quick Word.
 
-First, run the development server:
+See `BUILD_PLAN.md` for the full design, `ROADMAP.md` for what's built vs. planned, and
+`STATUS.md` for a detailed log of what's been verified so far.
+
+## Stack
+
+Next.js (App Router, TypeScript, Tailwind) for the app; [Daily.co](https://daily.co) for video,
+using its server-enforced room expiry (`exp`, `eject_at_room_exp`, `eject_after_elapsed`) so the
+hard end can't be bypassed client-side.
+
+## Running it locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Live mode vs. mock mode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Real Daily video requires two environment variables in `.env.local` (not committed — see
+`.gitignore`):
 
-## Learn More
+```
+DAILY_API_KEY=your-daily-api-key
+DAILY_DOMAIN=your-subdomain.daily.co
+```
 
-To learn more about Next.js, take a look at the following resources:
+If `.env.local` is missing or either variable is unset, the app runs in **mock mode**
+automatically: room creation and the call UI are simulated, no real Daily API calls are made, and
+nothing crashes. The home page always shows which mode is active. This means the app is fully
+runnable and testable without any credentials.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Other scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run lint    # ESLint
+npm run build   # production build (also runs the TypeScript check)
+npm run start   # serve the production build (run npm run build first)
+```
 
-## Deploy on Vercel
+## Project layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/app/page.tsx` — create-link page (choose a duration, get a shareable link).
+- `src/app/[room]/page.tsx` — the call page: joins the room, shows a synced countdown, and
+  handles invalid/expired links.
+- `src/app/api/rooms/route.ts` — creates a Daily room with a hard `exp`.
+- `src/lib/` — Daily API client, env/mock-mode config, and shared duration/time helpers.
+- `src/components/` — the call UI (countdown, call media, hard-end and invalid-link screens).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Not yet deployed. When it is, it will go to a new, dedicated Vercel project — never an existing
+one (see `BUILD_PLAN.md`'s guardrails).

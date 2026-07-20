@@ -99,9 +99,22 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       "Create a new one" button tonight. See STATUS.md for full detail, including mock-mode's documented
       "nothing to check existence against" decision and tonight's discovery that item 6's work had never
       actually been committed.)*
-- [ ] Write a short README explaining how to run it locally.
+- [x] Write a short README explaining how to run it locally.
+      *Done when:* `npm install`, `.env.local`/mock-mode behaviour, `npm run dev`, `npm run lint`,
+      and `npm run build` are all documented accurately.
+      *(2026-07-20: done — `README.md` rewritten from the `create-next-app` placeholder: what Quick
+      Word is, the stack, `npm install`/`npm run dev`, the two `.env.local` vars and mock-mode
+      fallback behaviour, `lint`/`build`/`start`, a short project-layout map, and a one-line
+      deployment note pointing at the still-open Vercel gate below. Verified by actually running
+      `npm run lint` and `npm run build` clean, and booting the dev server in both mock mode (no
+      `.env.local`) and live mode (real `.env.local` copied into a scratch dir only, never
+      committed) and confirming the home page's banner text matches what the README says. See
+      STATUS.md for full detail, including tonight's discovery and recovery of items 6+7's
+      never-committed work.)*
 - [ ] `[needs-andreas]` `[gate]` Deploy the MVP to a NEW, dedicated Vercel project (never an existing
       one). Queue this in ASKS.md with the exact steps Andreas needs to approve.
+      *(2026-07-20: Phase 0 is otherwise complete — this is the only remaining item, and it's gated.
+      See ASKS.md for the specific approval steps needed before this can be built.)*
 
 ## Phase 1 — Usable: make it not annoying
 Goal: something you'd actually send to a colleague without wincing.
