@@ -7,9 +7,50 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** Phase 0 (MVP) is now complete except for deployment. Items 1–8 of ROADMAP.md are done
-  and verified, including tonight's README (item 8). Item 9 (Vercel deploy) is
-  `[needs-andreas][gate]` — see ASKS.md for the exact approval steps needed to unblock it.
+- **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
+  done. **Live at https://quickword.vercel.app.**
+- **Deployed (Phase 0 item 9, done 2026-07-20):** Andreas approved deployment in chat ("ok to deploy
+  ok to make new vercel project") and, when told there's no Vercel MCP connector available, directed
+  the run to a folder (`C:\Users\acnic\ClaudeCoding`, requested fresh via
+  `request_cowork_directory` — not previously accessible in this session) holding his Vercel account
+  token, per `SEPARATION_CHARTER.md`'s note that GitHub/Vercel/Supabase are one account shared across
+  his BlackStart and PowerKyiv projects with company-prefixed project names. Read only the
+  `VERCEL_TOKEN` line out of `secrets.blackstart.local.txt` (the charter confirms the same
+  account-level token value is legitimately duplicated in both companies' secrets files — not a
+  mixing violation) rather than viewing the rest of either secrets file's contents.
+  - **Guardrail check before writing anything:** called `GET /v9/projects` with the token first and
+    confirmed the account's only existing projects were `blackstart-voting`, `pk-datarooms`, `pk-exo`,
+    `powerkyiv-investors` — no `quickword`/`quick-word` project already existed, and none of those
+    four were touched at any point below.
+  - **New project:** created via `POST /v10/projects` with `{"name":"quickword","framework":"nextjs"}`
+    — a brand-new, dedicated project (id `prj_JS71RabWYJSg6h4Jw4H0sBE1mXpL`), never linked to or
+    overlapping any existing one.
+  - **Env vars:** set `DAILY_API_KEY` and `DAILY_DOMAIN` as encrypted env vars (production, preview,
+    and development targets) via `POST /v10/projects/:id/env`, using the same values already in
+    `.env.local` — Andreas didn't ask for key rotation, so none was done (the low-urgency rotation
+    suggestion in ASKS.md is still open, unrelated to tonight's work).
+  - **Deploy:** installed the Vercel CLI into a scratch prefix (`npm install --prefix
+    /tmp/qwbuild/global vercel@latest` — global install failed with `EACCES` first, this sandbox user
+    can't write to the system `node_modules`), then from the same `/tmp` scratch build used for
+    tonight's earlier work: `vercel link --yes --project=quickword --scope=acnicolet-1663s-projects`
+    (linked cleanly, no prompts), then `vercel deploy --prod --yes`. Build succeeded (`npm run build`
+    inside Vercel's build environment, same clean output as every local run tonight, correctly logged
+    "Daily: live mode (domain: quickword.daily.co)" — confirming the env vars were picked up), and
+    Vercel aliased the production deployment to **https://quickword.vercel.app**.
+  - **Verified against the live public URL** (not just the deploy log): `GET /` → HTTP 200, banner
+    reads "Live mode (domain: quickword.daily.co)"; `POST /api/rooms {"durationSeconds":60}` → a real
+    Daily room (`mockMode:false`); `GET /{room}?exp={exp}` on that real room → response contains the
+    real `https://quickword.daily.co/{room}` iframe target. No Vercel deployment-protection/SSO wall
+    blocking public access (checked, since the project's default `ssoProtection` setting could have
+    implied one). Test room deleted afterward via Daily's own API (`{"deleted":true}` confirmed) — no
+    debris left on Daily or on Vercel (only the one real, intended production deployment exists).
+  - **Not yet done, not asked for tonight:** a custom domain (Andreas didn't request one; the
+    `*.vercel.app` subdomain is live and working) and Daily API key rotation (separate, low-urgency,
+    still open in ASKS.md).
+  - **Access note:** this was a live, interactive exchange with Andreas mid-scheduled-task-run, not
+    an autonomous decision — he explicitly approved the new project and pointed at the token source
+    himself before any of the above was built. Also: he asked mid-task not to be prompted for file
+    deletion permission in future when a plain `rm` fails; noted for future runs.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
   (App Router, TypeScript, Tailwind, ESLint, `src/` dir) and serves the default placeholder page
@@ -642,3 +683,19 @@ throwaway scratch dir, not touching the mount).
   crossing the gate. Made a scope call, documented in "Next actions" above and open to being
   overridden: read "one item per night" as taking priority over "don't stall" once at least one item
   (item 8) had actually been built this run, so did not also start Phase 1 tonight.
+- 2026-07-20 (later same day, interactive): Andreas came into the session live and approved the
+  Vercel deploy ("ok to deploy ok to make new vercel project"). No Vercel MCP connector exists, so
+  asked how he wanted to authenticate; he said to request access to the folder holding his Vercel
+  tokens. Requested and got `C:\Users\acnic\ClaudeCoding` (the parent of this folder). Found
+  `VERCEL_TOKEN` in `secrets.blackstart.local.txt` — read only that one line, not the rest of the
+  file — after checking `SEPARATION_CHARTER.md`, which confirmed Vercel is one account shared across
+  his BlackStart/PowerKyiv projects and that the same account-level token is expected to appear in
+  both companies' secrets files (not a mixing violation). Verified via the Vercel API which projects
+  already existed before creating anything, then built Phase 0 item 9 end to end (see "Current state"
+  above for full detail): new dedicated project `quickword`, `DAILY_API_KEY`/`DAILY_DOMAIN` env vars
+  set to the same `.env.local` values, deployed via the Vercel CLI, and verified against the live
+  public URL (home page, room creation, call page all correct; no SSO wall; test room cleaned up on
+  Daily afterward). **Live at https://quickword.vercel.app.** ROADMAP.md item 9 checked off, ASKS.md's
+  entry moved to Done. Phase 0 is now fully complete. Also: Andreas asked not to be prompted for file
+  deletion permission in future when `rm` fails on this mount — noted for future runs, don't ask, just
+  call `allow_cowork_file_delete` directly.

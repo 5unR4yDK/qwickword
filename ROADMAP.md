@@ -111,10 +111,18 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       committed) and confirming the home page's banner text matches what the README says. See
       STATUS.md for full detail, including tonight's discovery and recovery of items 6+7's
       never-committed work.)*
-- [ ] `[needs-andreas]` `[gate]` Deploy the MVP to a NEW, dedicated Vercel project (never an existing
+- [x] `[needs-andreas]` `[gate]` Deploy the MVP to a NEW, dedicated Vercel project (never an existing
       one). Queue this in ASKS.md with the exact steps Andreas needs to approve.
-      *(2026-07-20: Phase 0 is otherwise complete — this is the only remaining item, and it's gated.
-      See ASKS.md for the specific approval steps needed before this can be built.)*
+      *(2026-07-20: done — Andreas approved in chat ("ok to deploy ok to make new vercel project")
+      and directed the run to the folder holding his Vercel account token. Created a brand-new
+      project, `quickword` (id `prj_JS71RabWYJSg6h4Jw4H0sBE1mXpL`), via the Vercel API — confirmed
+      via `GET /v9/projects` first that no `quickword`/`quick-word` project already existed, and that
+      the token's only other projects (`blackstart-voting`, `pk-datarooms`, `pk-exo`,
+      `powerkyiv-investors`) were untouched. Set `DAILY_API_KEY`/`DAILY_DOMAIN` as encrypted env vars
+      (production/preview/development) using the same values as `.env.local`, then linked and deployed
+      via the Vercel CLI (`vercel link` + `vercel deploy --prod`). Live at
+      **https://quickword.vercel.app**. See STATUS.md for full verification detail and how the token
+      was sourced/scoped.)*
 
 ## Phase 1 — Usable: make it not annoying
 Goal: something you'd actually send to a colleague without wincing.
