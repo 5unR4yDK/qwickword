@@ -26,3 +26,7 @@ yarn-error.log*
 # TypeScript (Next.js regenerates this on dev/build; don't commit it)
 *.tsbuildinfo
 next-env.d.ts
+.env*
+
+# Vercel CLI project link (contains org/project IDs, not secrets, but local-only)
+.vercel
