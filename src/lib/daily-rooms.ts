@@ -129,3 +129,45 @@ export async function createHardExpiryRoom(
     mockMode: false,
   };
 }
+
+// Matches both this app's mock room names ("mock-xxxxxxxx") and Daily's own
+// auto-generated names (alphanumeric, sometimes with hyphens). Deliberately
+// permissive — this is a syntax sanity check to reject garbage that could
+// never be a real room name (empty, whitespace, slashes, control characters,
+// wildly long strings from a mistyped/mangled URL), not a strict format
+// validator against Daily's exact generator. See src/app/[room]/page.tsx
+// (Phase 0 item 7, "Invalid/expired-link handling") for where this is used.
+const ROOM_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
+
+export function isPlausibleRoomName(name: string): boolean {
+  return ROOM_NAME_PATTERN.test(name);
+}
+
+/**
+ * Checks whether a room with this name currently exists on Daily. Live mode
+ * only — mock mode has nothing to check against, since mock rooms are never
+ * persisted anywhere (see daily-config.ts); callers should skip calling this
+ * in mock mode rather than rely on the `mockMode: true` short-circuit below,
+ * which exists as a defensive fallback, not the primary guard.
+ *
+ * Fails "open" (returns true, i.e. assume it exists) on anything other than
+ * an unambiguous 404 from Daily. A transient network error or a 5xx from
+ * Daily is not evidence the room is invalid — treating it as invalid would
+ * incorrectly tell the owner of a perfectly real link that it's dead. A 404
+ * is the one clear "this room does not exist" signal Daily's API gives.
+ */
+export async function checkDailyRoomExists(name: string): Promise<boolean> {
+  const { apiKey, mockMode } = getDailyConfig();
+  if (mockMode) return true;
+
+  try {
+    const response = await fetch(
+      `${DAILY_API_BASE}/rooms/${encodeURIComponent(name)}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    if (response.status === 404) return false;
+    return true;
+  } catch {
+    return true;
+  }
+}

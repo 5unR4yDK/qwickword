@@ -76,10 +76,29 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
       exists before rendering, and a polished hard "Time's up" no-rejoin screen — today the
       countdown just displays "Time's up" while Daily's server-side `eject_at_room_exp` /
       `eject_after_elapsed` (already live since item 3) does the actual enforcement.)*
-- [ ] Hard-end experience: at expiry the participant is ejected and lands on a "Time's up" screen
+- [x] Hard-end experience: at expiry the participant is ejected and lands on a "Time's up" screen
       with **no rejoin and no extend** control anywhere. *Done when:* the call cannot be continued.
-- [ ] Invalid/expired-link handling: a friendly screen instead of a crash. *Done when:* opening a
+      *(2026-07-18: done — `src/components/call-room.tsx` (new Client Component) now owns the call
+      page's ticking clock and swaps the entire call area (Daily iframe or mock box, plus the "open in
+      new tab" link) for a plain "This Quick Word has ended." screen the moment `exp` passes — no
+      rejoin, no extend, no link back into the same room anywhere on the page. `CallCountdown` was
+      slimmed to a pure display component (no more clock of its own); the iframe/mock-box markup moved
+      into a new shared `src/components/call-media.tsx` so both the timed path and the existing
+      "missing exp" fallback in `page.tsx` render it identically. See STATUS.md for full detail,
+      including a design refinement made while verifying tonight (computing the initial remaining time
+      server-side, in `src/lib/time.ts`, rather than starting every load from an unknown placeholder)
+      and the `eslint-plugin-react-hooks` "purity" rule that motivated it.)*
+- [x] Invalid/expired-link handling: a friendly screen instead of a crash. *Done when:* opening a
       dead or malformed link shows a clear message and a "Create a new one" button.
+      *(2026-07-19: done — `src/app/[room]/page.tsx` now gates entry to the call with a syntax check
+      (plausible room name + numeric `exp`, `isPlausibleRoomName` in `src/lib/daily-rooms.ts`) and, in
+      live mode for a link that still claims to be active, a real existence check against Daily
+      (`checkDailyRoomExists`). Either failure renders the new `src/components/invalid-link-screen.tsx`
+      with a clear message and a "Create a new one" button. An already-expired-but-real link still goes
+      through item 6's "This Quick Word has ended" screen in `call-room.tsx`, which also gained its own
+      "Create a new one" button tonight. See STATUS.md for full detail, including mock-mode's documented
+      "nothing to check existence against" decision and tonight's discovery that item 6's work had never
+      actually been committed.)*
 - [ ] Write a short README explaining how to run it locally.
 - [ ] `[needs-andreas]` `[gate]` Deploy the MVP to a NEW, dedicated Vercel project (never an existing
       one). Queue this in ASKS.md with the exact steps Andreas needs to approve.

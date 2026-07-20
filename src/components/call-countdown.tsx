@@ -1,8 +1,7 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-/** Formats a whole number of milliseconds as "M:SS", floored to whole seconds. */
+/**
+ * Formats a whole number of milliseconds as "M:SS", floored to whole seconds.
+ * Not exported — only used inside this file.
+ */
 function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -11,42 +10,18 @@ function formatRemaining(ms: number): string {
 }
 
 /**
- * Renders a countdown to `exp` (a Unix timestamp in seconds), ticking every
- * second on the client. Two tabs given the same `exp` (the link's `?exp=`
- * query param — see create-link-form.tsx) show the same remaining time,
- * because both count down from the same shared anchor rather than from a
- * per-tab "duration since load" clock.
+ * Pure display of a remaining-time countdown, given `remainingMs` from the
+ * caller. As of Phase 0 item 6 ("Hard-end experience"), the ticking clock and
+ * the decision of what else to show (the call area vs. the ended screen) live
+ * one level up in CallRoom (src/components/call-room.tsx) — that's the
+ * single source of truth for "is this call over", so this component stays a
+ * simple, stateless renderer with no hooks or clock access of its own.
  *
  * This display is informational only. The actual hard end is enforced
  * server-side by Daily's `eject_at_room_exp` / `eject_after_elapsed` room
- * properties (set in src/lib/daily-rooms.ts) — this component cannot be
- * tricked into granting more call time by e.g. pausing JS execution.
- *
- * Renders a "--:--" placeholder until the first client tick so the server-
- * rendered HTML (which has no access to the client's clock) and the first
- * client render agree, avoiding a hydration mismatch warning.
+ * properties (set in src/lib/daily-rooms.ts).
  */
-export default function CallCountdown({ exp }: { exp: number }) {
-  const [remainingMs, setRemainingMs] = useState<number | null>(null);
-
-  useEffect(() => {
-    const tick = () => setRemainingMs(exp * 1000 - Date.now());
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [exp]);
-
-  if (remainingMs === null) {
-    return (
-      <p
-        aria-hidden
-        className="text-4xl font-semibold tabular-nums text-zinc-400 dark:text-zinc-600"
-      >
-        --:--
-      </p>
-    );
-  }
-
+export default function CallCountdown({ remainingMs }: { remainingMs: number }) {
   const isOver = remainingMs <= 0;
   const isEnding = !isOver && remainingMs < 30_000;
 

@@ -7,8 +7,9 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 ---
 
 ## Current state
-- **Phase:** M2 (Timer + call UX) under way — call page built and verified. Phase 0, items 1–5
-  of ROADMAP.md complete.
+- **Phase:** M2 (Timer + call UX) complete — call page built and verified, including invalid/expired
+  link handling. Phase 0, items 1–7 of ROADMAP.md complete. Items 8–9 (README, Vercel deploy) remain;
+  item 9 is `[needs-andreas][gate]`.
 - **Repo:** initialised, `main` branch, first commit made.
 - **App runs locally:** yes (verified) — `npm install && npm run dev` boots Next.js 16.2.10
   (App Router, TypeScript, Tailwind, ESLint, `src/` dir) and serves the default placeholder page
@@ -230,30 +231,199 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     logic is a pure function of a shared `exp` plus each tab's own `Date.now()`, so two tabs given the
     same link are guaranteed to compute the same remaining time by construction, not just by having
     been observed to do so once.
+- **Hard-end experience (Phase 0 item 6, done 2026-07-18):** the call page's ticking clock and "is
+  this call over" decision now live in a new Client Component, `src/components/call-room.tsx`, which
+  replaces last night's `CallCountdown`-drives-the-page approach. `CallCountdown`
+  (`src/components/call-countdown.tsx`) is now a pure, stateless display component — given
+  `remainingMs`, it renders the "M:SS" text (or "Time's up") with the same colour thresholds as
+  before (black → amber under 30s → red at zero), but no longer owns a clock or any interval itself.
+  The call area (Daily iframe or mock placeholder, plus the "open in new tab" fallback link) moved
+  into a new shared component, `src/components/call-media.tsx`, so it renders identically from the
+  two places that need it: `CallRoom`'s normal timed path, and `page.tsx`'s existing "missing/invalid
+  `exp`" fallback (unchanged in behaviour tonight — see the note on that below).
+  - **The actual hard-end swap:** `CallRoom` tracks `remainingMs` in state. The moment it reaches
+    zero, it stops rendering `CallMedia` at all — the `<iframe>` is removed from the DOM, not just
+    hidden — and renders a plain "This Quick Word has ended." message instead, with no rejoin
+    button, no extend control, and no "open in new tab" link (that link pointed at the same,
+    now-dead room). The only interactive element left anywhere on the call page is the pre-existing
+    "Create your own Quick Word" link back to `/`, which makes a brand-new room rather than
+    continuing this one. This is a client-side belt to the server-side suspenders already in place
+    since Phase 0 item 3 (Daily's `eject_at_room_exp` / `eject_after_elapsed`, reconfirmed live and
+    unaffected by tonight's change — see the verification note below).
+  - **Design refinement made while verifying tonight — computing the initial value server-side:**
+    the first version tracked `remainingMs` as `null` until the client's first `useEffect` tick, so
+    every page load (even for an already-dead link) briefly rendered a neutral placeholder before
+    the real state was known. Replaced that with `src/lib/time.ts`'s `remainingMsUntil(expSeconds)`,
+    called once in `page.tsx` (a Server Component, so this runs on *its own* clock at request time)
+    and passed into `CallRoom` as `initialRemainingMs`. Consequence: an already-expired link now
+    renders the "ended" screen directly in the very first server-rendered HTML — the Daily iframe is
+    never sent to the browser at all for a dead link, not even for a flash — and this is provable
+    with `curl` alone, not just reasoned about (see the verification note below). The client's own
+    `setInterval` (in `CallRoom`, using the client's clock) takes over ticking every second after
+    that first render, same as before.
+  - **A real lint failure worth knowing about for future runs:** calling `Date.now()` directly inside
+    `page.tsx`'s component body (even assigned to a local `const` before the `return`, and even
+    though this is a Server Component computing legitimate request-time data — the same category as
+    Next's own `cookies()`/`headers()`) is rejected by `npm run lint` as `react-hooks/purity` ("Cannot
+    call impure function during render"), a rule eslint-config-next now bundles via
+    eslint-plugin-react-hooks as part of the React Compiler rule set. It does not appear to do
+    interprocedural analysis — moving the actual `Date.now()` call behind a plain named function in
+    a separate file (`remainingMsUntil()` in `src/lib/time.ts`) and calling *that* from the component
+    satisfies it. Worth remembering next time any future item needs the server's clock in a Server
+    Component.
+  - **Verified — mock mode:** created a 60s mock room, then curl-tested four cases against a live
+    dev server: (1) `GET /{name}?exp={realFutureExp}` → mock call box present, no "ended" text, timer
+    showing `0:59`; (2) same room with a **fabricated already-past** `exp` → "This Quick Word has
+    ended." present exactly once, mock call box present zero times — confirms the hard-end swap
+    fires correctly even though no real Daily room enforces mock-mode expiry (mock rooms were never
+    persisted anywhere, so this UI-level check is the only enforcement that exists for them, and
+    that's fine — see ROADMAP item 7's job of making this path more explicit); (3) `GET /{name}` (no
+    `exp`, the pre-existing fallback) → unchanged, still shows the "missing timing info" message and
+    the mock call box; (4) `exp` 5 seconds out → amber "ending soon" class present, confirming the
+    colour-threshold logic still works from the new server-computed initial value.
+  - **Verified — live mode:** created a real 60s Daily room, then: (1) `GET /{name}?exp={realExp}`
+    while still valid → response contains a real `<iframe src="https://quickword.daily.co/{name}">`
+    plus the "open in new tab" link; (2) same room with a fabricated past `exp` → "This Quick Word has
+    ended." present, **zero** `<iframe>` elements, **zero** "open in new tab" links; (3)
+    independently re-fetched the room from Daily's own `GET /rooms/:name` and confirmed
+    `config.exp`/`eject_at_room_exp`/`eject_after_elapsed` are exactly as item 3 set them — tonight's
+    UI-only change didn't touch or weaken the server-side enforcement. Test room deleted afterward
+    (Daily confirmed `{"deleted":true}`), no debris left.
+  - **`npm run lint` and `npm run build` both clean** (after the `react-hooks/purity` fix above).
+    `/[room]` still shows dynamic (`ƒ`) in the build output, unchanged.
+  - **Not independently verified — honest limitation, same as every night so far:** an actual
+    real-browser click-through watching the on-screen swap happen live (Playwright is still blocked
+    in this sandbox — no `sudo` to install Chromium/Firefox system deps, see the 2026-07-16 entry).
+    What's verified instead this time is stronger than previous nights' equivalent gaps: because the
+    initial-state design change makes the ended screen appear in server-rendered HTML itself (not
+    only after client JS runs), the curl tests above are direct proof of the hard-end swap's *result*
+    for the already-expired case, not just a trace of the logic that should produce it. The one thing
+    curl genuinely cannot observe is the *live, mid-call* transition — a tab open with a real
+    countdown ticking down to zero and watching the iframe disappear in front of you — which still
+    rests on: `CallRoom`'s `isOver` check (`remainingMs <= 0`) is the same condition whether
+    `remainingMs` arrived via the initial server-computed prop or a later client tick, so the two
+    paths are the same code, not two different implementations that could disagree.
+  - **Scope note:** the "missing/invalid `exp`" fallback in `page.tsx` is unchanged tonight — it has
+    no known expiry to drive a hard-end swap from, so it still just shows the call area
+    indefinitely with an inline note. Making that a real "invalid link" screen (detecting a malformed
+    room name or a room that no longer exists on Daily, per the item's own wording) is next up,
+    ROADMAP item 7.
+- **Found at the start of tonight's run — item 6 was never actually committed:** `git status` showed
+  `page.tsx`/`call-countdown.tsx` modified and `call-media.tsx`/`call-room.tsx`/`time.ts` untracked,
+  even though last night's entry below claimed a commit. Confirmed via `git log` (HEAD stopped at
+  2026-07-17's doc-only commit) that this was real, not the mount's read corruption — the same failure
+  mode already seen once before, on item 3 (2026-07-16 entry). Fixed by cloning `.git` into a scratch
+  dir, re-deriving all five files' true content from the `Read` tool (byte-for-byte matching what
+  STATUS.md already documented as done), and committing them as their own commit (`f78e689`, "Phase 0
+  item 6: hard-end experience...") before starting any new work tonight, so item 6 and item 7 stay as
+  distinct, honest commits. Also had to set `git config user.email`/`user.name` in the fresh scratch
+  clone (git refused to commit with an unset identity) — used Andreas's name/email, matching every
+  prior commit's author. **Lesson for future runs:** the "committed in the scratch dir and synced back"
+  claim in a run's own history entry is not sufficient evidence a commit landed — the safest habit is
+  to check `git log --oneline` against what ROADMAP.md/STATUS.md claim is done, every run, before
+  trusting it.
+- **Invalid/expired-link handling (Phase 0 item 7, done 2026-07-19):** `src/app/[room]/page.tsx` now
+  gates entry to the call behind two checks instead of the old single "missing exp" inline-note
+  fallback:
+  1. **Syntax check (no network call):** `isPlausibleRoomName()` (new, `src/lib/daily-rooms.ts`) — a
+     deliberately permissive `^[a-zA-Z0-9_-]{1,80}$` pattern that matches both this app's own mock
+     names (`mock-xxxxxxxx`) and Daily's auto-generated names, while rejecting genuinely malformed input
+     (empty, whitespace, stray characters from a mangled/truncated URL) — plus the existing numeric-`exp`
+     check. Either failure renders the call page's new `src/components/invalid-link-screen.tsx`
+     ("This link isn't valid" + a "Create a new one" button to `/`), no Daily lookup needed.
+  2. **Existence check (live mode only, `checkDailyRoomExists()`, new, `src/lib/daily-rooms.ts`):** a
+     `GET /rooms/:name` call to Daily's REST API. Only runs when the link is syntactically fine *and*
+     its own `exp` claims to still be in the future — an already-expired link skips this entirely and
+     goes straight to item 6's "This Quick Word has ended" screen, since that's already the correct
+     outcome regardless of whether the room object still exists on Daily, and skipping the extra network
+     call avoids any regression risk to item 6's already-verified expired-link behaviour. A 404 from
+     Daily renders `InvalidLinkScreen` with "This Quick Word doesn't exist"; any other outcome (200, a
+     5xx, or a network error) **fails open** — treated as "exists" — on the reasoning that an ambiguous
+     Daily-side hiccup is not evidence a real link is dead, and wrongly telling someone their working
+     link is gone is worse than occasionally letting a truly-dead edge case through to Daily's own
+     in-iframe error.
+  - **Mock-mode decision (documented per last night's "Next actions" prompt to decide this
+    explicitly):** mock mode skips the existence check entirely — `checkDailyRoomExists()` short-circuits
+    to `true` in mock mode as a defensive fallback, but the real guard is that `page.tsx` never calls it
+    when `mockMode` is true. Rationale: mock rooms are never persisted anywhere (confirmed again
+    tonight), so there is nothing to check existence against; a syntactically valid mock link is trusted
+    as-is, and its own `exp` is still enforced by `CallRoom` once it passes, exactly like any other link.
+    This was a judgment call, not reviewed by Andreas — flagging in case he'd rather mock mode show some
+    explicit "can't verify this against anything real" messaging instead.
+  - **Also added:** a "Create a new one" button directly inside `CallRoom`'s "This Quick Word has ended"
+    card (`src/components/call-room.tsx`) — previously the only way back from a call that ended
+    mid-session was the page's small persistent footer link, not a button matching this item's own
+    wording. `InvalidLinkScreen` and this button share the same visual style, so a dead link looks
+    consistent whether it died from being malformed, from the room being gone, or from simply running
+    out of time.
+  - **Design call worth flagging (a scope decision, not yet reviewed by Andreas):** a link with a
+    syntactically fine room name but a *missing* `exp` query param — previously handled by a soft inline
+    note plus an attempt to still join the call with no visible countdown — now renders the same
+    "This link isn't valid" screen as a malformed link, full stop, in both mock and live mode. Reasoning:
+    Quick Word's whole positioning is "you can see it end"; silently allowing a call with no visible
+    timer contradicts that more than a clear "make a new link" message does, and the "Done when" wording
+    for this item ("a clear message ... instead of a crash") reads as covering this case too. If Andreas
+    disagrees (e.g. wants a real Daily call still joinable without a shown countdown, relying only on
+    Daily's server-side `eject_after_elapsed`/`eject_at_room_exp` from create time), this is a one-line
+    revert of the `!hasValidExp` branch back to a softer fallback.
+  - **Verified — mock mode:** created a real mock room via `POST /api/rooms`, then curl-tested against a
+    live dev server: (1) valid link, not yet expired → mock call box shown, no invalid-link text;
+    (2) malformed room name (`bad name!!`) → "This link isn't valid"; (3) missing `exp` → "This link
+    isn't valid"; (4) non-numeric `exp` → "This link isn't valid"; (5) valid room, already-expired `exp`
+    → "This Quick Word has ended" plus "Create a new one" (item 6's screen, not the new invalid-link
+    screen — confirms the skip-existence-check-when-expired logic routes correctly); (6) the invalid-link
+    screen's button is a real `href="/"` link labelled "Create a new one".
+  - **Verified — live mode, including the real Daily existence check:** created a real Daily room via
+    `POST /api/rooms`, then: (1) that real, unexpired room → response contains a real `<iframe>`, no
+    invalid-link text; (2) a syntactically valid but never-created room name
+    (`this-room-never-existed-xyz123`) → "This Quick Word doesn't exist" (the existence check correctly
+    called Daily's real API and got a real 404); (3) malformed room name → "This link isn't valid", no
+    Daily call attempted; (4) missing `exp` on the real, existing room → "This link isn't valid";
+    (5) the same real room with a fabricated past `exp` → "This Quick Word has ended" (confirms the
+    existence check is genuinely skipped for an expired link, not just coincidentally passing). Test room
+    deleted afterward via Daily's own API (`{"deleted":true}` confirmed), no debris left.
+  - **`npm run lint` and `npm run build` both clean** in both mock and live `.env.local` configurations
+    (TypeScript included in `next build`). `/[room]` still shows dynamic (`ƒ`) in the build output.
+  - **Not independently verified — same honest limitation as every night so far:** an actual
+    real-browser click-through (Playwright still blocked in this sandbox, no `sudo` for Chromium/Firefox
+    system deps — see the 2026-07-16 entry). Everything above was verified with real HTTP requests
+    (curl) against a live dev server in both modes, including a real Daily API round-trip for the
+    existence check, not just code-traced.
 - **Deployed:** no.
 - **Blockers waiting on Andreas:** none blocking (see ASKS.md for the low-urgency key-rotation note
   and the later Vercel deploy approval).
 
 ## Next actions (for the next run)
 The build is now driven by ROADMAP.md. Work the first unchecked, non-gated item in order.
-Currently that is Phase 0, item 6: invalid/expired-link handling — a friendly screen instead of a
-crash when a link is dead or malformed. Tonight's `/[room]` page already has a minimal inline
-fallback for a missing `exp` param, but does not yet check whether the room actually still exists on
-Daily (live mode) or handle a malformed room name — that's this next item's job. Also worth
-considering while there: what should happen when a mock-mode link is opened after tonight's window
-(mock rooms aren't persisted anywhere, so "expired" has no real meaning for them yet — decide and
-document rather than leaving it implicit).
+Currently that is Phase 0, item 8: a short README explaining how to run the app locally
+(`npm install`, `.env.local` / mock-mode behaviour, `npm run dev`, `npm run lint`, `npm run build`).
+This should be a quick one — mostly transcribing what's already true from BUILD_PLAN.md and this
+file, not new product decisions. After that, the only remaining Phase 0 item is item 9
+(`[needs-andreas][gate]`, the Vercel deploy) — when item 8 is done, Phase 0 is otherwise complete and
+the next run should append a clear ASKS.md entry for the deploy approval rather than crossing the
+gate, then move on to Phase 1's first item if it wants to keep building (check with the standing
+"don't stall" instruction in AGENTS.md/CLAUDE.md's scheduled-task rules for whether that's expected).
+**Before doing any git work, run `git log --oneline` against the mount and compare it to what this
+file and ROADMAP.md claim is done** — tonight's run started by discovering last night's item 6 had
+never actually been committed despite the previous entry's claim (see "Current state" above for the
+full story and the fix). That claim-vs-`git log` check should be the first thing every future run does,
+not just a reaction to visibly-wrong `git status` output.
 Before doing any `npm install` or `git` work, re-read the platform note above (**and its 2026-07-16
 addendum**) and build/verify in a scratch dir first, then sync source + `.git` back in — and
 re-verify any file this note flags with `Read` before trusting a bash view of it. One more thing
-confirmed working tonight (2026-07-17): a **local `git clone` of the mount's own `.git` directory
-into the scratch dir** (`git clone /path/to/mount/QuickWord/.git scratch/quickword`) reconstructs a
-byte-correct working tree entirely from git's object store and native-disk writes — no bash `cat`/`cp`
-of the mount's working-tree files involved at all. This is a cleaner variant of the existing
-"heredoc known-good content into scratch" workaround and worth using as the default way to start a
-scratch build; verified by checking the cloned `page.tsx` was exactly 1318 bytes (matching the
-`Read`-tool-verified true content), vs. a corrupted 3445-byte NUL-padded read of the same file
-directly off the mount in the same run (see run history below for the full detail).
+confirmed working tonight (2026-07-17, reused successfully again 2026-07-19): a **local `git clone` of
+the mount's own `.git` directory into the scratch dir**
+(`git clone /path/to/mount/QuickWord/.git scratch/quickword`) reconstructs a byte-correct working tree
+entirely from git's object store and native-disk writes — no bash `cat`/`cp` of the mount's
+working-tree files involved at all. This is a cleaner variant of the existing "heredoc known-good
+content into scratch" workaround and worth using as the default way to start a scratch build; verified
+by checking the cloned `page.tsx` was exactly 1318 bytes (matching the `Read`-tool-verified true
+content), vs. a corrupted 3445-byte NUL-padded read of the same file directly off the mount in the same
+run (see run history below for the full detail). **New note from tonight:** a fresh scratch clone has
+no git identity configured — `git commit` fails with "Please tell me who you are" until
+`git config user.email "acnicolet@gmail.com"` and `git config user.name "Andreas Nicolet"` are set in
+that scratch clone (matches every prior commit's author; safe, this is local-only config in a
+throwaway scratch dir, not touching the mount).
 
 ---
 
@@ -358,3 +528,63 @@ directly off the mount in the same run (see run history below for the full detai
   and re-copying a known-good one from the still-intact scratch clone; no source-code changes were
   needed, this was purely a self-inflicted git-plumbing mistake, now corrected and documented so it
   doesn't repeat. Next: Phase 0 item 6 (invalid/expired-link handling).
+- 2026-07-18 (nightly): Built Phase 0 item 6 — the hard-end experience (see "Current state" above for
+  full detail): new `src/components/call-room.tsx` (Client Component, owns the ticking clock and the
+  call-area/ended-screen swap), `src/components/call-media.tsx` (new, the shared iframe/mock-box
+  markup), `src/lib/time.ts` (new, wraps `Date.now()` for server-side use), `src/components/
+  call-countdown.tsx` (slimmed to a pure display component), and `src/app/[room]/page.tsx` (wires
+  `CallRoom` in for the normal timed path, computes `initialRemainingMs` server-side). Refined the
+  design mid-run after the first version left every page load starting from an unknown placeholder:
+  moved to computing the initial remaining time from the server's own clock at request time and
+  passing it down, so an already-expired link now renders the ended screen directly in the
+  server-rendered HTML — provable with `curl`, not just reasoned about. Hit a new lint rule along the
+  way, `react-hooks/purity` (via eslint-config-next's bundled eslint-plugin-react-hooks), which
+  rejects a direct `Date.now()` call inside a Server Component's render body even for legitimate
+  request-time data; worked around by moving the call behind a plain function in its own module
+  (`src/lib/time.ts`) rather than disabling the rule — noted in "Current state" for future runs that
+  hit the same thing. Verified end to end with curl against a live dev server in both modes: mock mode
+  (fresh link shows the mock call box and a ticking timer; a fabricated already-past `exp` on the same
+  room shows the ended screen with zero copies of the mock call box); live mode (fresh link shows a
+  real Daily iframe plus the "open in new tab" link; past `exp` shows the ended screen with zero
+  iframes and zero "open in new tab" links; independently re-fetched the room from Daily's own API
+  afterward and confirmed item 3's `exp`/`eject_at_room_exp`/`eject_after_elapsed` enforcement is
+  untouched; test room deleted, no debris left). `npm run lint` and `npm run build` both clean.
+  Real-browser click-through of the live, mid-call transition is still not verified — Playwright
+  remains blocked in this sandbox (same root cause logged 2026-07-16) — but this run's server-computed
+  initial-value design means the *already-expired* case is now curl-provable rather than resting only
+  on code-tracing, which is a strictly stronger verification than previous nights had for the
+  equivalent gap. Built/tested in a scratch dir cloned from the mount's `.git`, wrote final files to
+  the mount via `Write`/`Edit`, committed from the scratch clone, copied `.git` back — no mutating git
+  commands run against the mount itself, per the 2026-07-17 hard rule. Next: Phase 0 item 7
+  (invalid/expired-link handling — the room-existence/malformed-name check this item's fallback still
+  doesn't do, plus a real "Create a new one" button).
+- 2026-07-19 (nightly): Before starting, found item 6's work present and correct on disk (per `Read`)
+  but, per `git log`, never actually committed — HEAD still stopped at 2026-07-17's doc-only commit,
+  the same failure mode already seen once before on item 3 (2026-07-16 entry). Fixed first: cloned
+  `.git` into a fresh scratch dir, re-derived all five of item 6's files from the `Read` tool (matching
+  what STATUS.md already documented byte-for-byte), and committed them as their own commit (`f78e689`)
+  before touching anything new, so tonight's diff wouldn't be tangled up with last night's overdue work
+  — same recovery pattern as the 2026-07-16 entry. Then built Phase 0 item 7 — invalid/expired-link
+  handling (see "Current state" above for full detail): new `src/lib/daily-rooms.ts` exports
+  `isPlausibleRoomName()` (syntax check) and `checkDailyRoomExists()` (live Daily existence check,
+  fails open on ambiguous errors, skipped entirely once a link already claims to be expired), new
+  `src/components/invalid-link-screen.tsx` (the friendly "dead link" card with a "Create a new one"
+  button), `src/app/[room]/page.tsx` rewritten to gate entry through both checks before reaching
+  `CallRoom`, and `src/components/call-room.tsx` gained its own "Create a new one" button on the
+  "ended" screen. Made one scope call worth Andreas's eyes: a link with a syntactically fine room name
+  but a missing `exp` now shows the same "invalid link" screen rather than the old soft fallback that
+  still let you join with no visible countdown — reasoning and an easy revert path are in "Current
+  state" above. Verified end to end with curl against a live dev server in both modes: mock mode (5
+  cases — valid/not-yet-expired, malformed name, missing exp, non-numeric exp, and already-expired
+  correctly routing to item 6's screen instead of the new one) and live mode, including a real Daily
+  API round-trip for the existence check (created a real room, confirmed a genuinely nonexistent room
+  name gets a real 404-driven "doesn't exist" screen, confirmed the real existing room still joins
+  normally, confirmed an expired real room skips the existence check and shows item 6's screen; test
+  room deleted after, `{"deleted":true}` confirmed). `npm run lint` and `npm run build` both clean in
+  both mock and live `.env.local` configurations. Real-browser click-through remains unverified
+  (Playwright still blocked, same root cause as every prior night). Also hit a new one-time snag: a
+  freshly cloned scratch `.git` has no commit identity configured, so `git commit` refused until
+  `user.email`/`user.name` were set locally in that scratch clone (Andreas's identity, matching every
+  prior commit) — noted in "Next actions" for future runs. Built/tested in the scratch clone, wrote
+  final files to the mount via `Write`/`Edit`, committed from the scratch clone, copied `.git` back —
+  no mutating git commands run against the mount itself. Next: Phase 0 item 8 (a short README).
