@@ -10,6 +10,12 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **Manifesto easter egg (2026-07-21, interactive, deployed to production):** Andreas provided the
+  full text of "The Qwickword Manifesto" and asked for a discreet way to expose it. Published at
+  `/manifesto` (`src/app/manifesto/page.tsx`, styled as an essay — serif type, generous spacing, its
+  own page title/description) with a single fixed-position, low-contrast "manifesto" text link tucked
+  in a corner of the home page — not a real nav item, deliberately easy to miss. Not a ROADMAP.md item
+  (an ad hoc creative request, not a product feature); logged here instead. Live on `qwickword.com`.
 - **Rotating slogan (Phase 1, done 2026-07-21, interactive, deployed to production):** the home page
   now shows a random line from `src/lib/slogans.ts` (35 lines, see `SLOGANS.md` for the full working
   list and the reasoning behind what got cut) under the "Qwickword" h1, picked fresh on every request
@@ -1009,3 +1015,14 @@ throwaway scratch dir, not touching the mount).
   lives (ties into the existing "Post-call CTA screen" item). Cross-referenced the still-open "decide
   the backend" item, since this is the concrete feature that finally justifies a real datastore.
   Planning-only.
+- 2026-07-21 (later still, interactive): Andreas provided the full text of "The Qwickword Manifesto"
+  and asked for a discreet way to expose it, styled like a blog post. Built and deployed same session:
+  new `src/app/manifesto/page.tsx` (plain static Server Component — an essay layout, serif type,
+  centered title/subtitle header, the closing line set apart, its own page metadata) and a single
+  fixed-position link on the home page reading just "manifesto," styled in very low contrast
+  (`text-zinc-300`/`text-zinc-800` dark) so it reads as an easter egg rather than a nav item. Verified:
+  `npm run lint`/`npm run build` clean (prerenders static, as expected for fixed content), curl-tested
+  the home page for the link and `/manifesto` for a `200`, the correct `<title>`, a spot-checked
+  distinctive line ("Kevin"), and the "Back to Qwickword" link. Deployed to production and re-verified
+  live on `https://qwickword.com/manifesto`. Not a ROADMAP.md item — an ad hoc creative request, not a
+  product feature — logged in "Current state" instead.
