@@ -217,8 +217,17 @@ Goal: something you'd actually send to a colleague without wincing.
       to the server); a cookie only becomes the better choice if a future item needs the *server* (e.g.
       a Server Component) to know the preference before first paint to avoid a flash of the wrong theme
       — worth deciding at build time, not a foregone conclusion either way, but no accounts either way.
-- [~] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
-      **2026-07-21, later same day (interactive):** Andreas was already live in his GoDaddy DNS panel
+- [x] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
+      **Done 2026-07-21 (interactive).** Andreas saved the corrected DNS records in GoDaddy and they
+      propagated fast — confirmed via `GET /v6/domains/qwickword.com/config`: `misconfigured: false`.
+      Live-smoke-tested `https://qwickword.com/` directly: home page `200`, no stale banner text (see
+      the banner-removal entry in STATUS.md, deployed in the same push), and a real `POST
+      /api/rooms` round-trip against the live site (room created on Daily, confirmed, then deleted —
+      no debris left). `https://www.qwickword.com/` also resolves (`200`, redirects to the apex per
+      the redirect setting chosen when the domain was attached). `https://quickword.vercel.app` still
+      works too. **The Daily.co video subdomain rename noted below remains open/optional** — not part
+      of what "done" means for this item.
+      **2026-07-21, earlier the same day (interactive):** Andreas was already live in his GoDaddy DNS panel
       about to add a (subtly wrong — a URL, not a hostname, as the CNAME value) `www` record, so this
       was done on the spot rather than left for the nightly run. Requested access to
       `C:\Users\acnic\ClaudeCoding` again (same folder as Phase 0 item 9), read only the
@@ -240,11 +249,8 @@ Goal: something you'd actually send to a colleague without wincing.
       conflict with the apex A record). **Still needs Andreas — did not touch DNS itself, only the
       Vercel-side domain attachment**, consistent with BUILD_PLAN.md's guardrail against touching any
       registrar/DNS zone without his own hands on it: he needs to actually save the corrected records
-      in GoDaddy, then wait for propagation (usually minutes, can be a couple hours). **Next run:**
-      check `GET /v6/domains/qwickword.com/config` (and `www.qwickword.com`'s) again — once
-      `misconfigured` reads `false`, smoke-test the live `qwickword.com` URL the same way Phase 0 item 9
-      verified `quickword.vercel.app`
-      (home page, room creation, call page). **Not in this item's scope, flagging as a separate,
+      in GoDaddy, then wait for propagation (usually minutes, can be a couple hours). (This is what the
+      "Done" note above records completing, later the same day.) **Not in this item's scope, flagging as a separate,
       lower-priority decision for Andreas to make whenever:** whether to also rename the Daily.co video
       subdomain (currently `quickword.daily.co`, set in `.env.local`'s `DAILY_DOMAIN`) — it's visible to
       end users via the "open the call in a new tab" fallback link, so it'll read as a small

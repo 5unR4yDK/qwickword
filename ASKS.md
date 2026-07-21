@@ -7,17 +7,6 @@ Check this each morning. Clearing these unblocks the next night's progress.
 - [ ] **(Recommended, low urgency) Rotate the Daily API key.** The current key was pasted into a
       chat transcript on 2026-07-12, so best practice is to regenerate it in the Daily dashboard
       (Developers) and replace the value in `.env.local`. One-line swap. Not blocking the build.
-- [ ] **Save/apply the corrected `qwickword.com` DNS records at GoDaddy.** Andreas already owns the
-      domain and was live in GoDaddy's DNS panel on 2026-07-21 when this was worked out together —
-      full detail in ROADMAP.md's `[needs-andreas]` domain-connect item and STATUS.md's run history.
-      Exact records (from Vercel's API for this specific project, not generic values): delete the
-      default `A @ → WebsiteBuilder Site` parking record; add `A @ → 76.76.21.21` (or Vercel's newer
-      pair, `216.198.79.1` and `64.29.17.1`, either works); fix the in-progress `www` CNAME to
-      `c2efecf6f5ce6b0c.vercel-dns-017.com` (no `https://`, no trailing slash — that was the actual
-      bug in what he was about to save). `qwickword.com`/`www.qwickword.com` are already attached to
-      the `quickword` Vercel project (done via API tonight); only the DNS side is outstanding. Once
-      saved, the next nightly run should re-check `misconfigured` via Vercel's domain-config API and
-      smoke-test the live URL once it clears.
 
 ## Done
 - 2026-07-12 — Daily.co account created, domain `quickword.daily.co`, API key added to `.env.local`.
@@ -26,3 +15,8 @@ Check this each morning. Clearing these unblocks the next night's progress.
   `quickword`, live at **https://quickword.vercel.app**. Used the same `DAILY_API_KEY`/`DAILY_DOMAIN`
   values already in `.env.local` (no rotation) and the default `*.vercel.app` domain (no custom domain
   set up). See STATUS.md/ROADMAP.md item 9 for full detail.
+- 2026-07-21 — `qwickword.com` DNS corrected and saved by Andreas at GoDaddy (fixed the `www` CNAME
+  target and added the missing apex `A` record per the exact values worked out together in chat) and
+  propagated fast. Confirmed via Vercel's domain-config API: `misconfigured: false`. Live-smoke-tested
+  `https://qwickword.com/` directly (home page, and a real create-room round-trip against the live
+  site, room deleted after). See ROADMAP.md's domain-connect item, now `[x]`, for full detail.

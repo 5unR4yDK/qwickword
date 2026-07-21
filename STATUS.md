@@ -8,8 +8,29 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 
 ## Current state
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
-  done. **Live at https://quickword.vercel.app.** Phase 1 ("Usable") is now underway — item 1
-  (pre-join screen) done 2026-07-21, see below.
+  done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) done 2026-07-21, see below.
+- **Live URLs (as of 2026-07-21, later same day):** **https://qwickword.com** is now the primary
+  live URL — custom domain DNS confirmed correctly configured (Vercel's `misconfigured: false`),
+  smoke-tested directly (home page, a real create-room round-trip). `https://quickword.vercel.app`
+  still works too (same deployment, both point at the same Vercel project). The in-app product name
+  is still "Quick Word" pending the full rename item in ROADMAP.md's Phase 1 (queued, not yet built)
+  — only the domain and one stray dev-mode banner (see below) were fixed tonight, not the whole brand.
+- **Home page banner fix (2026-07-21, interactive, deployed to production):** removed the
+  `Live mode (domain: quickword.daily.co)` text that showed on the home page whenever real Daily
+  credentials were configured — Andreas asked for it gone now that the site is live on
+  `qwickword.com`, since surfacing the video vendor's internal domain to real visitors was a dev
+  leftover with no value to an end user. `src/app/page.tsx`: the status pill now only renders in mock
+  mode (still useful there, for local dev without credentials); live mode shows nothing. Removed the
+  now-unused `domain` destructure. `README.md`'s description of this behaviour updated to match.
+  Verified: `npm run lint`/`npm run build` clean; curl-tested both modes against a live dev server
+  (mock mode still shows its banner; live mode shows zero occurrences of "Live mode", "Mock mode", or
+  the raw `quickword.daily.co` string anywhere on the page; room creation itself unaffected — a real
+  test room was created and deleted). **Deployed to production the same session** (Vercel CLI,
+  `vercel deploy --prod`) rather than left for the nightly run, since it directly affects what's
+  visible on the now-live site right now. Live-verified after deploy: `https://quickword.vercel.app/`
+  and `https://qwickword.com/` both return `200` with zero occurrences of the removed text; a real
+  room create/delete round-trip against `https://qwickword.com/api/rooms` confirmed the fix didn't
+  break anything functional.
 - **Pre-join screen (Phase 1 item 1, done 2026-07-21):** rooms are now created with
   `enable_prejoin_ui: true` (`src/lib/daily-rooms.ts`, property validated against
   `docs.daily.co/reference/rest-api/rooms/config`), which turns on Daily Prebuilt's own lobby —
@@ -867,3 +888,29 @@ throwaway scratch dir, not touching the mount).
   item to record that either `localStorage` or a plain non-auth cookie satisfies it, with a brief note
   on when a cookie would actually be the better call (only if a later build wants the server to know
   the preference before first paint) rather than picking one dogmatically now. Planning-only.
+- 2026-07-21 (later still, interactive): Andreas asked to remove the `Live mode (domain:
+  quickword.daily.co)` banner text now that the site is live on `qwickword.com`. Fixed and deployed to
+  production in the same exchange (see "Current state" above for full detail) rather than queued,
+  since this directly affects the live site's appearance right now — a different judgement call than
+  the earlier feature requests he explicitly asked to queue. Two platform snags hit while getting the
+  Vercel CLI installed for the deploy, both worked around: (1) the first `npm install` attempt for the
+  CLI segfaulted inside `esbuild`'s postinstall (`SIGSEGV`, no clear cause) — a bare retry of the same
+  command succeeded, so this looks like a transient sandbox hiccup, not a real problem, but worth
+  knowing a retry is the right first move if it recurs. (2) Installed the CLI into a subdirectory
+  (`vercel-cli/`) *inside* the app's own scratch build dir without first giving that subdirectory its
+  own `package.json` — npm walked up and found the app's `package.json` instead, silently installing
+  `vercel` as a dependency of the actual Qwickword/Quick Word app (polluting `package.json` and
+  `package-lock.json` with `"vercel": "^56.4.1"`) rather than into the intended subfolder, which is why
+  `vercel-cli/node_modules` kept turning up empty on every check. Caught it via `git status` before
+  committing anything (both files showed modified, diff showed the injected dependency), reverted with
+  `git checkout -- package.json package-lock.json`, and re-installed correctly using `npm install
+  --prefix <separate-directory> vercel@latest` (a sibling directory entirely outside the app's own
+  folder tree, not a subdirectory of it) — the same pattern already proven safe on 2026-07-20 for
+  Phase 0 item 9's deploy, and the one to use again on any future run that needs the Vercel CLI.
+  Nothing was ever committed with the pollution present, so no cleanup needed on the mount side.
+  Deployed via `vercel deploy --prod`; confirmed the fix live on both URLs afterward (see "Current
+  state"). While verifying, also checked whether Andreas's DNS fix from earlier tonight had propagated
+  — it had (`misconfigured: false`) — so did the "Next run" check from the domain-connect item's own
+  instructions immediately rather than waiting for a future run, and marked that ROADMAP.md item `[x]`
+  with the live smoke-test result, moved its ASKS.md entry to Done. Both code changes (banner fix) and
+  all doc updates (ROADMAP.md, ASKS.md, STATUS.md) committed via the standard scratch-clone workflow.
