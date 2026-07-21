@@ -828,3 +828,28 @@ throwaway scratch dir, not touching the mount).
   existing list position (after duration presets / countdown polish / responsive layout), since Andreas
   didn't ask for it to jump the queue ahead of the countdown-start-time fix already at the top. No app
   code or other doc changed in this exchange beyond the ROADMAP.md edit described here.
+- 2026-07-21 (later still, interactive): Andreas was live in his GoDaddy DNS panel, mid-way through
+  adding a `www` CNAME record for `qwickword.com`, and asked whether his entry was correct. It wasn't —
+  the Value field held a full URL (`https://quickword.vercel.app/`) instead of a bare hostname, which
+  isn't valid CNAME syntax regardless of anything else, and even a corrected bare hostname would have
+  been a guess rather than what Vercel actually wants for this specific domain. Rather than leave this
+  for the nightly run (per the ROADMAP.md domain-connect item's original plan of generating records and
+  logging them in ASKS.md), did it on the spot since he was already there making changes: requested
+  `C:\Users\acnic\ClaudeCoding` access again (same folder/token as Phase 0 item 9), read only the
+  `VERCEL_TOKEN` line again, and used the Vercel API to add `qwickword.com` and `www.qwickword.com` to
+  the existing `quickword` project (same dedicated project, no new/shared infra — the guardrail
+  exception already established for this project still applies), then fetched Vercel's actual
+  domain-specific DNS requirements via `GET /v6/domains/{domain}/config` instead of assuming generic
+  values. Gave Andreas the exact corrected records directly in chat: fix the in-progress `www` CNAME to
+  `c2efecf6f5ce6b0c.vercel-dns-017.com` (project-specific, not a generic Vercel hostname), delete
+  GoDaddy's default `A @ → WebsiteBuilder Site` parking record, add `A @ → 76.76.21.21` (simplest,
+  still fully supported) or Vercel's newer two-IP recommendation. Also flagged one judgement call made
+  along the way — set `www` to redirect to the apex `qwickword.com` rather than the reverse — as
+  Andreas's to revisit if he'd rather `www` be canonical. **Did not touch DNS itself** — that's still
+  his action to take in GoDaddy, consistent with the standing guardrail against touching any
+  registrar/DNS zone without his own hands on it; only the Vercel-side domain attachment was done via
+  API. Updated ROADMAP.md's domain-connect item to `[~]` with the full detail, and added an ASKS.md
+  entry (not really "open" in the blocked sense since he's actively working it, but recorded per the
+  standing convention) with the exact records so nothing has to be re-derived. Next run: once he's
+  saved the DNS changes, re-check `misconfigured` via the same Vercel config endpoint and smoke-test
+  the live `qwickword.com` URL once it clears, per the ROADMAP.md item's updated "Next run" note.

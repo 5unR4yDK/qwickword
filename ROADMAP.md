@@ -196,18 +196,33 @@ Goal: something you'd actually send to a colleague without wincing.
       - **Not in scope for this item — separate `[needs-andreas]` item right below:** actually
         connecting the `qwickword.com` domain to the live deployment. Do the in-app rename first, so
         the domain switch-over has a renamed app ready to point at.
-- [ ] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment. Andreas
-      already owns the domain (confirmed 2026-07-21). Likely mechanics: add `qwickword.com` (and
-      probably `www.qwickword.com`) as a custom domain on the existing `quickword` Vercel project via
-      the Vercel API/CLI (same account/token access already used for Phase 0 item 9's deploy — this is
-      the same dedicated project, not a new/shared one, so the existing guardrail exception still
-      applies), then Vercel will require specific DNS records at whatever registrar/DNS host the domain
-      actually lives at. **That DNS step needs Andreas** — per BUILD_PLAN.md's guardrails, this run
-      must not touch any pre-existing/shared DNS zone (e.g. if it's on a Cloudflare zone shared with
-      his other projects) without his explicit go-ahead on that specific zone. Concretely: get as far as
-      generating the exact DNS records Vercel wants, put them in ASKS.md verbatim, and stop there unless
-      Andreas has separately granted access to add the records directly. Once the domain resolves,
-      smoke-test the live `qwickword.com` URL the same way Phase 0 item 9 verified `quickword.vercel.app`
+- [~] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
+      **2026-07-21, later same day (interactive):** Andreas was already live in his GoDaddy DNS panel
+      about to add a (subtly wrong — a URL, not a hostname, as the CNAME value) `www` record, so this
+      was done on the spot rather than left for the nightly run. Requested access to
+      `C:\Users\acnic\ClaudeCoding` again (same folder as Phase 0 item 9), read only the
+      `VERCEL_TOKEN` line from `secrets.blackstart.local.txt` again, and via the Vercel API: confirmed
+      the `quickword` project (`prj_JS71RabWYJSg6h4Jw4H0sBE1mXpL`, same dedicated project as always —
+      no new/shared infra touched) currently had only `quickword.vercel.app` attached; added
+      `qwickword.com` (canonical) and `www.qwickword.com` (set to redirect to the apex — Andreas's
+      call to revisit if he'd rather `www` be canonical) via `POST /v10/projects/quickword/domains`;
+      then fetched Vercel's actual required DNS config for this specific domain via
+      `GET /v6/domains/{domain}/config` rather than assume generic/legacy values. Result:
+      `misconfigured: true` (expected — GoDaddy's DNS hasn't been changed yet) with Vercel's exact
+      recommended records — apex A record(s) (`76.76.21.21` as the simple/legacy option, still fully
+      supported, or the pair `216.198.79.1` / `64.29.17.1` as Vercel's newest top recommendation) and
+      a **project-specific** CNAME target for `www` (`c2efecf6f5ce6b0c.vercel-dns-017.com` — this is
+      unique to this domain/project, not a generic Vercel hostname, which is exactly why generating it
+      via the API mattered instead of writing down a guessed value). Gave Andreas the exact corrected
+      values directly in chat (not just queued in ASKS.md, since he was live) along with what to
+      delete (GoDaddy's default parking `A @ → WebsiteBuilder Site` record, which would otherwise
+      conflict with the apex A record). **Still needs Andreas — did not touch DNS itself, only the
+      Vercel-side domain attachment**, consistent with BUILD_PLAN.md's guardrail against touching any
+      registrar/DNS zone without his own hands on it: he needs to actually save the corrected records
+      in GoDaddy, then wait for propagation (usually minutes, can be a couple hours). **Next run:**
+      check `GET /v6/domains/qwickword.com/config` (and `www.qwickword.com`'s) again — once
+      `misconfigured` reads `false`, smoke-test the live `qwickword.com` URL the same way Phase 0 item 9
+      verified `quickword.vercel.app`
       (home page, room creation, call page). **Not in this item's scope, flagging as a separate,
       lower-priority decision for Andreas to make whenever:** whether to also rename the Daily.co video
       subdomain (currently `quickword.daily.co`, set in `.env.local`'s `DAILY_DOMAIN`) — it's visible to
