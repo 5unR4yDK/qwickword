@@ -41,6 +41,13 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
   `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
   and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
+- **Copied-link toast fix (Phase 1, done 2026-07-21, interactive, deployed to production):** the green
+  "Link copied to clipboard!" toast was `fixed` to the viewport top, independent of where the
+  create-flow card actually sits, so on shorter viewports it landed on top of the page's own
+  "Qwickword" heading above the card. `src/components/create-link-form.tsx` now renders it in normal
+  document flow, as the first item inside the success panel, right above the "Your X min Qwickword is
+  ready" line — near the action that triggered it, never able to overlap unrelated content again. Live
+  on `https://qwickword.com`.
 - **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
   page no longer has a separate "Create" button — clicking a duration preset or picking a value from
   the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
@@ -1169,3 +1176,17 @@ throwaway scratch dir, not touching the mount).
   (same `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on
   `https://qwickword.com`, pushed to GitHub, mount's `.git` re-synced, `git status --porcelain`
   confirmed clean.
+- 2026-07-21 (later still, interactive): Andreas sent a screenshot showing the green "Link copied to
+  clipboard!" toast overlapping the "Qwickword" heading and said "the green link copied shouldnt
+  overlap our main text." Root cause: the toast was `fixed top-6 left-1/2 -translate-x-1/2` in
+  `src/components/create-link-form.tsx` — pinned to the viewport's top edge regardless of where the
+  create-flow card actually sat on the page, so on a short enough viewport it landed directly on the
+  page heading sitting above the card (a sibling element in `src/app/page.tsx`, outside this
+  component's own layout). Fix: dropped the `fixed`/`top-6`/`left-1/2`/`-translate-x-1/2` classes
+  entirely and let the toast render as a normal in-flow element, the first child inside the success
+  panel, sitting just above the "Your X min Qwickword is ready" line. It now always appears right next
+  to the action that triggered it and can't overlap anything outside this component's own box, at any
+  viewport size. Verified: `npm run lint`/`npm run build` clean, curl-checked the live page for zero
+  occurrences of the old `fixed top-6` class. Deployed via the Vercel CLI (same
+  `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on `https://qwickword.com`,
+  pushed to GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
