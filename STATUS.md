@@ -853,3 +853,17 @@ throwaway scratch dir, not touching the mount).
   standing convention) with the exact records so nothing has to be re-derived. Next run: once he's
   saved the DNS changes, re-check `misconfigured` via the same Vercel config endpoint and smoke-test
   the live `qwickword.com` URL once it clears, per the ROADMAP.md item's updated "Next run" note.
+- 2026-07-21 (later still, interactive): Andreas asked for a DNS status check (his `www` CNAME was
+  still pointing at the bare `qwickword.com` instead of Vercel's project-specific target, and no A
+  record existed at all for the apex after he'd deleted GoDaddy's parking record) — gave him the exact
+  two-step fix directly in chat (edit `www`'s CNAME value to `c2efecf6f5ce6b0c.vercel-dns-017.com`, add
+  a new `A @ → 76.76.21.21` record), re-verified against Vercel's live config endpoint first rather than
+  reuse the values from the earlier exchange without checking they hadn't changed. No doc/code changes
+  from that exchange (pure chat troubleshooting, nothing to commit). Then Andreas asked to add "dark
+  mode vs. default/light mode" to the feature pipeline — added as a new Phase 1 ROADMAP.md item
+  (currently the app only has automatic OS-driven dark mode via Tailwind's `media` strategy, no
+  in-app toggle) — then clarified persistence should be a simple per-visitor mechanism ("probably a
+  cookie") with explicitly no login/account system, for this or anything else, right now. Updated the
+  item to record that either `localStorage` or a plain non-auth cookie satisfies it, with a brief note
+  on when a cookie would actually be the better call (only if a later build wants the server to know
+  the preference before first paint) rather than picking one dogmatically now. Planning-only.

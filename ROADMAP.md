@@ -196,6 +196,27 @@ Goal: something you'd actually send to a colleague without wincing.
       - **Not in scope for this item — separate `[needs-andreas]` item right below:** actually
         connecting the `qwickword.com` domain to the live deployment. Do the in-app rename first, so
         the domain switch-over has a renamed app ready to point at.
+- [ ] Dark mode vs. default/light mode toggle. *(Added 2026-07-21, Andreas, interactive — "add to the
+      pipeline of features," not built tonight.)* Current state, worth knowing before building this:
+      the app already has *some* dark-mode styling (`dark:` Tailwind classes throughout the
+      components, `src/app/globals.css` has a `prefers-color-scheme: dark` block) but it's
+      automatic-only, driven purely by the visitor's OS/browser setting — there's no in-app toggle and
+      no way for a visitor to override their system preference. "Default/light mode" in Andreas's
+      phrasing suggests light should be the default appearance regardless of OS setting, with dark as
+      an explicit opt-in — that's a change from today's behaviour (currently a visitor with a
+      dark-mode OS sees dark automatically), so confirm that reading with him if it's not obvious by
+      the time this is built, rather than assume. Likely mechanics: switch Tailwind's dark-mode
+      strategy from the current `media` (OS-driven) to `class`-based, add a small toggle control
+      (probably in the page header/footer), and persist the choice client-side (`localStorage` is fine
+      for this — it's a real browser app, not one of the ephemeral chat-rendered widgets that can't use
+      it). **Persistence, confirmed 2026-07-21:** Andreas wants the choice remembered per-visitor "probably
+      a cookie," but explicitly does NOT want any login/account system built for this or anything else
+      right now. Either `localStorage` or a plain (non-auth) cookie satisfies that — both remember the
+      choice on that browser with zero accounts, zero server-side state, and no datastore. `localStorage`
+      is the simpler default (no cookie-consent-banner question to even consider, since nothing is sent
+      to the server); a cookie only becomes the better choice if a future item needs the *server* (e.g.
+      a Server Component) to know the preference before first paint to avoid a flash of the wrong theme
+      — worth deciding at build time, not a foregone conclusion either way, but no accounts either way.
 - [~] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
       **2026-07-21, later same day (interactive):** Andreas was already live in his GoDaddy DNS panel
       about to add a (subtly wrong — a URL, not a hostname, as the CNAME value) `www` record, so this
