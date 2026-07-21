@@ -139,9 +139,14 @@ export default function CreateLinkForm() {
     return (
       <div className="flex w-full flex-col items-center gap-4 text-center">
         {showCopiedToast && (
+          // In-flow, not `fixed` (was fixed to the viewport top, which
+          // overlapped the page's own "Qwickword" heading above this card —
+          // Andreas flagged this 2026-07-21). Sitting in the normal layout
+          // right above the "ready" line keeps it near the action without
+          // ever covering unrelated content, regardless of viewport size.
           <div
             role="status"
-            className="fixed top-6 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-emerald-500"
+            className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-emerald-500"
           >
             Link copied to clipboard!
           </div>
