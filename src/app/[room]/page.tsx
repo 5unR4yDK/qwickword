@@ -2,7 +2,13 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getDailyConfig } from "@/lib/daily-config";
 import { remainingMsUntil } from "@/lib/time";
-import { checkDailyRoomExists, isPlausibleRoomName } from "@/lib/daily-rooms";
+import {
+  DailyRoomError,
+  checkDailyRoomExists,
+  getRoomStatus,
+  isPlausibleRoomName,
+} from "@/lib/daily-rooms";
+import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
@@ -41,11 +47,30 @@ import InvalidLinkScreen from "@/components/invalid-link-screen";
  * avoids an unnecessary Daily API call for a case CallRoom already handles
  * correctly from the `exp` math alone, with no regression risk to item 6's
  * already-verified behaviour for that path.
+ *
+ * "Anchor the countdown to first join, not link creation" (built 2026-07-21,
+ * interactive): a link now also carries `d` (the intended durationSeconds).
+ * The `exp` in a freshly-created link is a generous pre-start buffer, not the
+ * real call length (see src/lib/daily-rooms.ts) — this page's job is to
+ * re-fetch the room's *live* `exp` from Daily (via `getRoomStatus`) rather
+ * than trusting the link's own `exp`, since that's the only way two tabs
+ * opening the same link at very different times agree on the same real
+ * countdown once it's started. CallRoom (src/components/call-room.tsx) is
+ * what actually starts it (a manual "Start now" button, or daily-js
+ * detecting a second participant) and owns the waiting-vs-counting-down UI.
+ *
+ * Backward compatible with links minted before this feature (`d` missing):
+ * those links' `exp` was already the real, already-ticking countdown at
+ * creation time — this page treats a missing `d` as "already started," so an
+ * older link keeps behaving exactly as it always did.
  */
 
 type Props = {
   params: Promise<{ room: string }>;
-  searchParams: Promise<{ exp?: string | string[] }>;
+  searchParams: Promise<{
+    exp?: string | string[];
+    d?: string | string[];
+  }>;
 };
 
 function PageShell({ children }: { children: ReactNode }) {
@@ -69,13 +94,21 @@ function PageShell({ children }: { children: ReactNode }) {
 
 export default async function RoomPage({ params, searchParams }: Props) {
   const { room } = await params;
-  const { exp: rawExp } = await searchParams;
+  const { exp: rawExp, d: rawDuration } = await searchParams;
   const expParam = Array.isArray(rawExp) ? rawExp[0] : rawExp;
-  const exp = expParam ? Number(expParam) : NaN;
-  const hasValidExp = Number.isFinite(exp) && exp > 0;
+  const durationParam = Array.isArray(rawDuration) ? rawDuration[0] : rawDuration;
+  const linkExp = expParam ? Number(expParam) : NaN;
+  const hasValidLinkExp = Number.isFinite(linkExp) && linkExp > 0;
   const hasValidRoomName = isPlausibleRoomName(room);
 
-  if (!hasValidRoomName || !hasValidExp) {
+  const durationSeconds = durationParam ? Number(durationParam) : NaN;
+  const hasValidDuration =
+    Number.isFinite(durationSeconds) &&
+    Number.isInteger(durationSeconds) &&
+    durationSeconds >= MIN_DURATION_SECONDS &&
+    durationSeconds <= MAX_DURATION_SECONDS;
+
+  if (!hasValidRoomName || !hasValidLinkExp) {
     return (
       <PageShell>
         <InvalidLinkScreen
@@ -87,22 +120,64 @@ export default async function RoomPage({ params, searchParams }: Props) {
   }
 
   const { mockMode, domain } = getDailyConfig();
-  const initialRemainingMs = remainingMsUntil(exp);
 
-  if (!mockMode && initialRemainingMs > 0) {
-    const exists = await checkDailyRoomExists(room);
-    if (!exists) {
-      return (
-        <PageShell>
-          <InvalidLinkScreen
-            heading="This Qwickword doesn't exist"
-            message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
-          />
-        </PageShell>
-      );
+  let exp = linkExp;
+  // Legacy default: a link with no `d` was minted before this feature, so
+  // its `exp` was already the real, already-ticking countdown — treat it as
+  // started so old links keep behaving exactly as they always did.
+  let started = true;
+
+  if (hasValidDuration) {
+    if (mockMode) {
+      // Mock mode has no persisted room to poll — CallRoom's own client-side
+      // "Start now"/join-detected trigger takes over from here.
+      started = false;
+    } else {
+      try {
+        const status = await getRoomStatus(room, linkExp);
+        exp = status.exp;
+        started = status.started;
+      } catch (err) {
+        if (err instanceof DailyRoomError && err.status === 404) {
+          return (
+            <PageShell>
+              <InvalidLinkScreen
+                heading="This Qwickword doesn't exist"
+                message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
+              />
+            </PageShell>
+          );
+        }
+        // Unexpected error (network blip, Daily hiccup) — fall back to the
+        // waiting state with the link's own buffer `exp` rather than crashing
+        // the page or guessing a countdown target. CallRoom's own status
+        // polling gets another chance to fetch the real state once mounted.
+        console.error(
+          "[Qwickword] Failed to fetch live room status, falling back to waiting state:",
+          err
+        );
+        started = false;
+      }
+    }
+  } else {
+    // Legacy link path (no `d`): keep the original existence-check behavior.
+    const legacyRemainingMs = remainingMsUntil(exp);
+    if (!mockMode && legacyRemainingMs > 0) {
+      const exists = await checkDailyRoomExists(room);
+      if (!exists) {
+        return (
+          <PageShell>
+            <InvalidLinkScreen
+              heading="This Qwickword doesn't exist"
+              message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
+            />
+          </PageShell>
+        );
+      }
     }
   }
 
+  const initialRemainingMs = remainingMsUntil(exp);
   const joinUrl = mockMode ? null : `https://${domain}/${room}`;
 
   return (
@@ -110,6 +185,8 @@ export default async function RoomPage({ params, searchParams }: Props) {
       <CallRoom
         room={room}
         exp={exp}
+        durationSeconds={hasValidDuration ? durationSeconds : null}
+        initialStarted={started}
         initialRemainingMs={initialRemainingMs}
         mockMode={mockMode}
         joinUrl={joinUrl}

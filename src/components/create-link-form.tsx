@@ -97,10 +97,15 @@ export default function CreateLinkForm() {
     }
 
     const room = data as CreateRoomResponse;
-    // `exp` (the room's Unix expiry timestamp) rides along in the query
-    // string so the call page (`/[room]`) can show a countdown without any
-    // server-side lookup or database — see src/app/[room]/page.tsx.
-    const roomPath = `/${room.name}?exp=${room.exp}`;
+    // `exp` and `d` (durationSeconds) both ride along in the query string so
+    // the call page (`/[room]`) needs no server-side lookup for a first
+    // render — see src/app/[room]/page.tsx. Note `exp` here is the room's
+    // *pre-start* buffer, not the real call length: the countdown doesn't
+    // actually start until someone presses "Start now" or a second person
+    // joins (src/lib/daily-rooms.ts, "Anchor the countdown to first join").
+    // `d` is what the call page uses to start the real countdown at that
+    // point, and what the waiting screen displays before then.
+    const roomPath = `/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
     const link = `${window.location.origin}${roomPath}`;
 
     setState({
