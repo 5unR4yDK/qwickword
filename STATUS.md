@@ -18,6 +18,16 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   the Q — and rendered it as a single large, low-opacity, `aria-hidden` "Q" glyph behind the card on
   the home page (`src/app/page.tsx`), sized with `clamp()` so it scales with viewport width. Live on
   `https://qwickword.com`.
+- **Home page visual pass, second round (Phase 1, done 2026-07-21, interactive, deployed to
+  production):** after seeing the Q watermark live, Andreas said it was "hardly visible" and asked for
+  the design to be "still minimalist but maybe a little bit more inspiring." Rather than only turning
+  up the Q's opacity, made three coordinated changes in `src/app/page.tsx`: the Q's opacity went from
+  0.06/0.07 to 0.18/0.22 and picked up an indigo tint (was flat zinc); the page background changed from
+  a flat `bg-zinc-50`/`bg-black` to a soft radial gradient (pale indigo glow in light mode, deep
+  indigo-to-black glow in dark mode); and the card content now sits in a translucent, blurred glass
+  panel (rounded corners, faint border, soft shadow) rather than floating directly on the page
+  background. Same components, copy, and layout — no structural or dependency changes. Live on
+  `https://qwickword.com`.
 - **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
   page no longer has a separate "Create" button — clicking a duration preset or picking a value from
   the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
@@ -1106,3 +1116,20 @@ throwaway scratch dir, not touching the mount).
     earlier in the session for the domain setup; read only that one line, not the rest of the file),
     re-verified live on `https://qwickword.com` and `https://quickword.vercel.app`. Pushed to GitHub,
     mount's `.git` re-synced, `git status --porcelain` confirmed clean.
+- 2026-07-21 (later still, interactive): after seeing the Q watermark live, Andreas said "can you make
+  the design still minimalist but maybe a little bit more inspiring? The Q is hardly visible." Rather
+  than treating this as one opacity slider, made three coordinated changes in `src/app/page.tsx`:
+  - The Q's opacity went from 0.06/0.07 to 0.18/0.22 and switched from flat zinc to an indigo tint
+    (`text-indigo-500/[0.18]` light, `text-indigo-300/[0.22]` dark).
+  - The page background changed from a flat `bg-zinc-50`/`bg-black` to a soft radial gradient — a pale
+    indigo glow in light mode, a deeper indigo-to-black glow in dark mode — centered slightly above the
+    card, giving the page some atmosphere without adding any imagery or texture.
+  - The card content (previously floating directly on the page background) now sits inside a
+    translucent, backdrop-blurred glass panel — rounded corners, a faint border, a soft shadow — so the
+    Q reads as sitting behind glass rather than bleeding straight through flat color.
+  No new dependencies, no layout/structural changes, no copy changes — same components throughout.
+  Verified: `npm run lint` and `npm run build` both clean; curl-checked the live page for the new
+  gradient string and the updated Q opacity class. Deployed via the Vercel CLI (same
+  `secrets.blackstart.local.txt` `VERCEL_TOKEN` line as the first Q build), re-verified live on
+  `https://qwickword.com`, pushed to GitHub, mount's `.git` re-synced, `git status --porcelain`
+  confirmed clean.
