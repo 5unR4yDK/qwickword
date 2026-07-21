@@ -25,10 +25,17 @@ export default function Home() {
           the first version was "hardly visible" and asked for something a
           little more inspiring — paired with the soft radial background glow
           above and the glass-card treatment on <main> below, rather than
-          just cranking the Q's own opacity in isolation. */}
+          just cranking the Q's own opacity in isolation. Blurred the glyph
+          itself (2026-07-21, third pass): the part of the Q sitting behind
+          the glass card was already soft (thanks to the card's own
+          backdrop-blur), but the tail poking out below the card rendered
+          crisp against the plain background, so it read as a stray sharp
+          shape rather than part of the same glow. A uniform blur filter on
+          the whole span fixes that mismatch everywhere, not just under the
+          card. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(17rem,44vw,32rem)] leading-none font-[family-name:var(--font-playfair-display)] text-indigo-500/[0.18] dark:text-indigo-300/[0.22]"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(17rem,44vw,32rem)] leading-none font-[family-name:var(--font-playfair-display)] text-indigo-500/[0.22] blur-md dark:text-indigo-300/[0.26]"
       >
         Q
       </span>
