@@ -11,6 +11,13 @@
 // No "use client" here: this component uses no hooks or browser-only APIs, so
 // it can be imported directly from both a Server Component (page.tsx) and a
 // Client Component (call-room.tsx) without needing the directive itself.
+//
+// Phase 1 item 1 ("Pre-join screen"): the live-mode iframe below now points at
+// a room created with `enable_prejoin_ui: true` (src/lib/daily-rooms.ts), so
+// Daily Prebuilt itself shows a lobby — name entry, camera/mic check — before
+// the participant actually joins. No new component was needed for live mode;
+// this file's only change is a short explanatory note in the mock-mode box
+// below, since there is no real Daily embed to show a lobby inside.
 
 export default function CallMedia({
   room,
@@ -33,6 +40,11 @@ export default function CallMedia({
               Mock call — no Daily API key configured
             </p>
             <p className="text-sm text-zinc-400">Room: {room}</p>
+            <p className="max-w-xs text-xs text-zinc-500">
+              In live mode, this box is a real call and opens on Daily&apos;s
+              own pre-join lobby first — enter your name, check your camera
+              and mic, then join.
+            </p>
           </div>
         ) : (
           <iframe
