@@ -262,12 +262,29 @@ Goal: something you'd actually send to a colleague without wincing.
       per-request randomness, not a frozen build-time value. Deployed same session; live on
       `https://qwickword.com`. `SLOGANS.md` stays the editable source list going forward.
 - [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
-- [ ] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
+- [x] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
       *(Note added 2026-07-21, Andreas, interactive: wants a friendly, non-onerous audio cue in the
       last seconds, not just visual — a very soft/low-volume tick starting around T-10s, becoming a
       little more audible from T-5s down to zero. Keep it gentle and friendly in character, matching
       the product's overall tone, not an alarm. For later: build both the visual and audio cue
       together as this one item.)*
+      **Built 2026-07-21, same day, interactive ("also shift to gentle reddish by t-minus 10"):**
+      `src/components/call-countdown.tsx` — the existing amber "ending" colour (T-30s to T-11s) is
+      unchanged; a new, softer `rose` colour stage (Tailwind's `rose`, not `red` — deliberately gentler
+      than the harsher red used once the call has actually ended) now covers T-10s down to T-1s. A
+      plain Web Audio API oscillator plays one short, soft tick per whole second across that same
+      T-10s-to-T-1s window — no audio file asset needed — quietly louder each second as it approaches
+      zero (volume ramps ~0.04 to ~0.14), wrapped in try/catch since a blocked/unsupported
+      `AudioContext` should degrade silently, never break the visual countdown. Became a Client
+      Component (`"use client"`) to hold the small amount of state this needs (which second was last
+      ticked, the `AudioContext` instance itself), but is otherwise still a stateless renderer reacting
+      to the `remainingMs` CallRoom passes it — no clock of its own. Verified: `npm run lint`/`npm run
+      build` clean; curl-checked a countdown at 8s remaining renders the new `rose` class and one at
+      20s remaining still renders the existing `amber` class, confirming the two visual stages don't
+      collide. The audio side can't be verified via curl (it's a client-side Web Audio effect with no
+      DOM trace) — verified by code review and the same defensive try/catch pattern used elsewhere in
+      this app for anything audio/daily-js related, not by an actual browser test (still no working
+      headless browser in this sandbox).
 - [ ] Fully responsive layout; verify the call works on a phone browser.
 - [~] **Basic brand pass, including the rename to "Qwickword."** *(Andreas, 2026-07-21, interactive:
       "We're changing the name to Qwickword.com." He already owns the `qwickword.com` domain.)*

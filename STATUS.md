@@ -41,6 +41,13 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
   `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
   and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
+- **Countdown T-10s audio cue + gentle reddish colour (Phase 1, done 2026-07-21, interactive, deployed
+  to production):** the last 10 seconds now get a softer `rose` colour stage (distinct from the
+  existing `amber` T-30s warning and the harsher solid red used once the call has actually ended), plus
+  a quiet Web Audio tick once per second, quietly louder as it approaches zero — no audio file asset,
+  just a synthesized tone with a fast attack/decay envelope, wrapped in try/catch so a blocked/
+  unsupported `AudioContext` degrades silently. `src/components/call-countdown.tsx` became a Client
+  Component to hold this. Live on `https://qwickword.com`.
 - **Larger call video window (done 2026-07-21, interactive, deployed to production):** Andreas said the
   call window felt small next to Google Meet/Teams; his friend on mobile independently described it as
   "cropped." `src/components/call-media.tsx`: desktop max-width widened `max-w-3xl` (768px) ->
@@ -1362,3 +1369,23 @@ throwaway scratch dir, not touching the mount).
      only, but a real, sourced answer rather than a guess.
   2. **Call video window feels small vs. Google Meet/Teams; friend on mobile called it "cropped."**
      See the video-window-size entry above — this is the fix for that second question.
+- 2026-07-21 (later still, interactive): Andreas asked "whats the next natural small build" —
+  recommended the T-10s countdown audio cue over dark mode/settings menu (both bigger, needing new
+  persistence and UI chrome) since the audio cue was already fully spec'd by Andreas earlier this
+  session and just hadn't been built yet, and is small and self-contained. He confirmed by immediately
+  adding one more piece: "also shift to gentle reddish by t-minus 10." Built and deployed both together:
+  `src/components/call-countdown.tsx` gained a `rose`-coloured stage for the last 10 seconds (kept
+  gentler than the harsher red used once the call has ended, and distinct from the existing amber T-30s
+  stage) and a per-second Web Audio tick across that same window, quietly louder as it nears zero
+  (volume ~0.04 to ~0.14). No audio file asset — a plain oscillator with a fast attack/decay envelope —
+  wrapped in try/catch so a blocked or unsupported `AudioContext` never breaks the visual countdown.
+  Became a Client Component to hold the small bit of state this needs (last-ticked second, the
+  `AudioContext` instance), otherwise unchanged: still a stateless renderer of whatever `remainingMs`
+  CallRoom passes it. Verified: `npm run lint`/`npm run build` clean; curl-checked a real, live room
+  (created and later deleted via the Daily API) at 8s remaining renders the new `rose` class, and one at
+  20s remaining still renders the existing `amber` class — confirms the two stages don't collide. The
+  audio side has no DOM trace to curl-check — verified by code review and the same defensive try/catch
+  pattern used elsewhere in this app for daily-js/audio-adjacent code, not by an actual browser test
+  (still no working headless browser in this sandbox). Deployed via the Vercel CLI (same
+  `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), pushed to GitHub, mount's `.git` re-synced,
+  `git status --porcelain` confirmed clean. ROADMAP.md's "Countdown polish" item marked `[x]`.
