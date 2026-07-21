@@ -10,6 +10,15 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
+  page no longer has a separate "Create" button — clicking a duration preset or picking a value from
+  the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
+  with 20 minutes. On success the link auto-copies to the clipboard (best-effort, with a green
+  auto-dismissing toast confirming it) and a "Join the meeting now" button takes the creator straight
+  into the call. `src/lib/duration.ts` and `src/components/create-link-form.tsx`; see the run-history
+  entry below for full build/verify detail. Live on `https://qwickword.com`. The related countdown-
+  timing request (start on manual "Start now" press, not just first join) was folded into the existing
+  ROADMAP.md "Anchor the countdown to first join" item instead of being built tonight — see ROADMAP.md.
 - **Manifesto easter egg (2026-07-21, interactive, deployed to production):** Andreas provided the
   full text of "The Qwickword Manifesto" and asked for a discreet way to expose it. Published at
   `/manifesto` (`src/app/manifesto/page.tsx`, styled as an essay — serif type, generous spacing, its
@@ -1026,3 +1035,37 @@ throwaway scratch dir, not touching the mount).
   distinctive line ("Kevin"), and the "Back to Qwickword" link. Deployed to production and re-verified
   live on `https://qwickword.com/manifesto`. Not a ROADMAP.md item — an ad hoc creative request, not a
   product feature — logged in "Current state" instead.
+- 2026-07-21 (later still, interactive): Andreas asked for a one-click create flow — each duration
+  control creates the room immediately on click/select instead of a separate pick-then-Create step,
+  swap the 30-minute preset for 20 minutes, add a custom 1–60-minute dropdown, auto-copy the link to
+  the clipboard with a green confirmation toast, and a "Join the meeting now" button — plus a change to
+  when the countdown starts (manual start button OR second join, not just second join). Split this into
+  two parts via a clarifying question (first attempt failed with a tool error, recovered by explaining
+  the same split in plain text next turn); Andreas answered "1": build the create-flow/UI part now,
+  fold the countdown-timing part into the already-queued "Anchor the countdown to first join, not link
+  creation" item rather than building it as a separate feature.
+  - **Built and deployed tonight:** `src/lib/duration.ts` — `DURATION_PRESETS_SECONDS` changed from
+    `[60, 120, 300, 600, 900, 1800]` to `[60, 120, 300, 600, 900, 1200]` (20 min replaces 30 min), new
+    `CUSTOM_DURATION_MINUTES_OPTIONS` (1–60). `src/components/create-link-form.tsx` rewritten:
+    `handleCreate(durationSeconds)` fires directly from each preset button's `onClick` and the custom
+    `<select>`'s `onChange` — no more separate "Create" submit button. On success, best-effort
+    `navigator.clipboard.writeText()` in a try/catch (can silently fail, e.g. in Safari, without being
+    fatal — the link stays visible and the manual "Copy link" button still works), a green
+    `role="status"` toast auto-dismissing after 2.5s confirms the copy, and a new "Join the meeting now"
+    link takes the creator straight into the call. Heading changed to "Click to have a quick word:".
+  - **Verified:** `npm run lint` and `npm run build` both clean. Curl-tested in mock mode (each preset
+    button and the custom dropdown create distinct rooms with the right `exp`) and against live Daily
+    rooms (a real custom-duration create, confirmed via Daily's API, then deleted). Checked the
+    rendered `<option>` list has all 60 entries (`value="1"` through `value="60"`) — had to adjust the
+    check partway through because React SSR inserts `<!-- -->` comment nodes between adjacent JSX text
+    expressions, which broke an initial exact-string grep.
+  - Deployed to production via the Vercel CLI, re-verified live on both `https://qwickword.com` and
+    `https://quickword.vercel.app`, pushed to GitHub (`5unR4yDK/qwickword`), mount's `.git` re-synced,
+    `git status --porcelain` confirmed clean.
+  - **Countdown-timing part folded into ROADMAP.md, not built tonight:** the existing "Anchor the
+    countdown to first join, not link creation" item now also covers a manual "Start now" button as an
+    alternative trigger to the first join — whichever fires first wins, and the "Done when" criteria
+    were updated to cover both triggers. This stays one item, not two, since both triggers end in the
+    same "compute real `exp`, push it to Daily's room config" mechanism; it should be built as a single
+    piece of work in a future nightly run, not split into join-detection now and a manual-start bolt-on
+    later.

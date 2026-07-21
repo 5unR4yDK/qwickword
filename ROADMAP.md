@@ -169,9 +169,20 @@ Goal: something you'd actually send to a colleague without wincing.
       - Until the first join happens, replace the ticking countdown with a waiting state (this
         merges the separate "Waiting for the other person" item that used to be here — do not build
         that as a second, separate item; it's the same UI state this item needs anyway).
+      - **Updated 2026-07-21 (Andreas, interactive, alongside the one-click create-flow redesign
+        below):** the countdown should start on *either* of two triggers, not just the first join —
+        also add a manual "Start now" button the creator can press themselves (e.g. useful if they've
+        confirmed the other person is ready some other way — a phone call, a chat message — and don't
+        want to wait on Daily's own join-detection). Whichever trigger fires first wins; once the timer
+        has started via one path, the other becomes moot (a manual start shouldn't be re-triggerable by
+        a join arriving after, and vice versa). This is an extension of the same underlying mechanism —
+        both triggers end in the same "compute real `exp`, push it to Daily's room config" step above —
+        not a second, separate feature; build them together, not the join-detection now and the manual
+        button as a future add-on.
       *Done when:* two tabs opening the same link at very different times both see a countdown that
-      starts from whichever of them joined first, not from link-creation time, and Daily's own room
-      config confirms the server-side `exp` was actually updated, not just the client display.
+      starts from whichever of (a) one of them joining or (b) the creator pressing "Start now" happens
+      first, not from link-creation time, and Daily's own room config confirms the server-side `exp`
+      was actually updated, not just the client display.
 - [x] Rotating slogan/subtitle on the home page. *(Andreas, 2026-07-21, interactive: first asked for a
       slogan brainstorm, then a review pass to cut the unfunny ones — see `SLOGANS.md` — then "lets
       deploy all the slogans, have them land at random for users.")* `src/lib/slogans.ts` holds the 35
