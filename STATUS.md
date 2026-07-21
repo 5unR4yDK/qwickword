@@ -874,6 +874,32 @@ throwaway scratch dir, not touching the mount).
   standing convention) with the exact records so nothing has to be re-derived. Next run: once he's
   saved the DNS changes, re-check `misconfigured` via the same Vercel config endpoint and smoke-test
   the live `qwickword.com` URL once it clears, per the ROADMAP.md item's updated "Next run" note.
+- 2026-07-21 (later still, interactive): Andreas asked to "just run the renaming now and redoing of
+  banner text etc" — did the full text rename to "Qwickword" across the app and living docs on the
+  spot (see the ROADMAP.md brand-pass item, now `[~]`, and the STATUS.md "Current state" entries above
+  for full detail), then, mid-way through, he separately asked to "update the navicon to a Q." Handled
+  that in the same pass: generated a new `favicon.ico` (Pillow, five embedded sizes 16–64px, a black
+  rounded square with a bold white "Q") replacing the leftover default Next.js placeholder icon, plus
+  a hand-authored `src/app/icon.svg` for crisp rendering on modern/high-DPI browsers — rendered a PNG
+  preview first and looked at it before shipping, rather than trusting the generation blind. One
+  real self-inflicted snag while syncing changes into the scratch build for commit: `package.json`'s
+  renamed `"name"` field was copied from the mount into scratch correctly, but `package-lock.json` was
+  regenerated (`npm install --package-lock-only`) *only inside the scratch dir* and never written back
+  to the mount before committing — so after copying the finished `.git` back, `git status` on the
+  mount showed `package-lock.json` as modified (working tree had the old pre-rename lockfile, HEAD had
+  the new one). Caught it via the routine `git status` check immediately after the `.git` swap (per
+  the standing "always check clean after copying .git back" habit), fixed with a plain `cp` from the
+  scratch dir's correct copy (verified matching `md5sum` after), consistent with the platform note that
+  plain copies to this mount are reliable for generated/binary artifacts like a lockfile or a `.ico`
+  file — it's specifically git's own lock+rename write pattern that isn't. Deployed to production
+  (`vercel deploy --prod`) and re-verified live: `https://qwickword.com`'s `<title>` reads "Qwickword",
+  zero "Quick Word" occurrences anywhere on the home page, `favicon.ico`/`icon.svg` both serve `200`
+  with correct content types, and a real room's "ended" screen reads "This Qwickword has ended."
+  (room created, tested, then deleted — no debris). `https://quickword.vercel.app` confirmed clean too.
+  Everything (code, docs, favicon, package-lock.json fix) committed via the standard scratch-clone
+  workflow. **Still open, not attempted tonight:** an actual logo, a considered colour palette beyond
+  the current black/white, and Open Graph meta tags/image — the favicon fix covers the browser-tab
+  icon only, not the rest of the "Basic brand pass" item's scope.
 - 2026-07-21 (later still, interactive): Andreas asked for a DNS status check (his `www` CNAME was
   still pointing at the bare `qwickword.com` instead of Vercel's project-specific target, and no A
   record existed at all for the apex after he'd deleted GoDaddy's parking record) — gave him the exact

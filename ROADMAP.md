@@ -200,10 +200,14 @@ Goal: something you'd actually send to a colleague without wincing.
       old "This Quick Word has ended.", since the two-word name doubled as the English idiom "have a
       quick word" and that wordplay doesn't carry over to the new one-word name — happy to rephrase
       (e.g. "This call has ended.") if he'd rather.
-      **Still not done — separate follow-up, not attempted tonight:** logo, favicon, colours, and
-      Open Graph / meta tags so a pasted link shows a nice preview (e.g. "A 2-minute Qwickword"). This
-      needs actual visual design work (an image/icon, a colour palette), not a text find-and-replace —
-      keeping it as its own follow-up rather than guessing at a logo tonight.
+      **Favicon done too, same session (Andreas: "update the navicon to a Q"):** generated
+      `src/app/favicon.ico` (black rounded square, bold white "Q", 5 embedded sizes) and
+      `src/app/icon.svg` (crisp modern-browser version), replacing the leftover default Next.js
+      placeholder icon. Live-verified both serve correctly on `qwickword.com`.
+      **Still not done — separate follow-up, not attempted tonight:** an actual logo (beyond the
+      favicon's simple letterform), a considered colour palette, and Open Graph / meta tags so a
+      pasted link shows a nice preview (e.g. "A 2-minute Qwickword"). This needs real visual design
+      work, not a text find-and-replace — keeping it as its own follow-up.
       Verified: `npm run lint`/`npm run build` clean, curl-tested both modes (mock and live) against a
       live dev server confirming zero remaining "Quick Word" occurrences anywhere in a rendered page,
       then **deployed to production** and re-verified live on both `https://qwickword.com` and
