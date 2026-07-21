@@ -10,6 +10,24 @@
 // https://docs.daily.co/reference/rest-api/rooms/config). They match what
 // BUILD_PLAN.md already specified — no correction needed there.
 //
+// `enable_prejoin_ui` (added 2026-07-21, ROADMAP.md Phase 1 item 1 — "Pre-join
+// screen: name entry + camera/mic check before connecting") was validated the
+// same way against https://docs.daily.co/reference/rest-api/rooms/config:
+// "Determines whether participants enter a waiting room with a camera, mic,
+// and browser check before joining a call." That IS Daily Prebuilt's own
+// lobby screen — confirmed via docs.daily.co/guides/products/prebuilt/
+// customizing-daily-prebuilt and Daily's own blog that it also collects a
+// display name first ("the name form will show, which requires a name to be
+// entered, and submitting this form will bring the user to the prejoin UI").
+// Deliberate build choice: rather than writing a custom getUserMedia-based
+// name/device screen, this reuses Daily Prebuilt's own lobby — same rationale
+// as Phase 0 item 5's choice to embed Daily's whole prebuilt call UI rather
+// than build a custom call surface. Consequence worth knowing: the lobby is
+// rendered *inside* the iframe already embedded on the call page, so no new
+// component/route was needed here, and it counts against the room's shared
+// `exp` like any other time spent on the page (consistent with "the timer
+// hits zero and it ends" — dawdling in the lobby is not a loophole).
+//
 // Hard-expiry design (per STATUS.md, locked): `exp = now + duration`,
 // `eject_at_room_exp: true` (ejects anyone still in the room at `exp`), and
 // `eject_after_elapsed = duration` as a per-participant backstop (ejects a
@@ -99,6 +117,7 @@ export async function createHardExpiryRoom(
         exp,
         eject_at_room_exp: true,
         eject_after_elapsed: durationSeconds,
+        enable_prejoin_ui: true,
       },
     }),
   });
