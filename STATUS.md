@@ -10,6 +10,14 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **Large decorative "Q" watermark (Phase 1, done 2026-07-21, interactive, deployed to
+  production):** Andreas sketched a big Q-sized shape over a screenshot of the create-flow card and
+  asked for a large serif Q as part of the design, "same font type as Times New Roman or similar
+  typefont maybe more unique." Loaded Playfair Display (`next/font/google`, `src/app/layout.tsx`) — a
+  serif in the same family as Times but a more distinctive, editorial letterform with a nicer tail on
+  the Q — and rendered it as a single large, low-opacity, `aria-hidden` "Q" glyph behind the card on
+  the home page (`src/app/page.tsx`), sized with `clamp()` so it scales with viewport width. Live on
+  `https://qwickword.com`.
 - **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
   page no longer has a separate "Create" button — clicking a duration preset or picking a value from
   the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
@@ -1069,3 +1077,32 @@ throwaway scratch dir, not touching the mount).
     same "compute real `exp`, push it to Daily's room config" mechanism; it should be built as a single
     piece of work in a future nightly run, not split into join-detection now and a manual-start bolt-on
     later.
+- 2026-07-21 (later still, interactive): Andreas sent a screenshot of the live home page with a big Q
+  shape drawn in red over the create-flow card, roughly the size of the card, and asked for a large
+  serif Q as part of the design — "same font type as Times New Roman or similar typefont mmayhbe more
+  unique." Built and deployed same session:
+  - `src/app/layout.tsx`: added `Playfair_Display` via `next/font/google` as a new CSS variable
+    (`--font-playfair-display`), used only for this glyph — not for body text, which stays on Geist.
+    Picked Playfair over literal Times New Roman because Andreas explicitly asked for "more unique";
+    it's a serif in the same broad family but with a more sculpted, editorial letterform and a longer,
+    more distinctive tail on the Q specifically.
+  - `src/app/page.tsx`: the home page's outer wrapper became `relative overflow-hidden`; a single
+    `aria-hidden`, `pointer-events-none`, `select-none` `<span>Q</span>` sits absolutely centered
+    behind the card, sized with `text-[clamp(16rem,42vw,30rem)]` so it scales with viewport width
+    rather than being a fixed pixel size, at very low opacity (`text-zinc-900/[0.06]` light,
+    `text-zinc-50/[0.07]` dark) so it reads as a watermark rather than competing with the actual
+    copy/buttons. The card content (`<main>`) got `relative z-10` to sit above it; the existing fixed
+    "manifesto" corner link needed no z-index change since `fixed` already escapes the local stacking
+    context.
+  - Verified: `npm run lint` and `npm run build` both clean. Tried to get an actual visual
+    screenshot via Playwright before shipping — `npx playwright install chromium --with-deps` failed
+    because the sandbox has no root/sudo (same limitation documented earlier this session for
+    Playwright/real-browser testing generally) — so verification stayed to curl-checking the rendered
+    HTML for the new markup (the Playfair class string, the `>Q<` text node) and a `200` on both a
+    local production server and the live site, consistent with how every other UI change has had to be
+    verified this session in the absence of a working headless browser.
+  - Deployed via the Vercel CLI (token read from the single `VERCEL_TOKEN` line in
+    `secrets.blackstart.local.txt` — Andreas's personal Vercel account token, already used this way
+    earlier in the session for the domain setup; read only that one line, not the rest of the file),
+    re-verified live on `https://qwickword.com` and `https://quickword.vercel.app`. Pushed to GitHub,
+    mount's `.git` re-synced, `git status --porcelain` confirmed clean.
