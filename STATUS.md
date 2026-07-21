@@ -41,6 +41,17 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
   `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
   and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
+- **Anchor the countdown to first join, not link creation (Phase 1, done 2026-07-21, interactive,
+  deployed to production):** the countdown no longer starts the instant a link is created. Rooms are
+  now created with a generous 24h "pre-start buffer" `exp` (not the real call length); the real,
+  server-enforced countdown starts only once someone presses a new "Start now" button, or daily-js
+  (`@daily-co/daily-js`, newly added) detects a second participant has joined — whichever happens
+  first. New `POST /api/rooms/[room]/start` and `GET /api/rooms/[room]/status` routes;
+  `src/lib/daily-rooms.ts` gained `startRoomCountdown`/`getRoomStatus`/`isCountdownStarted`, all
+  deriving "started or not" purely from the room's own live `exp` (no new datastore). Links now carry
+  `&d=<durationSeconds>`; `src/app/[room]/page.tsx` re-fetches the room's live status rather than
+  trusting the link's own `exp`. Old links (no `d`) keep behaving exactly as before. See the run-history
+  entry below for full build/verify detail. Live on `https://qwickword.com`.
 - **Copied-link toast fix (Phase 1, done 2026-07-21, interactive, deployed to production):** the green
   "Link copied to clipboard!" toast was `fixed` to the viewport top, independent of where the
   create-flow card actually sits, so on shorter viewports it landed on top of the page's own
@@ -1190,3 +1201,68 @@ throwaway scratch dir, not touching the mount).
   occurrences of the old `fixed top-6` class. Deployed via the Vercel CLI (same
   `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on `https://qwickword.com`,
   pushed to GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
+- 2026-07-21 (later still, interactive): Andreas asked to build the queued "anchor countdown to first
+  join, not link creation" item now ("can we implement now lpease..."), including the manual-start
+  extension folded into it earlier this session. Built and deployed:
+  - `src/lib/daily-rooms.ts`: `createHardExpiryRoom` now sets `exp = now + PRE_START_BUFFER_SECONDS`
+    (24h) instead of `now + durationSeconds` — a generous "how long can this link sit unopened" buffer,
+    not the real call length (`eject_after_elapsed` matches it, so nobody waiting in the pre-join lobby
+    gets ejected early by that per-participant backstop). New `isCountdownStarted(exp, now)` derives
+    "started or not" by comparing the room's live `exp` against that buffer, with a 5-minute margin to
+    absorb latency/clock skew — still no new datastore, Daily's own room object stays the single source
+    of truth, per the original design note. New `startRoomCountdown(name, durationSeconds)` re-fetches
+    the room's live config and, only if not already started, sets `exp = now + durationSeconds`; if
+    already started (by the other trigger), it's a no-op that echoes the existing `exp` back — this is
+    what makes "whichever trigger fires first wins" safe against a race between the manual button and
+    join-detection. New `getRoomStatus(name, fallbackExp)` is the read-only version, used for polling.
+  - Two new routes: `POST /api/rooms/[room]/start` (called by both triggers) and
+    `GET /api/rooms/[room]/status` (polled by a waiting tab to detect a start triggered elsewhere).
+  - `src/components/call-media.tsx` became a Client Component and now wraps the existing iframe with
+    `@daily-co/daily-js` (`DailyIframe.wrap()` — keeps Daily Prebuilt's own UI, including the pre-join
+    lobby, rather than swapping in a custom call surface) via a new `onParticipantCountChange` prop,
+    which is how every connected tab detects "a second person has joined" directly from the call
+    itself, no server round-trip needed for that trigger.
+  - `src/components/call-room.tsx`: new waiting state ("Waiting to start" + explanation) shown instead
+    of the ticking countdown until `started` is true; a "Start now" button and the participant-count
+    callback both call the same `triggerStart`; a status-poll effect (every 4s, only while waiting)
+    picks up a start triggered from a different tab. CallMedia (the actual call) still renders
+    throughout the wait, so people already in the lobby/call are genuinely waiting together, not
+    blocked from connecting. Hit one ESLint `react-hooks/set-state-in-effect` error along the way (an
+    extra synchronous `setState` call in the ticking effect's body, added while trying to make the
+    display update instantly on start) — fixed by dropping back to the original single-setState-inside-
+    setInterval-callback shape, same pattern the pre-existing countdown effect already used, accepting
+    up to a 1-second display lag after a start rather than fighting the lint rule.
+  - `src/app/[room]/page.tsx`: links now carry `d` (durationSeconds) alongside `exp`; when `d` is
+    present, this page re-fetches the room's *live* status from Daily rather than trusting the link's
+    own `exp`, and passes `durationSeconds`/`started` down to CallRoom. **Backward compatible:** a link
+    minted before this feature (`d` missing) is treated as already-started, using its `exp` exactly as
+    before — verified no existing shared link breaks (see below).
+  - `src/components/create-link-form.tsx`: generated links now include `&d=${durationSeconds}`.
+  - Added `@daily-co/daily-js` as a new dependency (`npm install` in the scratch build dir, then
+    `package.json`/`package-lock.json` copied back to the mount — this is the first new runtime
+    dependency added since the original Next.js scaffold).
+  - Verified: `npm run lint`/`npm run build` clean. Full round-trip tested via curl, in one shell
+    invocation per test (this sandbox's bash tool runs each call in an isolated process with no
+    cwd/background-process carryover between calls, discovered mid-verification when an earlier
+    nohup'd dev server from a prior call turned out not to be reachable in the next one — worth noting
+    for future runs), in both mock mode and against the real Daily API (once locally, once again
+    against production after deploying): create → page shows "Waiting to start"/"Start now" → status
+    returns `started:false` with the buffer `exp` → start returns `started:true` with
+    `exp ≈ now + duration` → calling start again with a *different* duration is a no-op, proving the
+    idempotency/race guarantee → status after start confirms `started:true`. Also verified an old-style
+    link (`exp` only, no `d`) still shows an immediate ticking countdown (`role="timer"`, a real `1:59`),
+    and an already-expired legacy link still shows the ended screen — both exactly as before. Test
+    rooms created against the live Daily API (once locally, once in production) were deleted afterward
+    via the Daily API. No real second-participant/live-video test was possible in this sandbox (still no
+    working headless browser, confirmed again this session — Playwright's browser install still needs
+    root), so the join-triggered auto-start path is verified by code review and the shared
+    `triggerStart` function (identical code path to the manual-button trigger once called) rather than
+    by an actual two-person call.
+  - Deployed via the Vercel CLI (same `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), pushed to
+    GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
+  - Also added a new ROADMAP.md Phase 1 item, roadmap-only per Andreas's own framing ("add to
+    roadmap..."): "Vote to end early" — participants vote to end a call in progress, ends immediately
+    once over 50% agree. Designed to reuse this same build's mechanism (setting `exp` directly, no new
+    datastore, participant count already visible via the same daily-js wrapping) rather than invent a
+    second one — see the ROADMAP.md entry for the open questions flagged for build time (un-voting,
+    exact-50%-with-2-participants edge case).

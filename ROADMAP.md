@@ -147,7 +147,7 @@ Goal: something you'd actually send to a colleague without wincing.
       `[needs-andreas]`, nothing further to ask him for. Not a revert of tonight's work (Daily's
       `enable_prejoin_ui` lobby is still correct and still wanted) — just built on top of an
       assumption about *when the clock starts* that turned out to be wrong.
-- [ ] **Anchor the countdown to first join, not link creation.** Right now `exp` is fixed the moment
+- [x] **Anchor the countdown to first join, not link creation.** Right now `exp` is fixed the moment
       `POST /api/rooms` is called (Phase 0 item 3), so if the second person takes 90 seconds to open
       the link, they've already lost 90 seconds of, say, a 2-minute call before ever connecting.
       Andreas caught this testing the live app on 2026-07-21 (see the note on the item above). Fix:
@@ -183,6 +183,69 @@ Goal: something you'd actually send to a colleague without wincing.
       starts from whichever of (a) one of them joining or (b) the creator pressing "Start now" happens
       first, not from link-creation time, and Daily's own room config confirms the server-side `exp`
       was actually updated, not just the client display.
+      **Built and deployed 2026-07-21 (interactive, "can we implement now please..."):**
+      - `src/lib/daily-rooms.ts`: room creation now sets `exp = now + PRE_START_BUFFER_SECONDS` (24h)
+        instead of `now + durationSeconds` — a generous "how long can this link sit unopened" buffer,
+        not the real call length; `eject_after_elapsed` matches it so nobody waiting in the pre-join
+        lobby gets ejected early. New `isCountdownStarted(exp, now)` derives "started or not" purely
+        from comparing the room's live `exp` against that buffer — still no new datastore, exactly as
+        this item specified; Daily's own room object stays the single source of truth. New
+        `startRoomCountdown(name, durationSeconds)` re-fetches the room's live config and, only if not
+        already started, sets `exp = now + durationSeconds` — the real hard cutoff; if already started
+        (by the other trigger), it's a no-op that echoes the existing `exp` back, which is what makes
+        "whichever fires first wins" safe against a race between the two triggers. New
+        `getRoomStatus(name, fallbackExp)` is a read-only version of the same check.
+      - Two new routes: `POST /api/rooms/[room]/start` (called by both triggers below) and
+        `GET /api/rooms/[room]/status` (polled by a waiting tab to pick up a start triggered from a
+        *different* tab).
+      - `src/components/call-media.tsx` became a Client Component and now wraps the existing iframe
+        with `daily-js` (`DailyIframe.wrap()` — keeps Daily Prebuilt's own UI, including the pre-join
+        lobby, rather than swapping in a custom call surface) and reports live participant counts up
+        via a new `onParticipantCountChange` prop — this is how every connected tab detects "a second
+        person has joined" straight from the call itself, no server round-trip needed for that path.
+      - `src/components/call-room.tsx`: new waiting state ("Waiting to start" + a description of what
+        starts it) shown instead of the ticking countdown until `started` is true; a "Start now" button
+        and the participant-count callback both call the same `triggerStart`; a status-poll effect
+        (every 4s, only while waiting) picks up a start from another tab. CallMedia (the actual call)
+        still renders throughout the wait — people already in the lobby/call are genuinely waiting
+        together, not blocked from connecting.
+      - `src/app/[room]/page.tsx`: links now carry `d` (durationSeconds) alongside `exp`; when `d` is
+        present, this page re-fetches the room's *live* status from Daily rather than trusting the
+        link's own `exp` (source-of-truth requirement above) and passes `durationSeconds`/`started` down
+        to CallRoom. **Backward compatible:** a link minted before this feature (`d` missing) is treated
+        as already-started, using its `exp` exactly as before — no existing shared link breaks.
+      - `src/components/create-link-form.tsx`: generated links now include `&d=${durationSeconds}`.
+      - Verified: `npm run lint`/`npm run build` clean. Full round-trip tested via curl in both mock
+        mode and against the real Daily API (locally and again against production after deploy):
+        create → page shows "Waiting to start"/"Start now" → status returns `started:false` with the
+        buffer `exp` → start returns `started:true` with `exp ≈ now + duration` → calling start again
+        with a *different* duration is a no-op (proves the idempotency/race guarantee) → status after
+        start confirms `started:true`. Also verified an old-style link (`exp` only, no `d`) still shows
+        an immediate ticking countdown, and an already-expired legacy link still shows the ended screen
+        — both exactly as before. Test rooms created against the live Daily API were deleted afterward.
+        No real second-participant/live-video test was possible in this sandbox (still no working
+        headless browser — see STATUS.md), so the join-triggered auto-start path is verified by code
+        review and the shared `triggerStart` path (identical to the manual-button path once called) —
+        not by an actual two-person call.
+- [ ] **Vote to end early.** *(Added 2026-07-21, Andreas, interactive: "add to roadmap an option for
+      meeting participants to vote for meeting to end, if over 50% vote for it to end it ends
+      immediately".)* The mirror image of "Start now" above — that item lets someone delay the clock
+      from starting until they're ready; this one lets participants cut a call short once it's already
+      running, for the equally common case of "we're done early, no need to burn the rest of the
+      slot." Should reuse the same mechanism this item's build introduced rather than invent a second
+      one: ending a call early is just calling `startRoomCountdown`-style logic with `exp = now` (or a
+      new sibling function that sets it directly), which is already how this whole feature enforces a
+      real, server-side cutoff rather than a client-side display trick — same "Daily's room config is
+      the single source of truth, no new datastore" principle applies here too, since a vote's tally
+      can live in daily-js's own live participant list (who's voted) rather than a database: each
+      client already knows the current participant count from the same `daily-js` wrapping added for
+      the second-join detection above, so ">50% of current participants have pressed 'end call'" can be
+      computed the same way, client-side, by any tab, calling the same "set exp to now" endpoint once
+      the threshold is crossed. Needs a small UI addition on the call screen (an "End for everyone"
+      button + a live vote count, e.g. "2 of 3 want to end"), and a decision at build time on whether a
+      single participant can un-vote, and whether the threshold is a strict majority (>50%, per
+      Andreas's own phrasing) or something else for edge cases like exactly 2 participants (1 of 2 is
+      50%, not "over 50%" — needs 2 of 2).
 - [x] Rotating slogan/subtitle on the home page. *(Andreas, 2026-07-21, interactive: first asked for a
       slogan brainstorm, then a review pass to cut the unfunny ones — see `SLOGANS.md` — then "lets
       deploy all the slogans, have them land at random for users.")* `src/lib/slogans.ts` holds the 35
