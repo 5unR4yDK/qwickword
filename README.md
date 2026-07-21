@@ -34,8 +34,10 @@ DAILY_DOMAIN=your-subdomain.daily.co
 
 If `.env.local` is missing or either variable is unset, the app runs in **mock mode**
 automatically: room creation and the call UI are simulated, no real Daily API calls are made, and
-nothing crashes. The home page always shows which mode is active. This means the app is fully
-runnable and testable without any credentials.
+nothing crashes. The home page shows a small "Mock mode" banner whenever that's the case, so it's
+obvious when testing locally without credentials; in live mode (real credentials configured, as on
+the deployed site) no banner is shown — visitors don't need to see the video provider's internal
+domain. This means the app is fully runnable and testable without any credentials.
 
 ### Other scripts
 
