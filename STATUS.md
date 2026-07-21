@@ -940,3 +940,37 @@ throwaway scratch dir, not touching the mount).
   instructions immediately rather than waiting for a future run, and marked that ROADMAP.md item `[x]`
   with the live smoke-test result, moved its ASKS.md entry to Done. Both code changes (banner fix) and
   all doc updates (ROADMAP.md, ASKS.md, STATUS.md) committed via the standard scratch-clone workflow.
+- 2026-07-21 (later still, interactive): Andreas gave a real GitHub repo,
+  `https://github.com/5unR4yDK/qwickword.git`, and pointed at `QWICKWORD_GITHUB_PAT` in
+  `secrets.local.txt` (a top-level file, distinct from the BlackStart/PowerKyiv company-specific
+  secrets files already used earlier tonight). Read only that one line. Confirmed the repo was empty
+  first (`git ls-remote` returned nothing), so no risk of clobbering anything, then pushed all local
+  history (`main`, 14 commits) via a one-off authenticated push URL rather than saving the token into
+  the repo's stored remote config, then pointed `origin` at the plain (token-free)
+  `https://github.com/5unR4yDK/qwickword.git` and set upstream tracking — future runs should read the
+  token fresh from `secrets.local.txt` when they need to push, same pattern already used for the
+  Vercel token, rather than one sitting in `.git/config` on disk indefinitely. This is the first time
+  this project has had a real, non-ephemeral remote — everything before tonight only ever lived in
+  this local repo (the previous `origin`, pointing at an old ephemeral scratch-session path from a
+  different night, was stale/meaningless and is now replaced). All of this was done in the scratch
+  clone, per the standing hard rule against mutating git commands with `cwd` on the mount; only the
+  resulting, already-correct `.git` was copied back onto the mount.
+- 2026-07-21 (later still, interactive): Andreas asked for a brainstormed list of slogans/subtitles —
+  meeting-culture humor, the developer/standup-fatigue angle, and the manager-facing "know your team
+  isn't stuck in back-to-backs" angle — to review before any rotation feature gets built. Wrote ~40
+  candidates across six loose categories, both directly in chat and to a new `SLOGANS.md` in the repo
+  root, each as a `[ ]` checkbox for him to mark up. Deliberately not added to ROADMAP.md yet — he
+  said to wait for his approval first; `SLOGANS.md`'s own closing note is what queues the actual
+  build-the-rotation ROADMAP.md item once he's picked favorites. Then, before that was finished,
+  Andreas separately asked to add a home-page settings menu (hamburger/gear icon, pre-set camera/mic
+  and sound preferences before joining) to the roadmap — added as a new Phase 1 item, right after the
+  dark-mode toggle, since both share the same "no accounts, remember the choice per-browser" shape.
+  Noted for whoever builds it: there's no session/cookie mechanism in the app today (it's fully
+  stateless, per Phase 0's design) — Andreas asked "still just attached to your session cookie if we
+  have that," so the item records plainly that this should reuse the same `localStorage`-or-plain-
+  cookie approach just established for dark mode, not a real account-linked session, since one doesn't
+  exist. Also flagged a term worth confirming at build time rather than guessing: whether "sound"
+  means the speaker/output device or the countdown's audio cue (or both), and that actually applying a
+  pre-chosen camera/mic to the call itself needs research, since the call embed is a plain iframe with
+  no `daily-js` call object today — same tooling gap already noted in the "anchor countdown to first
+  join" item. Planning-only; no app code changed by either of these two requests.

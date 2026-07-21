@@ -233,6 +233,32 @@ Goal: something you'd actually send to a colleague without wincing.
       to the server); a cookie only becomes the better choice if a future item needs the *server* (e.g.
       a Server Component) to know the preference before first paint to avoid a flash of the wrong theme
       — worth deciding at build time, not a foregone conclusion either way, but no accounts either way.
+- [ ] Settings menu on the home page: a small icon in a corner (hamburger or gear — Andreas said
+      "like a hamburger," not necessarily literally one) opening a panel to pre-set camera/microphone
+      and sound preferences *before* joining a call. *(Added 2026-07-21, Andreas, interactive: "add to
+      roadmap... ability to set sound and video there so you dont do it while the clock is ticking."
+      Not built tonight.)* Motivation, in his words: fiddling with device/audio settings should happen
+      here, ahead of time, not burn seconds of the countdown once a call has actually started — the
+      same "don't waste the clock on setup" concern behind the "anchor countdown to first join" item
+      above and behind item 1's `enable_prejoin_ui` lobby (Daily's own camera/mic check, which already
+      happens *inside* the call once someone joins — this item is the equivalent choice made earlier,
+      from the home page, before a link is even created). One term worth clarifying at build time
+      rather than guessing: "sound" could mean which speaker/output device to use, or could mean
+      on/off and volume for the T-10s/T-5s countdown audio cue from the "Countdown polish" item above
+      — plausibly both belong in the same panel, but confirm with Andreas rather than assume only one.
+      Likely mechanics for actually applying a chosen camera/mic to the call itself: the call embed is
+      currently a plain `<iframe src="...">` with no `daily-js` call object (Phase 0 item 5's choice),
+      so passing a pre-selected device through to Daily's own prejoin lobby will need investigating —
+      Daily either supports this via specific URL query params or requires switching to the `daily-js`
+      SDK (same tooling gap already flagged in the "anchor countdown to first join" item above);
+      validate against Daily's live docs before assuming either way, per this project's standing habit.
+      **Persistence — Andreas asked "still just attached to your session cookie if we have that":** to
+      be clear for whoever builds this, there is no session/cookie mechanism in the app today — it's
+      fully stateless (Phase 0's design, reaffirmed by the still-open "decide the backend" item further
+      below). This should use the same lightweight, no-account approach just established for dark mode
+      (`localStorage` or a plain non-auth cookie, remembered per-browser, zero server-side state) —
+      not a real user "session" in the account/login sense. No new datastore, no login, consistent with
+      Andreas's explicit "no accounts right now" stance from the dark-mode discussion above.
 - [x] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
       **Done 2026-07-21 (interactive).** Andreas saved the corrected DNS records in GoDaddy and they
       propagated fast — confirmed via `GET /v6/domains/qwickword.com/config`: `misconfigured: false`.
