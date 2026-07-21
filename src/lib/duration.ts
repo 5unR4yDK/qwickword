@@ -9,12 +9,24 @@ export const MIN_DURATION_SECONDS = 60; // 1 minute
 export const MAX_DURATION_SECONDS = 60 * 60; // 60 minutes
 
 /**
- * Minimal preset options for the duration picker (Phase 0 item 4). Phase 1's
- * dedicated "Duration presets" roadmap item will revisit this list and add a
- * custom-value input; treat this set as a working placeholder, not a locked
- * product decision.
+ * Preset options for the duration picker. Updated 2026-07-21 per Andreas
+ * (interactive): "remove 30, add 20" — replaces the 30-minute preset from
+ * Phase 0 item 4 with 20 minutes, alongside that same night's one-click
+ * create flow (src/components/create-link-form.tsx) and the custom
+ * 1–60-minute dropdown (see CUSTOM_DURATION_MINUTES_OPTIONS below).
  */
-export const DURATION_PRESETS_SECONDS = [60, 120, 300, 600, 900, 1800] as const;
+export const DURATION_PRESETS_SECONDS = [60, 120, 300, 600, 900, 1200] as const;
+
+/**
+ * The custom-duration dropdown's options (added 2026-07-21): every whole
+ * minute from 1 to 60, matching MIN_DURATION_SECONDS/MAX_DURATION_SECONDS
+ * exactly so nothing in this list can ever fail the API route's own bounds
+ * check.
+ */
+export const CUSTOM_DURATION_MINUTES_OPTIONS: readonly number[] = Array.from(
+  { length: 60 },
+  (_, i) => i + 1
+);
 
 /** Formats a whole number of seconds as "N min" (or "Ns" for odd values). */
 export function formatDuration(seconds: number): string {
