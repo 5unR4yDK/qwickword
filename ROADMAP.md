@@ -127,7 +127,19 @@ Goal: a person can create a link, both parties join, a countdown runs, the call 
 ## Phase 1 — Usable: make it not annoying
 Goal: something you'd actually send to a colleague without wincing.
 
-- [ ] Pre-join screen: name entry + camera/mic check before connecting.
+- [x] Pre-join screen: name entry + camera/mic check before connecting.
+      *(2026-07-21: done — rooms are now created with `enable_prejoin_ui: true`
+      (`src/lib/daily-rooms.ts`), which turns on Daily Prebuilt's own lobby:
+      a name-entry form, then a camera/mic check, before the participant
+      actually joins. Build choice: reuse Daily's own lobby (validated
+      against `docs.daily.co/reference/rest-api/rooms/config`) rather than
+      write a custom `getUserMedia`-based screen — same rationale as Phase 0
+      item 5's choice to embed Daily's whole prebuilt call UI. No new
+      component/route needed for live mode; mock mode (no real Daily embed to
+      show a lobby in) got a short explanatory note added to the mock call
+      box instead (`src/components/call-media.tsx`). See STATUS.md for full
+      verification detail, including the Daily API round-trip confirming
+      `config.enable_prejoin_ui: true` on a real room.)*
 - [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
 - [ ] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
 - [ ] Fully responsive layout; verify the call works on a phone browser.

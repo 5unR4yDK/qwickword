@@ -8,7 +8,45 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 
 ## Current state
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
-  done. **Live at https://quickword.vercel.app.**
+  done. **Live at https://quickword.vercel.app.** Phase 1 ("Usable") is now underway — item 1
+  (pre-join screen) done 2026-07-21, see below.
+- **Pre-join screen (Phase 1 item 1, done 2026-07-21):** rooms are now created with
+  `enable_prejoin_ui: true` (`src/lib/daily-rooms.ts`, property validated against
+  `docs.daily.co/reference/rest-api/rooms/config`), which turns on Daily Prebuilt's own lobby —
+  a name-entry form, then a camera/mic check — before a participant actually joins the call. This
+  reuses Daily's own lobby rather than a hand-built `getUserMedia` screen, consistent with Phase 0
+  item 5's choice to embed Daily's whole prebuilt call UI rather than build a custom call surface.
+  Practical consequence: the lobby renders **inside** the iframe already on the call page, so no
+  new component or route was needed for live mode; time spent in the lobby still counts against
+  the room's shared `exp` (dawdling there is not a loophole around the hard-end design). Mock mode
+  has no real Daily embed to show a lobby inside, so it got a one-line addition instead: the mock
+  call placeholder box (`src/components/call-media.tsx`) now explains that live mode shows Daily's
+  own pre-join lobby here.
+  - **Verified:** `npm run lint` and `npm run build` both clean. Mock mode — curl-created a mock
+    room, then `GET /{name}?exp={exp}` showed the new explanatory note text in the mock call box,
+    and room creation itself unaffected. Live mode — curl-created a real Daily room via
+    `POST /api/rooms`, confirmed `GET /{name}?exp={exp}` returns the real
+    `<iframe src="https://quickword.daily.co/{name}">` unchanged, then independently re-fetched the
+    room from Daily's own `GET /rooms/:name` and confirmed `config` shows
+    `enable_prejoin_ui: true` alongside item 3's pre-existing `exp` / `eject_at_room_exp` /
+    `eject_after_elapsed` (120), all correct and unaffected by tonight's change. Test room deleted
+    afterward (Daily confirmed `{"deleted":true}`), no debris left.
+  - **Not independently verified — same honest limitation as every night so far:** an actual
+    real-browser click-through of Daily's lobby UI itself (name field, live camera/mic preview).
+    Playwright remains blocked in this sandbox (no `sudo` for Chromium/Firefox system deps, per the
+    2026-07-16 entry) — this run's confidence rests on the documented, verified room *config*
+    (`enable_prejoin_ui: true`, which is Daily's own well-documented trigger for that lobby) rather
+    than a first-hand look at the rendered lobby screen. If Andreas gets a chance to open a real
+    link once, that would be good confirmation.
+  - **New platform issue found and worked around tonight:** the fixed scratch path used every prior
+    night (`/tmp/qwbuild`) now has debris left over from a previous night's run owned by a different
+    Linux user (`nobody:nogroup`, not this run's own `modest-epic-pasteur` user) that this run's
+    `rm -rf` couldn't delete (`Permission denied` on ~1000+ files, mostly `node_modules` and a stale
+    `.git`). Worked around by using a fresh, dated directory name instead
+    (`/tmp/qwbuild-20260721`) rather than fighting the permissions. **Note for future runs:** don't
+    assume a fixed scratch path name is safe to reuse/`rm -rf` across nights on this platform — if
+    `rm -rf` on the usual scratch path fails with permission errors, use a new uniquely-named
+    directory (e.g. date-stamped) rather than spending time debugging the ownership mismatch.
 - **Deployed (Phase 0 item 9, done 2026-07-20):** Andreas approved deployment in chat ("ok to deploy
   ok to make new vercel project") and, when told there's no Vercel MCP connector available, directed
   the run to a folder (`C:\Users\acnic\ClaudeCoding`, requested fresh via
@@ -430,11 +468,12 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     system deps — see the 2026-07-16 entry). Everything above was verified with real HTTP requests
     (curl) against a live dev server in both modes, including a real Daily API round-trip for the
     existence check, not just code-traced.
-- **Deployed:** no.
-- **Blockers waiting on Andreas:** the Vercel deploy approval (Phase 0's last item, `[needs-andreas]
-  [gate]`) is now the only thing blocking further Phase 0 progress — see ASKS.md for the three
-  specific things needed (new dedicated project confirmation, env vars, domain preference). The
-  low-urgency Daily API key rotation note is still open too, not blocking.
+- **Deployed:** yes, since 2026-07-20 — see the Phase 0 item 9 entry near the top of "Current state"
+  for full detail. (This bullet previously said "no" and was left stale after item 9 shipped; the
+  Vercel-deploy blocker below is likewise resolved. Corrected 2026-07-21 rather than left
+  contradicting the summary at the top of this file.)
+- **Blockers waiting on Andreas:** none blocking right now. The low-urgency Daily API key rotation
+  note is still open in ASKS.md, not blocking.
 - **README (Phase 0 item 8, done 2026-07-20):** `README.md` rewritten from the `create-next-app`
   placeholder into real project docs — what Quick Word is, the stack (Next.js + Daily.co), `npm
   install`/`npm run dev`, the two `.env.local` vars (`DAILY_API_KEY`, `DAILY_DOMAIN`) and the
@@ -450,16 +489,17 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     Both confirm the README's mock/live mode description is accurate, not just plausible.
 
 ## Next actions (for the next run)
-Phase 0 is now complete except item 9 (`[needs-andreas][gate]`, the Vercel deploy) — see ASKS.md for
-the three specific approval steps Andreas needs to confirm. Per the scheduled task's standing "don't
-stall" instruction, tonight's run built item 8 (the one non-gated item available) and stopped there
-rather than also starting Phase 1, on the reading that "one item per night" (ROADMAP.md's own stated
-rule, and the scheduled-task file's "keep scope tight") takes priority when at least one item *did*
-get built this run — "don't stall" is about not doing nothing, not about doing two items. If Andreas
-disagrees and would rather future runs proceed straight into Phase 1 whenever Phase 0's only
-remaining item is gated, say so and this should change. Once Andreas responds to the ASKS.md entry,
-the next run should build Phase 0 item 9 (create the new Vercel project, set the two env vars,
-deploy, smoke-test the live URL) before moving to Phase 1's first item (pre-join screen).
+Phase 0 is fully complete and deployed. Phase 1 item 1 (pre-join screen) is done as of 2026-07-21 —
+see "Current state" above. Next up: Phase 1 item 2, "Duration presets (1, 2, 5, 10 min) plus a custom
+value with a sane maximum." Note this will likely replace/tighten the current 1/2/5/10/15/30 preset
+row from Phase 0 item 4 (`src/lib/duration.ts`'s `DURATION_PRESETS_SECONDS`), which was flagged at the
+time as a placeholder, not a reviewed product decision — this is that item's job to revisit. No open
+`ASKS.md` blockers stand in the way of continuing straight through Phase 1's remaining items nightly.
+**New scratch-path note (2026-07-21):** don't reuse a fixed scratch directory name (e.g.
+`/tmp/qwbuild`) across nights without checking it's actually removable first — see tonight's run-history
+entry below for what happened when it wasn't (files owned by a different Linux user than this run's).
+If `rm -rf` on the usual scratch path errors with permission denials, stop trying to clear it and use a
+fresh, uniquely-named directory instead (a date-stamped name worked fine tonight).
 **Before doing any git work, run `git log --oneline` against the mount and compare it to what this
 file and ROADMAP.md claim is done** — tonight's run repeated this check and again found a gap: items
 6 and 7 (both claimed committed by their respective run-history entries below) were still missing
@@ -699,3 +739,31 @@ throwaway scratch dir, not touching the mount).
   entry moved to Done. Phase 0 is now fully complete. Also: Andreas asked not to be prompted for file
   deletion permission in future when `rm` fails on this mount — noted for future runs, don't ask, just
   call `allow_cowork_file_delete` directly.
+- 2026-07-21 (nightly): Before starting, ran the standing `git log` vs. STATUS.md/ROADMAP.md check —
+  clean this time, HEAD matched item 9 as claimed, no recovery needed. Built Phase 1 item 1 — the
+  pre-join screen (see "Current state" above for full detail): set `enable_prejoin_ui: true` on room
+  creation (`src/lib/daily-rooms.ts`), which turns on Daily Prebuilt's own lobby (name entry, then a
+  camera/mic check) inside the existing call-page iframe — validated the property against
+  `docs.daily.co/reference/rest-api/rooms/config` first, same discipline as every previous Daily
+  property this project has added. Added a short explanatory note to the mock-mode call box
+  (`src/components/call-media.tsx`) for parity, since mock mode has no real Daily embed to show a
+  lobby inside. Verified: `npm run lint` and `npm run build` both clean; curl-tested mock mode (note
+  text present, room creation unaffected) and live mode (real iframe unchanged, then independently
+  re-fetched the room from Daily's own `GET /rooms/:name` and confirmed `config.enable_prejoin_ui:
+  true` alongside item 3's `exp`/`eject_at_room_exp`/`eject_after_elapsed`, all intact; test room
+  deleted after, `{"deleted":true}` confirmed). Real-browser click-through of the rendered lobby
+  itself remains unverified — Playwright is still blocked in this sandbox (no `sudo` for
+  Chromium/Firefox system deps, same root cause logged 2026-07-16) — this run's confidence rests on
+  the verified room config rather than a first-hand look at Daily's lobby screen. Also fixed two
+  stale lines in "Current state" left over from before item 9 shipped ("Deployed: no" and a
+  "blockers waiting on Andreas" bullet that both contradicted the accurate summary at the top of this
+  file) — small honest correction, not part of tonight's actual feature work. **New platform issue
+  found and worked around:** the fixed scratch path used every prior night (`/tmp/qwbuild`) had
+  debris left over from a previous run, owned by a different Linux user (`nobody:nogroup`) than this
+  run's own user — `rm -rf` failed with ~1000+ permission-denied errors instead of clearing it. Used a
+  fresh, date-stamped directory (`/tmp/qwbuild-20260721`) instead of fighting the ownership mismatch;
+  noted in "Next actions" for future runs. Built/tested in that scratch clone (cloned from the mount's
+  `.git`, source files heredoc'd in to match this run's `Edit`-tool changes exactly, per the standing
+  platform note), committed there, then wrote the doc updates to the mount via `Write`/`Edit` and
+  copied the finished `.git` back — no mutating git commands run against the mount itself. Next:
+  Phase 1 item 2 (duration presets — likely replaces the Phase 0 item 4 placeholder preset row).
