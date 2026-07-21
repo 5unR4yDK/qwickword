@@ -174,6 +174,11 @@ Goal: something you'd actually send to a colleague without wincing.
       config confirms the server-side `exp` was actually updated, not just the client display.
 - [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
 - [ ] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
+      *(Note added 2026-07-21, Andreas, interactive: wants a friendly, non-onerous audio cue in the
+      last seconds, not just visual — a very soft/low-volume tick starting around T-10s, becoming a
+      little more audible from T-5s down to zero. Keep it gentle and friendly in character, matching
+      the product's overall tone, not an alarm. For later: build both the visual and audio cue
+      together as this one item.)*
 - [ ] Fully responsive layout; verify the call works on a phone browser.
 - [ ] Basic brand pass: name, logo, favicon, colours, and Open Graph / meta tags so a pasted link
       shows a nice preview ("A 2-minute Quick Word").
@@ -198,6 +203,9 @@ Goal: every call quietly recruits the next user.
 - [ ] Reusable personal link (e.g. `quickword.co/andreas`) that always opens a fresh capped room.
 - [ ] Calendar hooks: "Add to Google/Outlook Calendar" and an .ics download for a scheduled Quick Word.
 - [ ] Opener notification: email the creator when someone opens or joins their link.
+- [ ] Feedback mechanism: a lightweight way for users to tell us what they'd want to see next (e.g. a
+      simple in-app form, or even just a `mailto:`/typeform-style link on the "time's up" or post-call
+      screen — doesn't need to be fancy for a first version). *(Added 2026-07-21, Andreas, interactive.)*
 
 ## Phase 3 — Marketable & monetizable: make it a business
 Goal: a pricing page, a free tier that converts, and the first paid features.
@@ -222,6 +230,14 @@ Goal: a pricing page, a free tier that converts, and the first paid features.
 - [ ] `[needs-andreas]` Free-tier limits chosen from the pricing test (Calendly-style: generous on the
       core utility, gated on identity/branding/team). Enforce limits in-app.
 - [ ] Email capture + waitlist for anything not yet shipped.
+- [ ] `[needs-andreas]` Donate / support-the-project option: a simple, low-pressure way for users to
+      chip in toward running costs (Daily's API isn't free once real usage shows up), separate from
+      the Pro/Stripe billing plan above — think a single "Support Quick Word" link/button, not a full
+      payment flow. Needs Andreas to pick and set up the actual mechanism (e.g. a Stripe Payment Link,
+      Buy Me a Coffee, Ko-fi, GitHub Sponsors) since that means creating/connecting a real account —
+      per BUILD_PLAN.md's guardrails, that's not something to do autonomously. *(Added 2026-07-21,
+      Andreas, interactive — motivation noted verbatim: he'll be paying for the Daily API himself to
+      keep the video calls running, and wants a way for users who like the tool to help cover that.)*
 
 ## Phase 4 — Fantastic: feature-rich and delightful
 Goal: the version people evangelize. Re-prioritize this phase based on what Phase 2–3 data shows.

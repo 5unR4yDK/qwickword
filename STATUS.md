@@ -798,3 +798,14 @@ throwaway scratch dir, not touching the mount).
   Updated "Next actions" above to point at the new item explicitly rather than item 2, and flagged that
   it's likely more than one night's work — if the next run doesn't finish it, mark `[~]` with a clear
   note rather than checking it off early. No code changed in this exchange, planning/roadmap only.
+- 2026-07-21 (later still, interactive): Andreas added three more items while chatting, explicitly for
+  a future nightly run, not tonight: (1) a friendly, gentle audio cue in the countdown's last seconds —
+  very soft starting around T-10s, a bit more audible from T-5s to zero, not alarm-like — folded into
+  the existing "Countdown polish" Phase 1 item rather than made a separate one, since it's the same UI
+  moment. (2) A user feedback mechanism (lightweight — a form or even just a `mailto:` link is fine for
+  a first version) — added as a new Phase 2 item. (3) A donate/support-the-project option to help cover
+  his own Daily API costs once real usage shows up — added as a new `[needs-andreas]` Phase 3 item
+  (creating the actual donation account is a real third-party signup, not autonomous per BUILD_PLAN.md's
+  guardrails) and cross-referenced into REVENUE.md as a new "model 6," distinct from the Pro/Stripe plan.
+  All three are planning-only edits to ROADMAP.md/REVENUE.md; no code changed, no priority order changed
+  for what the next run should actually build (still the "anchor countdown to first join" item).

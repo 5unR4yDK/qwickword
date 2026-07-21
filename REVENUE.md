@@ -28,6 +28,12 @@ Two consequences:
 4. **Pay-per-link / credits.** Weak. Users treat a utility like this as free; per-use billing kills the
    growth loop. Avoid unless a test surprises us.
 5. **White-label / enterprise.** High-touch, high-price, much later.
+6. **Voluntary donations / "support the project."** Not a real business model on its own — but a
+   near-zero-effort way to offset running costs (the Daily API bill) before freemium/Pro revenue
+   exists. A single link/button (Stripe Payment Link, Buy Me a Coffee, Ko-fi, GitHub Sponsors), no
+   payment flow to build. Worth having in parallel with model 1, not instead of it. *(Added
+   2026-07-21, Andreas, interactive — see ROADMAP.md Phase 3's `[needs-andreas]` item; needs him to
+   pick and set up the actual account.)*
 
 ## Recommended starting position
 Run product-led growth INTO B2B. The free individual tier is the **acquisition engine**; paid **teams**
@@ -90,6 +96,8 @@ The build work is the instrumentation; the answers need real users.
 - A Stripe account and keys before any real billing (test mode is fine to build against).
 - Approval before driving real traffic to a live pricing test.
 - Any pricing actually charged, refunds, taxes/VAT, and terms — all his call.
+- Picking and creating the actual donation/support-the-project account (model 6 above) — a real
+  third-party account, so not something to sign up for autonomously.
 
 ## Sources
 - Daily.co video API pricing (per participant-minute, free tier): https://www.daily.co/pricing/video-sdk/
