@@ -127,8 +127,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 function PageShell({ children }: { children: ReactNode }) {
+  // Padding/gap trimmed on mobile (2026-07-21, alongside CallMedia's enlarged
+  // video area, same complaint about the call feeling small/cropped) — every
+  // bit of vertical room matters on a phone screen; sm and up keeps the
+  // original, more generous spacing.
   return (
-    <div className="flex flex-1 flex-col items-center gap-6 bg-zinc-50 px-6 py-10 dark:bg-black">
+    <div className="flex flex-1 flex-col items-center gap-3 bg-zinc-50 px-4 py-4 sm:gap-6 sm:px-6 sm:py-10 dark:bg-black">
       <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
         Qwickword
       </h1>

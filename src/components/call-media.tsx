@@ -130,8 +130,20 @@ export default function CallMedia({
   return (
     <>
       <div
-        className="w-full max-w-3xl overflow-hidden rounded-2xl border border-black/[.08] bg-black dark:border-white/[.145]"
-        style={{ aspectRatio: "16 / 9" }}
+        // Enlarged 2026-07-21 (Andreas, interactive: "the conference call
+        // video window was quite small compared to... Google Meet or
+        // Teams"). Two changes: a much wider max-width for desktop (max-w-3xl
+        // -> max-w-6xl), and on mobile, no forced 16:9 landscape shape — a
+        // 16:9 box on a narrow portrait phone viewport is a short, wide
+        // strip with lots of empty space above/below, which is almost
+        // certainly what his friend on mobile meant by "cropped." Below the
+        // `sm` breakpoint this uses `h-[70vh]` (fills most of the phone's
+        // screen, whatever shape that ends up being) instead of a fixed
+        // aspect ratio; at `sm` and up it switches to the classic 16:9 video
+        // shape, since a wide desktop window is exactly where that shape
+        // makes sense. Daily Prebuilt's own UI inside the iframe is already
+        // responsive to whatever box it's given — this only changes the box.
+        className="h-[70vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-black/[.08] bg-black sm:aspect-video sm:h-auto dark:border-white/[.145]"
       >
         {mockMode ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-zinc-300">

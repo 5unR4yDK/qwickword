@@ -41,6 +41,14 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
   `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
   and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
+- **Larger call video window (done 2026-07-21, interactive, deployed to production):** Andreas said the
+  call window felt small next to Google Meet/Teams; his friend on mobile independently described it as
+  "cropped." `src/components/call-media.tsx`: desktop max-width widened `max-w-3xl` (768px) ->
+  `max-w-6xl` (1152px); on mobile (below Tailwind's `sm` breakpoint) the fixed 16:9 landscape aspect
+  ratio is dropped in favor of `h-[70vh]` — a 16:9 box on a narrow portrait phone screen is a short,
+  wide strip with a lot of empty space above/below, almost certainly what "cropped" meant on his
+  friend's end. `src/app/[room]/page.tsx`'s `PageShell` padding/gap also trimmed on mobile only, to
+  give the call area more of the available screen. Live on `https://qwickword.com`.
 - **"Join meeting now" crash fix + app-wide error boundary (done 2026-07-21, interactive, deployed to
   production):** Andreas hit a browser-level crash page ("This page couldn't load. Reload to try
   again, or go back.") clicking "Join the meeting now" right after creating a link; a retry worked.
@@ -1331,3 +1339,26 @@ throwaway scratch dir, not touching the mount).
   not by reproducing the exact crash and watching it not recur.
   Deployed via the Vercel CLI (same `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), pushed to
   GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
+- 2026-07-21 (later still, interactive): Andreas asked two questions after using the app live with a
+  friend.
+  1. **Facebook Messenger link disappearing.** He pasted a qwickword.com link into Messenger on
+     desktop three times; each time the link (and its preview) vanished from his own chat view shortly
+     after sending, but the friend on the other end did receive it. Asked whether this was a DNS or
+     domain-blocking issue on our side. Researched rather than guessed: confirmed via a direct test
+     that the server side is fine — curled a real room link with Facebook's own crawler user agent
+     (`facebookexternalhit/1.1`) and got a clean `200` in under a second with correct `og:title`/
+     `og:description` tags, so this isn't a broken page, a DNS problem, or a slow/failing response to
+     Facebook's crawler. Web search turned up Meta's "Advanced Browsing Protection" (ABP) — an
+     on-device link-safety check in Messenger that scans links locally against a continually-updated
+     malicious-site watchlist and can act on a match, plus general awareness that very new/unindexed
+     domains (qwickword.com was only connected to this project a few days ago) tend to get flagged
+     more readily by automated safety systems than domains with an established history. The most
+     likely explanation given the reported pattern (message removed from the sender's own view, still
+     delivered to the recipient) is exactly that shape of client-side, sender-local intervention,
+     though this couldn't be confirmed with certainty from public documentation — told Andreas plainly
+     that this is the most likely explanation, not a confirmed mechanism, and suggested he could check
+     Facebook's own Sharing Debugger tool (developers.facebook.com/tools/debug/) against a real link
+     for anything Facebook itself flags. Not a code issue, no fix to make on this one — informational
+     only, but a real, sourced answer rather than a guess.
+  2. **Call video window feels small vs. Google Meet/Teams; friend on mobile called it "cropped."**
+     See the video-window-size entry above — this is the fix for that second question.
