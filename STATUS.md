@@ -36,6 +36,11 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `src/app/page.tsx` so the whole glyph is uniformly soft everywhere, not only where it happens to sit
   behind the glass; opacity nudged up slightly (0.18/0.22 -> 0.22/0.26) to compensate for the blur
   visually diluting it. No other changes. Live on `https://qwickword.com`.
+- **Home page visual pass, fourth round (Phase 1, done 2026-07-21, interactive, deployed to
+  production):** Andreas said the radial-gradient page background from the second round read as a
+  "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
+  `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
+  and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
 - **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
   page no longer has a separate "Create" button — clicking a duration preset or picking a value from
   the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
@@ -1154,3 +1159,13 @@ throwaway scratch dir, not touching the mount).
   page for the `blur-md` class and the updated opacity value. Deployed via the Vercel CLI (same
   `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on `https://qwickword.com`,
   pushed to GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
+- 2026-07-21 (later still, interactive): Andreas sent another screenshot and said "can we not do the
+  background square it makes it weird" — referring to the radial-gradient page background added in the
+  second visual pass. Reverted `src/app/page.tsx`'s outer wrapper from the gradient back to a flat
+  `bg-zinc-50`/`dark:bg-black`. Left the Q watermark (indigo tint, `blur-md`) and the glass card
+  untouched, since those were the two things he'd said he liked in the prior message. Verified:
+  `npm run lint`/`npm run build` clean, curl-checked the live page had zero occurrences of
+  `radial-gradient` and confirmed the flat `bg-zinc-50` class was back. Deployed via the Vercel CLI
+  (same `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on
+  `https://qwickword.com`, pushed to GitHub, mount's `.git` re-synced, `git status --porcelain`
+  confirmed clean.
