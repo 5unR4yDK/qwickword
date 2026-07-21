@@ -140,14 +140,48 @@ Goal: something you'd actually send to a colleague without wincing.
       box instead (`src/components/call-media.tsx`). See STATUS.md for full
       verification detail, including the Daily API round-trip confirming
       `config.enable_prejoin_ui: true` on a real room.)*
+      **2026-07-21, later same day (Andreas, interactive, testing the live app):** flagged a real
+      product bug this item's design didn't account for — see the new item immediately below, which
+      supersedes the fixed-schedule-from-creation assumption this item and Phase 0 item 3 both built
+      on. Andreas has already approved building it as a normal nightly item — not gated, not
+      `[needs-andreas]`, nothing further to ask him for. Not a revert of tonight's work (Daily's
+      `enable_prejoin_ui` lobby is still correct and still wanted) — just built on top of an
+      assumption about *when the clock starts* that turned out to be wrong.
+- [ ] **Anchor the countdown to first join, not link creation.** Right now `exp` is fixed the moment
+      `POST /api/rooms` is called (Phase 0 item 3), so if the second person takes 90 seconds to open
+      the link, they've already lost 90 seconds of, say, a 2-minute call before ever connecting.
+      Andreas caught this testing the live app on 2026-07-21 (see the note on the item above). Fix:
+      - Detect the *first* real join event. The call page currently embeds a raw `<iframe
+        src="...">` (Phase 0 item 5) with no code on our side that knows when someone's joined —
+        switching to Daily's JS SDK (`daily-js`, wrapping the iframe with a call object) is needed
+        to get a `joined-meeting` event to key off of.
+      - The moment that fires, compute the *real* `exp = now + duration` and push it to Daily's room
+        config (`POST /rooms/:room`, updating `exp` / `eject_at_room_exp` / `eject_after_elapsed` —
+        same properties Phase 0 item 3 already sets at creation, just updated on first join instead).
+        This keeps the server-side hard cutoff — the whole point of the product — anchored to the
+        same moment as the UI, not just a client-side display change.
+      - Both tabs need to agree on the same real end time. **No new datastore needed for this:**
+        Daily's own room object can stay the single source of truth — have the call page re-fetch
+        the room's live `config.exp` (extending `checkDailyRoomExists`'s existing Daily API call
+        rather than adding a new one) instead of trusting the timestamp baked into the shareable
+        link at creation time. This is consistent with — and should inform — the still-open backend
+        item further below.
+      - Until the first join happens, replace the ticking countdown with a waiting state (this
+        merges the separate "Waiting for the other person" item that used to be here — do not build
+        that as a second, separate item; it's the same UI state this item needs anyway).
+      *Done when:* two tabs opening the same link at very different times both see a countdown that
+      starts from whichever of them joined first, not from link-creation time, and Daily's own room
+      config confirms the server-side `exp` was actually updated, not just the client display.
 - [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
 - [ ] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
 - [ ] Fully responsive layout; verify the call works on a phone browser.
 - [ ] Basic brand pass: name, logo, favicon, colours, and Open Graph / meta tags so a pasted link
       shows a nice preview ("A 2-minute Quick Word").
-- [ ] "Waiting for the other person" state with the copyable link shown again.
 - [ ] Decide and document the backend: start with no database (stateless rooms encoded in the link),
       and only add a datastore when a feature actually needs one. Record the decision in STATUS.md.
+      *(Note added 2026-07-21: the "anchor countdown to first join" item above already found a way to
+      do this without a datastore, by re-reading Daily's own room object instead of adding one — this
+      item should record that as the actual decision once built, not treat it as still open.)*
 - [ ] Privacy-friendly, cookie-light analytics (e.g. self-host Plausible-style events) capturing the
       core funnel: link_created → link_opened → call_started → call_completed → cta_clicked.
       *Done when:* those five events fire and are queryable.

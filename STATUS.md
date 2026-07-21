@@ -489,12 +489,22 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
     Both confirm the README's mock/live mode description is accurate, not just plausible.
 
 ## Next actions (for the next run)
-Phase 0 is fully complete and deployed. Phase 1 item 1 (pre-join screen) is done as of 2026-07-21 —
-see "Current state" above. Next up: Phase 1 item 2, "Duration presets (1, 2, 5, 10 min) plus a custom
-value with a sane maximum." Note this will likely replace/tighten the current 1/2/5/10/15/30 preset
-row from Phase 0 item 4 (`src/lib/duration.ts`'s `DURATION_PRESETS_SECONDS`), which was flagged at the
-time as a placeholder, not a reviewed product decision — this is that item's job to revisit. No open
-`ASKS.md` blockers stand in the way of continuing straight through Phase 1's remaining items nightly.
+**Read this before picking the next ROADMAP.md item — the priority order changed today.** Phase 0 is
+fully complete and deployed. Phase 1 item 1 (pre-join screen) is done as of 2026-07-21. Later the same
+day, Andreas tested the live app and caught a real product bug: the countdown starts at link-creation
+time, not when the other person actually joins, so a slow-to-open link burns real call time before
+anyone's connected. He asked for this to be queued for the nightly build (not built interactively) —
+see the new ROADMAP.md item, "Anchor the countdown to first join, not link creation," inserted
+immediately after item 1 (now the first unchecked, non-gated item — build this one next, not duration
+presets). Full design is written out in that ROADMAP.md entry; short version: switch the call embed
+from a raw iframe to Daily's JS SDK to get a real join event, push the recomputed `exp` to Daily's room
+config on first join (not just the client display), and have the call page re-fetch the room's live
+`exp` from Daily instead of trusting the value baked into the link — no new datastore needed, this also
+answers Phase 1's still-open "decide the backend" item. This will also naturally absorb the separate
+"Waiting for the other person" item, which was removed from the list as a standalone item (merged in)
+to avoid double-building the same UI state. This is very likely more than a one-night item; if it's not
+finished in one run, mark it `[~]` with a clear note on exactly how far it got, per the roadmap's own
+partial-completion convention, rather than checking it off early. No open `ASKS.md` blockers otherwise.
 **New scratch-path note (2026-07-21):** don't reuse a fixed scratch directory name (e.g.
 `/tmp/qwbuild`) across nights without checking it's actually removable first — see tonight's run-history
 entry below for what happened when it wasn't (files owned by a different Linux user than this run's).
@@ -765,5 +775,26 @@ throwaway scratch dir, not touching the mount).
   noted in "Next actions" for future runs. Built/tested in that scratch clone (cloned from the mount's
   `.git`, source files heredoc'd in to match this run's `Edit`-tool changes exactly, per the standing
   platform note), committed there, then wrote the doc updates to the mount via `Write`/`Edit` and
-  copied the finished `.git` back — no mutating git commands run against the mount itself. Next:
-  Phase 1 item 2 (duration presets — likely replaces the Phase 0 item 4 placeholder preset row).
+  copied the finished `.git` back — no mutating git commands run against the mount itself. Originally
+  logged "Next: Phase 1 item 2" here — superseded a few hours later the same day, see the entry
+  immediately below.
+- 2026-07-21 (later same day, interactive): Andreas tested the live app and reported a real product
+  bug: the countdown starts at link-creation time (`POST /api/rooms`, Phase 0 item 3), not when the
+  other person actually joins, so a link that takes a while to open burns real call time before
+  anyone's connected — exactly the kind of thing this product is supposed to prevent, just misapplied
+  to the wrong starting instant. Explained the fix requires a real architecture change (detecting an
+  actual join event needs Daily's JS SDK, not the current raw `<iframe src>`; the server-side `exp`
+  needs to move with the first join, not just the UI; both tabs need to agree on the same real end
+  time) and asked whether to build it now interactively or queue it for the nightly run. Andreas chose
+  to queue it. Rewrote the relevant ROADMAP.md Phase 1 section: added a new item, "Anchor the
+  countdown to first join, not link creation," immediately after item 1 (now the first unchecked,
+  non-gated item — ahead of duration presets), with the full design written into the item itself
+  (switch to `daily-js`, push the recomputed `exp` to Daily's room config on first join, have the call
+  page re-fetch Daily's own live `exp` as the source of truth instead of trusting the link's baked-in
+  value — no new datastore needed), a note on item 1 above it explaining what's superseded and why
+  tonight's `enable_prejoin_ui` work still stands, removal of the now-redundant standalone "Waiting for
+  the other person" item (merged into the new item, since it's the same UI state), and a note on the
+  "decide the backend" item pointing at the no-new-datastore answer the new item already provides.
+  Updated "Next actions" above to point at the new item explicitly rather than item 2, and flagged that
+  it's likely more than one night's work — if the next run doesn't finish it, mark `[~]` with a clear
+  note rather than checking it off early. No code changed in this exchange, planning/roadmap only.
