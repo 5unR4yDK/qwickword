@@ -180,8 +180,40 @@ Goal: something you'd actually send to a colleague without wincing.
       the product's overall tone, not an alarm. For later: build both the visual and audio cue
       together as this one item.)*
 - [ ] Fully responsive layout; verify the call works on a phone browser.
-- [ ] Basic brand pass: name, logo, favicon, colours, and Open Graph / meta tags so a pasted link
-      shows a nice preview ("A 2-minute Quick Word").
+- [ ] **Basic brand pass, including the rename to "Qwickword."** *(Andreas, 2026-07-21, interactive:
+      "We're changing the name to Qwickword.com." He already owns the `qwickword.com` domain.)* Scope
+      for this item:
+      - Rename everywhere the product is referred to as "Quick Word": UI copy (page titles, headings,
+        the countdown/ended/invalid-link screens, etc.), `README.md`, `BUILD_PLAN.md`, `ROADMAP.md`
+        itself, `REVENUE.md`, `package.json`'s `name` field, and code comments where it's the product
+        name rather than incidental (use judgement — don't churn every comment, but don't leave
+        user-facing copy inconsistent either). Confirm the exact display capitalization/spacing with
+        Andreas if genuinely ambiguous rather than guessing (this note uses "Qwickword," one word,
+        based on how he wrote it, but hasn't been explicitly confirmed).
+      - Logo, favicon, colours, Open Graph / meta tags so a pasted link shows a nice preview (e.g. "A
+        2-minute Qwickword") — this was already this item's scope before the rename, now just under
+        the new name.
+      - **Not in scope for this item — separate `[needs-andreas]` item right below:** actually
+        connecting the `qwickword.com` domain to the live deployment. Do the in-app rename first, so
+        the domain switch-over has a renamed app ready to point at.
+- [ ] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment. Andreas
+      already owns the domain (confirmed 2026-07-21). Likely mechanics: add `qwickword.com` (and
+      probably `www.qwickword.com`) as a custom domain on the existing `quickword` Vercel project via
+      the Vercel API/CLI (same account/token access already used for Phase 0 item 9's deploy — this is
+      the same dedicated project, not a new/shared one, so the existing guardrail exception still
+      applies), then Vercel will require specific DNS records at whatever registrar/DNS host the domain
+      actually lives at. **That DNS step needs Andreas** — per BUILD_PLAN.md's guardrails, this run
+      must not touch any pre-existing/shared DNS zone (e.g. if it's on a Cloudflare zone shared with
+      his other projects) without his explicit go-ahead on that specific zone. Concretely: get as far as
+      generating the exact DNS records Vercel wants, put them in ASKS.md verbatim, and stop there unless
+      Andreas has separately granted access to add the records directly. Once the domain resolves,
+      smoke-test the live `qwickword.com` URL the same way Phase 0 item 9 verified `quickword.vercel.app`
+      (home page, room creation, call page). **Not in this item's scope, flagging as a separate,
+      lower-priority decision for Andreas to make whenever:** whether to also rename the Daily.co video
+      subdomain (currently `quickword.daily.co`, set in `.env.local`'s `DAILY_DOMAIN`) — it's visible to
+      end users via the "open the call in a new tab" fallback link, so it'll read as a small
+      inconsistency post-rename, but changing it is an account-level Daily setting (may need contacting
+      Daily support) and isn't required for the product to work correctly under the new name.
 - [ ] Decide and document the backend: start with no database (stateless rooms encoded in the link),
       and only add a datastore when a feature actually needs one. Record the decision in STATUS.md.
       *(Note added 2026-07-21: the "anchor countdown to first join" item above already found a way to

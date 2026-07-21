@@ -809,3 +809,22 @@ throwaway scratch dir, not touching the mount).
   guardrails) and cross-referenced into REVENUE.md as a new "model 6," distinct from the Pro/Stripe plan.
   All three are planning-only edits to ROADMAP.md/REVENUE.md; no code changed, no priority order changed
   for what the next run should actually build (still the "anchor countdown to first join" item).
+- 2026-07-21 (later still, interactive): Andreas announced the product is being renamed to
+  "Qwickword" (domain `qwickword.com`, which he confirmed he already owns). Asked whether to do the
+  in-app rename now or queue it — he chose to queue it for the nightly build, same as the countdown-fix
+  and feature-idea items earlier tonight. Rewrote ROADMAP.md's Phase 1 "Basic brand pass" item to fold
+  in the rename with a concrete scope list (UI copy, README/BUILD_PLAN/ROADMAP/REVENUE.md,
+  `package.json`, judgement on code comments; confirm exact capitalization with Andreas if genuinely
+  ambiguous — used "Qwickword," one word, based on how he wrote it, not yet explicitly confirmed
+  letter-for-letter) and added a new, separate `[needs-andreas]` item for connecting the `qwickword.com`
+  domain to the live Vercel deployment, since DNS changes at whatever registrar/zone the domain
+  actually lives at need his explicit go-ahead (BUILD_PLAN.md's standing guardrail against touching any
+  pre-existing/shared DNS zone without approval) — that item's job for a run that can't get Andreas's
+  DNS approval in the moment is to generate the exact records Vercel wants and put them in ASKS.md, not
+  guess and proceed. Also flagged, as a separate lower-priority decision for Andreas: whether to rename
+  the Daily.co video subdomain (`quickword.daily.co`), which is visible to end users via the "open in a
+  new tab" fallback link and will look inconsistent post-rename, but is an account-level Daily setting
+  outside this item's scope. Deliberately did NOT reorder Phase 1 — the rename item stays in its
+  existing list position (after duration presets / countdown polish / responsive layout), since Andreas
+  didn't ask for it to jump the queue ahead of the countdown-start-time fix already at the top. No app
+  code or other doc changed in this exchange beyond the ROADMAP.md edit described here.
