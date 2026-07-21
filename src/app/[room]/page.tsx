@@ -52,7 +52,7 @@ function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-zinc-50 px-6 py-10 dark:bg-black">
       <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
-        Quick Word
+        Qwickword
       </h1>
 
       {children}
@@ -61,7 +61,7 @@ function PageShell({ children }: { children: ReactNode }) {
         href="/"
         className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-800 dark:hover:text-zinc-200"
       >
-        Create your own Quick Word
+        Create your own Qwickword
       </Link>
     </div>
   );
@@ -80,7 +80,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
       <PageShell>
         <InvalidLinkScreen
           heading="This link isn't valid"
-          message="It's missing information Quick Word needs to connect you — the link may have been copied incorrectly or cut off."
+          message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
         />
       </PageShell>
     );
@@ -95,7 +95,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
       return (
         <PageShell>
           <InvalidLinkScreen
-            heading="This Quick Word doesn't exist"
+            heading="This Qwickword doesn't exist"
             message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
           />
         </PageShell>

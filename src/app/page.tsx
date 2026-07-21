@@ -15,7 +15,7 @@ export default function Home() {
 
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            Quick Word
+            Qwickword
           </h1>
           <p className="text-lg leading-7 text-zinc-600 dark:text-zinc-400">
             Set a time limit, share the link. When it hits zero, the call

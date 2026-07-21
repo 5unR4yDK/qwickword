@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quick Word",
+  title: "Qwickword",
   description: "Set a time limit, share the link. The call ends when it hits zero.",
 };
 

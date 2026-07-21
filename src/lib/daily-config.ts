@@ -28,12 +28,12 @@ export function getDailyConfig(): DailyConfig {
     loggedOnce = true;
     if (mockMode) {
       console.warn(
-        "[Quick Word] Daily: mock mode — DAILY_API_KEY / DAILY_DOMAIN not set in " +
+        "[Qwickword] Daily: mock mode — DAILY_API_KEY / DAILY_DOMAIN not set in " +
           ".env.local. Room creation and video will be simulated until real credentials " +
           "are configured."
       );
     } else {
-      console.log(`[Quick Word] Daily: live mode (domain: ${domain})`);
+      console.log(`[Qwickword] Daily: live mode (domain: ${domain})`);
     }
   }
 
