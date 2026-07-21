@@ -172,6 +172,21 @@ Goal: something you'd actually send to a colleague without wincing.
       *Done when:* two tabs opening the same link at very different times both see a countdown that
       starts from whichever of them joined first, not from link-creation time, and Daily's own room
       config confirms the server-side `exp` was actually updated, not just the client display.
+- [x] Rotating slogan/subtitle on the home page. *(Andreas, 2026-07-21, interactive: first asked for a
+      slogan brainstorm, then a review pass to cut the unfunny ones — see `SLOGANS.md` — then "lets
+      deploy all the slogans, have them land at random for users.")* `src/lib/slogans.ts` holds the 35
+      lines that survived the second review pass, plus `pickRandomSlogan()`; `src/app/page.tsx` renders
+      the pick as an italic tagline under the "Qwickword" h1, above the existing explainer paragraph
+      (kept — several slogans are pure jokes with no mechanism explanation, and a first-time visitor
+      still needs the plain description of what the product does). Route forced to
+      `dynamic = "force-dynamic"` so Next.js actually re-picks per request instead of freezing one
+      random line in at build time (same purity-driven pattern as `src/lib/time.ts`: the random pick
+      lives in a plain named function, not an inline `Math.random()` call in the Server Component's
+      render body). Verified: `npm run lint`/`npm run build` clean, build output confirms `/` switched
+      from static (`○`) to dynamic (`ƒ`), and curl-tested repeated requests against both a local dev
+      server and the live production site got distinct slogans back nearly every time — genuine
+      per-request randomness, not a frozen build-time value. Deployed same session; live on
+      `https://qwickword.com`. `SLOGANS.md` stays the editable source list going forward.
 - [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
 - [ ] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
       *(Note added 2026-07-21, Andreas, interactive: wants a friendly, non-onerous audio cue in the
@@ -322,6 +337,34 @@ Goal: every call quietly recruits the next user.
 - [ ] Feedback mechanism: a lightweight way for users to tell us what they'd want to see next (e.g. a
       simple in-app form, or even just a `mailto:`/typeform-style link on the "time's up" or post-call
       screen — doesn't need to be fancy for a first version). *(Added 2026-07-21, Andreas, interactive.)*
+- [ ] **A literal 2-minute survey, hard-capped like every other Qwickword.** *(Added 2026-07-21,
+      Andreas, interactive: "a 2-minute survey about who you are and why you use qwickword... so that
+      we can literally close the survey at exactly 2 minutes (The joke is obviously that we meant 2
+      minutes!)".)* The joke only lands if it's mechanically real: build the survey as an actual
+      Qwickword-style timed session (reuse the existing countdown/hard-end components and the same
+      "no extend, ever" enforcement, not a separate fake-timer widget) — everyone who's ever said
+      "quick 2-minute survey" was lying, so this one should actually, verifiably end at 2:00.
+      - **Data must survive the cutoff — this is the part that actually needs a datastore.** Andreas
+        was explicit: "each response is logged as soon as the checkbox is checked," not batched into
+        one submit at the end, specifically so a respondent who's mid-survey when the clock hits zero
+        doesn't lose what they'd already answered. This means a real, persistent backend for the first
+        time in this project — ties directly into the still-open "Decide and document the backend"
+        item above. Likely mechanics: a lightweight anonymous session token (generated client-side when
+        the survey loads, no login — consistent with Andreas's standing "no accounts right now" stance
+        from the dark-mode/settings-menu discussions above) that per-answer writes get tagged with, so
+        incremental answers land as one respondent's row rather than orphaned fragments.
+      - **Question order matters because of the cutoff, not despite it.** Andreas: "the most important
+        data should be upfront... industry and role and other valuable marketing info" — front-load
+        whatever's most valuable to lose least if someone runs out of clock partway through. Concretely:
+        identity/context questions (industry, role, why they use Qwickword) before anything exploratory
+        or open-ended.
+      - **Needs a response counter.** Andreas asked for one explicitly; not yet specified whether it's
+        admin-only (a simple count Andreas can check) or shown publicly (e.g. "312 people told us who
+        they are" as social proof) — confirm which at build time rather than assume.
+      - **Not yet decided, worth a quick check with Andreas before building:** where this survey is
+        linked from (the "This Qwickword has ended" screen? A standalone link? Both?) — it overlaps
+        with the "Post-call CTA screen" item above; may be worth building as one of that item's CTAs
+        rather than a fully separate flow.
 
 ## Phase 3 — Marketable & monetizable: make it a business
 Goal: a pricing page, a free tier that converts, and the first paid features.

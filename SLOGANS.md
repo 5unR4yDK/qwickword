@@ -1,9 +1,10 @@
 # Qwickword — Slogan & Subtitle Candidates
 
-A working list for Andreas to review. Mark the ones you like with `[x]`, delete the ones you
-don't, edit any that are close but not quite right. Once there's an approved set, add a ROADMAP.md
-item to build the rotation (a different line shown each time someone loads the app) — not built yet,
-this file is step one.
+**Live as of 2026-07-21.** Andreas approved the whole list below ("deploy all the slogans, have
+them land at random for users") after the second-pass review — no per-line checkbox approval was
+needed, he approved the set as a whole. The deployed copy lives in `src/lib/slogans.ts`; this file
+stays the working/reviewable source. If you want to add, cut, or edit a line going forward, change
+it here and it should get copied into `slogans.ts` on the next pass.
 
 *Second pass, 2026-07-21: reviewed the first batch for whether each line is actually funny or just
 positioning-flavored filler. Cut the filler, reworked a few near-misses, added new ones built around
@@ -73,6 +74,5 @@ be shipping" / "Run a tight one on purpose" / "Prove the meeting was worth it by
 call isn't "sent") / "Time-boxed, by design" / "Quick, on purpose" / "Meetings, minus the bloat" /
 "It's not a video call app. It's a video call with an ending..." (reworked shorter).
 
-**Andreas — once you've marked up a set:** tell me which ones stick and I'll turn this into a
-ROADMAP.md item (a small array of approved lines, one shown at random or on rotation each time the
-app loads) and queue it for a future nightly build.
+**Deployed 2026-07-21:** see ROADMAP.md's Phase 1 for the shipped item and STATUS.md for full
+verification detail. Add/cut/edit lines here whenever, then say so and I'll sync `slogans.ts`.

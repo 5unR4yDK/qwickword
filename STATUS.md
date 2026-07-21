@@ -8,7 +8,14 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 
 ## Current state
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
-  done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) done 2026-07-21, see below.
+  done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
+  both done 2026-07-21, see below.
+- **Rotating slogan (Phase 1, done 2026-07-21, interactive, deployed to production):** the home page
+  now shows a random line from `src/lib/slogans.ts` (35 lines, see `SLOGANS.md` for the full working
+  list and the reasoning behind what got cut) under the "Qwickword" h1, picked fresh on every request
+  (`export const dynamic = "force-dynamic"` on `src/app/page.tsx` — otherwise Next.js would freeze one
+  random line in at build time). Verified via repeated curl requests against both a local dev server
+  and the live site returning distinct lines almost every time. Live on `https://qwickword.com`.
 - **Live URLs (as of 2026-07-21, later same day):** **https://qwickword.com** is now the primary
   live URL — custom domain DNS confirmed correctly configured (Vercel's `misconfigured: false`),
   smoke-tested directly (home page, a real create-room round-trip). `https://quickword.vercel.app`
@@ -974,3 +981,31 @@ throwaway scratch dir, not touching the mount).
   pre-chosen camera/mic to the call itself needs research, since the call embed is a plain iframe with
   no `daily-js` call object today — same tooling gap already noted in the "anchor countdown to first
   join" item. Planning-only; no app code changed by either of these two requests.
+- 2026-07-21 (later still, interactive): Andreas gave a second, more critical pass over the slogan
+  list ("determine if you think they're actually funny... those that are not funny you can take them
+  out and try to create some new ones"). Rewrote `SLOGANS.md`: cut roughly 20 lines that were
+  positioning-flavored filler rather than actual jokes (kept a full list of what got cut at the bottom
+  of the file, in case any call is disputed), reworked a couple of near-misses (the seatbelt line,
+  which didn't logically end anything, became an ejector seat; the standup line got tightened), and
+  added new lines built around a concrete comic mechanism — a named nuisance ("Dave has one more
+  slide," "even Kevin"), a specific recognizable meeting moment (the screen-sharer who doesn't notice
+  the call ended, "let's go around the room"), or a twist on an existing phrase (Parkinson's Law
+  repealed, the hard stop that's finally true). Then, before that landed, Andreas said "lets deploy all
+  the slogans, have them land at random for users" — treated as blanket approval of the current list
+  (no per-line checkbox needed) and shipped it same session: see "Current state" above and the new
+  ROADMAP.md item for full build/verification detail. `SLOGANS.md` updated to reflect it's live, not
+  pending approval.
+- 2026-07-21 (later still, interactive): Andreas asked for a "2-minute survey about who you are and
+  why you use qwickword," explicitly for the roadmap, not built tonight — added as a new Phase 2 item.
+  The concept: build the survey as an actual Qwickword (reusing the countdown/hard-end mechanic itself)
+  so the "quick 2-minute survey" joke is mechanically real, not just a name. Two requirements make this
+  the first item that genuinely can't stay stateless: each answer must be logged the moment a checkbox
+  is checked, not batched into a final submit, specifically so a respondent cut off by the 2:00 hard
+  end doesn't lose what they'd already answered — and there needs to be a response counter. Recorded
+  Andreas's own framing for question order directly in the item: front-load whatever's most valuable
+  (industry, role, why they use the product) precisely because the hard cutoff means later questions
+  are the ones most likely to go unanswered. Flagged two open decisions for build time rather than
+  guessing: whether the counter is admin-only or shown publicly, and where the survey link actually
+  lives (ties into the existing "Post-call CTA screen" item). Cross-referenced the still-open "decide
+  the backend" item, since this is the concrete feature that finally justifies a real datastore.
+  Planning-only.
