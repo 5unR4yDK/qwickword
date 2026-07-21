@@ -35,3 +35,18 @@ export function formatDuration(seconds: number): string {
   }
   return `${seconds}s`;
 }
+
+/**
+ * Formats a whole number of seconds as a natural-language minutes phrase —
+ * "1 minute", "5 minutes" — for use in prose rather than a compact UI label
+ * (that's what formatDuration above is for). Used by the call page's link
+ * preview text (src/app/[room]/page.tsx's generateMetadata), which every
+ * duration in this app is already a whole number of minutes for (see
+ * MIN_DURATION_SECONDS/DURATION_PRESETS_SECONDS/CUSTOM_DURATION_MINUTES_OPTIONS
+ * above), so rounding here is just a defensive fallback, not expected to
+ * actually trim anything in practice.
+ */
+export function formatMinutesPhrase(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
