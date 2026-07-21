@@ -14,8 +14,21 @@ export default function Home() {
   const slogan = pickRandomSlogan();
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
-      <main className="flex w-full max-w-md flex-col items-center gap-8 text-center">
+    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
+      {/* Large decorative "Q" watermark behind the card. Andreas asked for a
+          big Q, serif "same font type as Times New Roman or similar, maybe
+          more unique" — Playfair Display (loaded in src/app/layout.tsx),
+          sized to roughly frame the content the way he sketched it. Purely
+          decorative: aria-hidden, no pointer events, doesn't affect layout
+          flow of the real content sitting above it (z-10). */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(16rem,42vw,30rem)] leading-none font-[family-name:var(--font-playfair-display)] text-zinc-900/[0.06] dark:text-zinc-50/[0.07]"
+      >
+        Q
+      </span>
+
+      <main className="relative z-10 flex w-full max-w-md flex-col items-center gap-8 text-center">
         {mockMode && (
           <p className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             Mock mode — no Daily API key configured
