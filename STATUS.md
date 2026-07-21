@@ -28,6 +28,14 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   panel (rounded corners, faint border, soft shadow) rather than floating directly on the page
   background. Same components, copy, and layout — no structural or dependency changes. Live on
   `https://qwickword.com`.
+- **Home page visual pass, third round (Phase 1, done 2026-07-21, interactive, deployed to
+  production):** after the second-round redesign, Andreas said the Q looked "weird" because the part
+  poking out below the glass card was sharp/more visible than the part sitting behind the card (which
+  the card's own `backdrop-blur` had already softened) — he said he likes the blur and the glow
+  overall, just not that mismatch. Fix: added a `blur-md` filter directly to the Q `<span>` in
+  `src/app/page.tsx` so the whole glyph is uniformly soft everywhere, not only where it happens to sit
+  behind the glass; opacity nudged up slightly (0.18/0.22 -> 0.22/0.26) to compensate for the blur
+  visually diluting it. No other changes. Live on `https://qwickword.com`.
 - **One-click create flow (Phase 1, done 2026-07-21, interactive, deployed to production):** the home
   page no longer has a separate "Create" button — clicking a duration preset or picking a value from
   the new custom 1–60-minute dropdown creates the room immediately. The 30-minute preset was replaced
@@ -1133,3 +1141,16 @@ throwaway scratch dir, not touching the mount).
   `secrets.blackstart.local.txt` `VERCEL_TOKEN` line as the first Q build), re-verified live on
   `https://qwickword.com`, pushed to GitHub, mount's `.git` re-synced, `git status --porcelain`
   confirmed clean.
+- 2026-07-21 (later still, interactive): Andreas sent a screenshot of the redesigned home page and
+  said "it looks weird that part of the q sticks out and is more visible... I like the blurryness
+  though and I like the glow." Diagnosed the mismatch: the part of the Q behind the glass card was
+  already soft (from the card's own `backdrop-blur-sm`), but the tail extending below the card's bottom
+  edge rendered directly against the plain page background, sharp and higher-contrast, so it read as a
+  separate stray shape rather than part of the same ambient glow. Fix, in `src/app/page.tsx`: added a
+  `blur-md` filter to the Q `<span>` itself, so the whole glyph is uniformly soft wherever it sits, not
+  only behind the glass; bumped opacity slightly (0.18/0.22 -> 0.22/0.26) to compensate for the blur
+  visually thinning it out. This preserves exactly what Andreas said he liked (the blur, the glow) while
+  fixing only the inconsistency. Verified: `npm run lint`/`npm run build` clean, curl-checked the live
+  page for the `blur-md` class and the updated opacity value. Deployed via the Vercel CLI (same
+  `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), re-verified live on `https://qwickword.com`,
+  pushed to GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
