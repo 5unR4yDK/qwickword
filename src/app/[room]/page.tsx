@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getDailyConfig } from "@/lib/daily-config";
 import { remainingMsUntil } from "@/lib/time";
@@ -8,7 +9,11 @@ import {
   getRoomStatus,
   isPlausibleRoomName,
 } from "@/lib/daily-rooms";
-import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import {
+  MAX_DURATION_SECONDS,
+  MIN_DURATION_SECONDS,
+  formatMinutesPhrase,
+} from "@/lib/duration";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
@@ -73,6 +78,54 @@ type Props = {
   }>;
 };
 
+/**
+ * Parses and bounds-checks the `d` (durationSeconds) query param, shared by
+ * both `generateMetadata` (below) and the page component — kept in one place
+ * so the two can't quietly drift on what counts as a valid duration.
+ */
+function parseDurationParam(raw: string | string[] | undefined): number | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const durationSeconds = value ? Number(value) : NaN;
+  const isValid =
+    Number.isFinite(durationSeconds) &&
+    Number.isInteger(durationSeconds) &&
+    durationSeconds >= MIN_DURATION_SECONDS &&
+    durationSeconds <= MAX_DURATION_SECONDS;
+  return isValid ? durationSeconds : null;
+}
+
+/**
+ * Link-preview metadata (added 2026-07-21, interactive): Andreas shared a
+ * link in WhatsApp and got the root layout's generic title/description back
+ * — "Qwickword" / "Set a time limit, share the link..." — and asked for
+ * something more inviting, tied to the actual link: "Someone wants a
+ * Qwickword. Click to start your X minute meeting." No name is included
+ * (confirmed with Andreas rather than guessing) — adding a "your name" field
+ * to the create flow was considered and explicitly deferred, so this stays
+ * generic ("Someone") for every link, not just his own.
+ *
+ * Falls back to the root layout's original description for a link with no
+ * valid `d` (a pre-this-feature link, or a mistyped one) — same content
+ * either way, no announcement of the failure.
+ */
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { d: rawDuration } = await searchParams;
+  const durationSeconds = parseDurationParam(rawDuration);
+
+  const description = durationSeconds
+    ? `Someone wants a Qwickword. Click to start your ${formatMinutesPhrase(durationSeconds)} meeting.`
+    : "Set a time limit, share the link. The call ends when it hits zero.";
+
+  return {
+    title: "Qwickword",
+    description,
+    openGraph: {
+      title: "Qwickword",
+      description,
+    },
+  };
+}
+
 function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-zinc-50 px-6 py-10 dark:bg-black">
@@ -96,17 +149,12 @@ export default async function RoomPage({ params, searchParams }: Props) {
   const { room } = await params;
   const { exp: rawExp, d: rawDuration } = await searchParams;
   const expParam = Array.isArray(rawExp) ? rawExp[0] : rawExp;
-  const durationParam = Array.isArray(rawDuration) ? rawDuration[0] : rawDuration;
   const linkExp = expParam ? Number(expParam) : NaN;
   const hasValidLinkExp = Number.isFinite(linkExp) && linkExp > 0;
   const hasValidRoomName = isPlausibleRoomName(room);
 
-  const durationSeconds = durationParam ? Number(durationParam) : NaN;
-  const hasValidDuration =
-    Number.isFinite(durationSeconds) &&
-    Number.isInteger(durationSeconds) &&
-    durationSeconds >= MIN_DURATION_SECONDS &&
-    durationSeconds <= MAX_DURATION_SECONDS;
+  const durationSeconds = parseDurationParam(rawDuration);
+  const hasValidDuration = durationSeconds !== null;
 
   if (!hasValidRoomName || !hasValidLinkExp) {
     return (
@@ -185,7 +233,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
       <CallRoom
         room={room}
         exp={exp}
-        durationSeconds={hasValidDuration ? durationSeconds : null}
+        durationSeconds={durationSeconds}
         initialStarted={started}
         initialRemainingMs={initialRemainingMs}
         mockMode={mockMode}

@@ -28,6 +28,21 @@
 // CallRoom via `onParticipantCountChange`, which is what lets *every*
 // connected tab detect "a second person has joined" independently, with no
 // server involved — see call-room.tsx for what it does with that count.
+//
+// Corrected 2026-07-21, same day (Andreas, interactive, reported "Join the
+// meeting now" occasionally showing a browser-level crash page): the effect
+// below originally didn't call callObject.destroy() on cleanup, assuming
+// React unmounting the <iframe> was enough to end the call. It is, but
+// daily-js additionally enforces a page-wide singleton — only one DailyCall
+// instance may exist at a time — and that instance survives the DOM node's
+// removal if never destroyed. In a client-routed SPA (no full page reload
+// between navigations), that meant a *second* call to DailyIframe.wrap()
+// later in the same tab could throw "Duplicate DailyIframe instances are not
+// supported," and with no error boundary anywhere in the app at the time,
+// that uncaught exception surfaced as the browser's own generic crash page
+// instead of anything from this app. Fixed both ends: destroy() now actually
+// runs on cleanup, and src/app/error.tsx was added the same day as a safety
+// net for any future uncaught render error, daily-js-related or not.
 
 import { useEffect, useRef } from "react";
 import DailyIframe, { type DailyCall } from "@daily-co/daily-js";
@@ -55,12 +70,36 @@ export default function CallMedia({
   useEffect(() => {
     if (mockMode || !iframeRef.current) return;
 
-    const callObject = DailyIframe.wrap(iframeRef.current);
+    // daily-js only allows one DailyCall instance to exist on a page at a
+    // time — calling DailyIframe.wrap() a second time before the first
+    // instance is destroyed throws ("Duplicate DailyIframe instances are not
+    // supported"). That's a real risk in a client-routed SPA: this effect's
+    // cleanup used to skip destroy() entirely (see the corrected note
+    // below), which left a previous call object alive across client-side
+    // navigations (e.g. "Create a new one" → straight back into a new call
+    // in the same tab), so the *next* mount's wrap() call could throw — an
+    // uncaught exception with no error boundary in place (fixed by
+    // src/app/error.tsx, added the same day this was found) would surface as
+    // the browser's own generic crash page instead of anything from this
+    // app. Wrapping wrap() itself in try/catch, and actually destroying the
+    // call object on cleanup, closes both the immediate crash risk and the
+    // root cause.
+    let callObject: DailyCall | null = null;
+    try {
+      callObject = DailyIframe.wrap(iframeRef.current);
+    } catch (err) {
+      console.error("[Qwickword] Failed to wrap the call iframe with daily-js:", err);
+      return;
+    }
     callObjectRef.current = callObject;
 
     const reportCount = () => {
-      const participants = callObject.participants();
-      onParticipantCountChange?.(Object.keys(participants).length);
+      try {
+        const participants = callObject!.participants();
+        onParticipantCountChange?.(Object.keys(participants).length);
+      } catch (err) {
+        console.error("[Qwickword] Failed to read participant count:", err);
+      }
     };
 
     callObject.on("joined-meeting", reportCount);
@@ -68,13 +107,21 @@ export default function CallMedia({
     callObject.on("participant-left", reportCount);
 
     return () => {
-      callObject.off("joined-meeting", reportCount);
-      callObject.off("participant-joined", reportCount);
-      callObject.off("participant-left", reportCount);
-      // Don't call callObject.destroy() here: that would tear down the
-      // embed's connection to the call. This effect's cleanup only needs to
-      // stop listening — React unmounting the <iframe> itself (e.g. when
-      // CallRoom swaps to the "ended" screen) is what actually ends the call.
+      callObject!.off("joined-meeting", reportCount);
+      callObject!.off("participant-joined", reportCount);
+      callObject!.off("participant-left", reportCount);
+      // Corrected 2026-07-21: this used to skip destroy() on the assumption
+      // that removing the <iframe> from the DOM was enough to end the call.
+      // That's true for the call itself, but daily-js's own call-object
+      // singleton survives the DOM node's removal — leaving it alive is what
+      // makes the *next* wrap() call on this page throw. destroy() is wrapped
+      // in try/catch since it can itself reject/throw if the call was never
+      // fully connected.
+      try {
+        callObject!.destroy();
+      } catch (err) {
+        console.error("[Qwickword] Failed to destroy the daily-js call object:", err);
+      }
       callObjectRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- callObject is created fresh each time this effect runs; onParticipantCountChange is a stable callback from CallRoom's useCallback.

@@ -41,6 +41,28 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   "weird square" and asked for it gone. Reverted `src/app/page.tsx`'s outer wrapper to a flat
   `bg-zinc-50`/`dark:bg-black`, same as before that round. Kept the indigo-tinted, blurred Q watermark
   and the glass card — those two are what he'd said he liked. Live on `https://qwickword.com`.
+- **"Join meeting now" crash fix + app-wide error boundary (done 2026-07-21, interactive, deployed to
+  production):** Andreas hit a browser-level crash page ("This page couldn't load. Reload to try
+  again, or go back.") clicking "Join the meeting now" right after creating a link; a retry worked.
+  Root cause: `src/components/call-media.tsx`'s daily-js cleanup never called `callObject.destroy()`
+  (a since-corrected assumption that removing the `<iframe>` from the DOM was enough) — daily-js only
+  allows one `DailyCall` instance per page at a time, so a leftover undestroyed instance from an
+  earlier client-side navigation could make the *next* `DailyIframe.wrap()` call throw, and with no
+  error boundary anywhere in the app, that uncaught exception surfaced as the browser's own generic
+  crash UI instead of anything from this app. Fixed both ends: `destroy()` now actually runs on
+  cleanup (wrapped in try/catch, since it can itself throw), `DailyIframe.wrap()` and the
+  participant-count read are both wrapped in try/catch too, and a new `src/app/error.tsx` gives any
+  future uncaught render error a friendly "Something went wrong" screen with a "Try again"/reset button
+  instead of leaking to the browser. Live on `https://qwickword.com`.
+- **Dynamic link-preview text per room (done 2026-07-21, interactive, deployed to production):**
+  Andreas shared a link in WhatsApp and got the generic site title/description back; asked for
+  something more inviting, tied to the actual link. `src/app/[room]/page.tsx` now exports
+  `generateMetadata`, building "Someone wants a Qwickword. Click to start your N minute(s) meeting."
+  from the link's own `d` (durationSeconds) — no name is included (confirmed with Andreas rather than
+  guessing; a "your name" field was considered and explicitly deferred, so this reads the same for
+  everyone, not just him). A link with no valid `d` (pre-this-feature or mistyped) falls back to the
+  original site description, unchanged. New `formatMinutesPhrase` in `src/lib/duration.ts` handles the
+  singular/plural wording. Live on `https://qwickword.com`.
 - **Anchor the countdown to first join, not link creation (Phase 1, done 2026-07-21, interactive,
   deployed to production):** the countdown no longer starts the instant a link is created. Rooms are
   now created with a generous 24h "pre-start buffer" `exp` (not the real call length); the real,
@@ -1266,3 +1288,46 @@ throwaway scratch dir, not touching the mount).
     datastore, participant count already visible via the same daily-js wrapping) rather than invent a
     second one — see the ROADMAP.md entry for the open questions flagged for build time (un-voting,
     exact-50%-with-2-participants edge case).
+- 2026-07-21 (later still, interactive): Andreas shared a real link in WhatsApp and asked for the link
+  preview to say something more inviting than the generic site title/description — proposed "Andreas
+  wants a Qwickword. Click to start your X minute meeting." Asked whether the name should be
+  hardcoded, come from a new "your name" input, or be dropped entirely rather than guess; Andreas
+  answered "Just use 'Someone' wants a." Built and deployed: `src/app/[room]/page.tsx` now exports
+  `generateMetadata`, reading the link's `d` (durationSeconds) query param and building "Someone wants
+  a Qwickword. Click to start your N minute(s) meeting." — falls back to the original site description
+  for a link with no valid `d` (pre-this-feature or mistyped, same fallback used elsewhere in this
+  page). Extracted a shared `parseDurationParam` helper so `generateMetadata` and the page component
+  can't quietly drift on what counts as a valid duration. New `formatMinutesPhrase` in
+  `src/lib/duration.ts` handles singular/plural ("1 minute" vs. "5 minutes"). Verified: `npm run
+  lint`/`npm run build` clean; curl-checked both `<meta name="description">` and
+  `<meta property="og:description">` for a valid-duration link (plural and singular cases both
+  checked), and confirmed a legacy no-`d` link still gets the original fallback text.
+- 2026-07-21 (later still, interactive): mid-verification of the above, Andreas reported clicking
+  "Join the meeting now" right after creating a link showed a browser-level crash page ("This page
+  couldn't load. Reload to try again, or go back.") rather than anything from this app — a retry with
+  the same link worked. Root cause found in `src/components/call-media.tsx`: the daily-js cleanup
+  effect never called `callObject.destroy()`, on the assumption (stated in this file's own comment)
+  that React removing the `<iframe>` from the DOM was enough to end the call. That's true for the call
+  itself, but daily-js separately enforces a page-wide singleton — only one `DailyCall` instance is
+  allowed to exist at a time — and that instance survives the DOM node's removal if never destroyed.
+  In a client-routed SPA (no full page reload between navigations), a later `DailyIframe.wrap()` call
+  in the same tab could then throw ("Duplicate DailyIframe instances are not supported"), and since
+  there was no error boundary anywhere in the app at any level, that uncaught exception had nowhere to
+  land except the browser's own generic crash UI — which is exactly what the screenshot showed. Fixed
+  both ends: `destroy()` now actually runs on cleanup (itself wrapped in try/catch, since it can throw
+  if the call was never fully connected); `DailyIframe.wrap()` and the participant-count read are both
+  wrapped in try/catch too, so a daily-js failure degrades gracefully (participant-based auto-start
+  just doesn't fire; the manual "Start now" button and the call itself are unaffected) instead of
+  crashing the component; and a new `src/app/error.tsx` (Next.js's App Router error-boundary
+  convention — a Client Component exporting `error`/`reset` props) gives any future uncaught render
+  error a friendly "Something went wrong" screen with a "Try again" (calls `reset()`, no full reload)
+  and a "Back to Qwickword" link, instead of leaking to the browser. Verified: `npm run lint`/`npm run
+  build` clean; a full create → room-page-loads-with-waiting-state round trip against the live Daily
+  API and production (`https://qwickword.com`) showed no crash on the same flow Andreas hit. Could not
+  reproduce the exact "duplicate instance" browser crash directly in this sandbox — still no working
+  headless browser (Playwright's install still needs root, confirmed again this session) — so this fix
+  is verified by identifying and correcting the specific incorrect assumption in the code (documented
+  in `call-media.tsx`'s own comment at the time) plus the general safety net of the new error boundary,
+  not by reproducing the exact crash and watching it not recur.
+  Deployed via the Vercel CLI (same `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), pushed to
+  GitHub, mount's `.git` re-synced, `git status --porcelain` confirmed clean.
