@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDailyConfig } from "@/lib/daily-config";
 import { pickRandomSlogan } from "@/lib/slogans";
 import CreateLinkForm from "@/components/create-link-form";
@@ -36,6 +37,16 @@ export default function Home() {
 
         <CreateLinkForm />
       </main>
+
+      {/* Discreet — deliberately low-contrast and unlabeled beyond a single
+          lowercase word, not a real nav item. Andreas: "a very discreet
+          little button somewhere" that links to the manifesto page. */}
+      <Link
+        href="/manifesto"
+        className="fixed bottom-4 right-4 text-xs text-zinc-300 transition-colors hover:text-zinc-500 dark:text-zinc-800 dark:hover:text-zinc-500"
+      >
+        manifesto
+      </Link>
     </div>
   );
 }
