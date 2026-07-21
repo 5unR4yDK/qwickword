@@ -14,7 +14,7 @@ export default function Home() {
   const slogan = pickRandomSlogan();
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_60%_55%_at_50%_38%,#eef2ff_0%,#fafafa_70%)] px-6 py-24 font-sans dark:bg-[radial-gradient(ellipse_60%_55%_at_50%_38%,rgba(67,56,202,0.28)_0%,#000_70%)]">
+    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
       {/* Large decorative "Q" watermark behind the card. Andreas asked for a
           big Q, serif "same font type as Times New Roman or similar, maybe
           more unique" — Playfair Display (loaded in src/app/layout.tsx),
@@ -23,11 +23,14 @@ export default function Home() {
           flow of the real content sitting above it (z-10). Bumped opacity and
           added an indigo tint (2026-07-21, second pass) after Andreas said
           the first version was "hardly visible" and asked for something a
-          little more inspiring — paired with the soft radial background glow
-          above and the glass-card treatment on <main> below, rather than
-          just cranking the Q's own opacity in isolation. Blurred the glyph
-          itself (2026-07-21, third pass): the part of the Q sitting behind
-          the glass card was already soft (thanks to the card's own
+          little more inspiring — originally paired with a soft radial
+          background glow, which Andreas then said made the page look like it
+          had a "weird" square in it (2026-07-21, fourth pass) — that
+          background gradient is gone, the page is back to a flat
+          bg-zinc-50/black, and the Q + glass card below now carry the
+          "inspiring" feel on their own. Blurred the glyph itself
+          (2026-07-21, third pass): the part of the Q sitting behind the
+          glass card was already soft (thanks to the card's own
           backdrop-blur), but the tail poking out below the card rendered
           crisp against the plain background, so it read as a stray sharp
           shape rather than part of the same glow. A uniform blur filter on
