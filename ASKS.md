@@ -1,4 +1,4 @@
-# Quick Word — Things I need from Andreas
+# Qwickword — Things I need from Andreas
 
 The nightly build task appends here whenever it hits something it can't (or shouldn't) do on its own.
 Check this each morning. Clearing these unblocks the next night's progress.

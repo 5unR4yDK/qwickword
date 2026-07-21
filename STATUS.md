@@ -1,4 +1,4 @@
-# Quick Word — Status Log
+# Qwickword — Status Log
 
 **How to use this file:** At the start of every run, read this file top to bottom to learn the
 current state. At the end of every run, update the "Current state" block and append a dated entry
@@ -13,8 +13,8 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   live URL — custom domain DNS confirmed correctly configured (Vercel's `misconfigured: false`),
   smoke-tested directly (home page, a real create-room round-trip). `https://quickword.vercel.app`
   still works too (same deployment, both point at the same Vercel project). The in-app product name
-  is still "Quick Word" pending the full rename item in ROADMAP.md's Phase 1 (queued, not yet built)
-  — only the domain and one stray dev-mode banner (see below) were fixed tonight, not the whole brand.
+  is now "Qwickword" everywhere user-facing — see the text-rename entry further down for full detail;
+  logo/favicon/colours are the one part of the brand pass still outstanding.
 - **Home page banner fix (2026-07-21, interactive, deployed to production):** removed the
   `Live mode (domain: quickword.daily.co)` text that showed on the home page whenever real Daily
   credentials were configured — Andreas asked for it gone now that the site is live on

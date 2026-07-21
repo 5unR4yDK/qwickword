@@ -105,7 +105,7 @@ export default function CreateLinkForm() {
     return (
       <div className="flex w-full flex-col items-center gap-4 text-center">
         <p className="text-lg font-medium text-black dark:text-zinc-50">
-          Your {formatDuration(state.durationSeconds)} Quick Word is ready.
+          Your {formatDuration(state.durationSeconds)} Qwickword is ready.
         </p>
         {state.mockMode && (
           <p className="text-sm text-amber-700 dark:text-amber-400">
@@ -116,7 +116,7 @@ export default function CreateLinkForm() {
           <input
             readOnly
             value={state.link}
-            aria-label="Shareable Quick Word link"
+            aria-label="Shareable Qwickword link"
             onFocus={(event) => event.currentTarget.select()}
             className="w-full min-w-0 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-sm text-zinc-800 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-200"
           />
@@ -171,7 +171,7 @@ export default function CreateLinkForm() {
         disabled={state.status === "loading"}
         className="flex h-12 w-full items-center justify-center rounded-full bg-foreground px-5 text-base font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-[#ccc]"
       >
-        {state.status === "loading" ? "Creating…" : "Create Quick Word"}
+        {state.status === "loading" ? "Creating…" : "Create Qwickword"}
       </button>
       {state.status === "error" && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

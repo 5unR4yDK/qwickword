@@ -1,4 +1,4 @@
-# Quick Word — Product Roadmap
+# Qwickword — Product Roadmap
 
 This is the master backlog. It is ordered by priority, top to bottom. The nightly build task works
 it **one item at a time**: pick the first unchecked `[ ]` item that is not tagged `[needs-andreas]`,
@@ -13,10 +13,10 @@ build it, verify it against its acceptance criteria, check it off, log the resul
 
 ## The one-sentence product
 A meeting tool where you set the maximum length in advance and it **cannot be extended** — when the
-timer hits zero the call ends, server-enforced. If you need more time, you schedule another Quick Word.
+timer hits zero the call ends, server-enforced. If you need more time, you schedule another Qwickword.
 
 ## Positioning (keep this in mind while building)
-Every competitor sells "no time limit." Quick Word sells the opposite: short by design. It is an
+Every competitor sells "no time limit." Qwickword sells the opposite: short by design. It is an
 anti-meeting-bloat tool for people who value their time. Every design choice should reinforce
 "this will be quick" — not apologize for it.
 
@@ -180,22 +180,34 @@ Goal: something you'd actually send to a colleague without wincing.
       the product's overall tone, not an alarm. For later: build both the visual and audio cue
       together as this one item.)*
 - [ ] Fully responsive layout; verify the call works on a phone browser.
-- [ ] **Basic brand pass, including the rename to "Qwickword."** *(Andreas, 2026-07-21, interactive:
-      "We're changing the name to Qwickword.com." He already owns the `qwickword.com` domain.)* Scope
-      for this item:
-      - Rename everywhere the product is referred to as "Quick Word": UI copy (page titles, headings,
-        the countdown/ended/invalid-link screens, etc.), `README.md`, `BUILD_PLAN.md`, `ROADMAP.md`
-        itself, `REVENUE.md`, `package.json`'s `name` field, and code comments where it's the product
-        name rather than incidental (use judgement — don't churn every comment, but don't leave
-        user-facing copy inconsistent either). Confirm the exact display capitalization/spacing with
-        Andreas if genuinely ambiguous rather than guessing (this note uses "Qwickword," one word,
-        based on how he wrote it, but hasn't been explicitly confirmed).
-      - Logo, favicon, colours, Open Graph / meta tags so a pasted link shows a nice preview (e.g. "A
-        2-minute Qwickword") — this was already this item's scope before the rename, now just under
-        the new name.
-      - **Not in scope for this item — separate `[needs-andreas]` item right below:** actually
-        connecting the `qwickword.com` domain to the live deployment. Do the in-app rename first, so
-        the domain switch-over has a renamed app ready to point at.
+- [~] **Basic brand pass, including the rename to "Qwickword."** *(Andreas, 2026-07-21, interactive:
+      "We're changing the name to Qwickword.com." He already owns the `qwickword.com` domain.)*
+      **Text rename done 2026-07-21, later the same day (interactive — "lets just run the renaming now
+      and redoing of banner text etc," done on the spot, not queued):** every user-facing "Quick Word"
+      string renamed to "Qwickword" across the app — `src/app/layout.tsx` (page title), the home page
+      and call page headings/links, the create-link form's button/label/ready-text, the "ended" and
+      invalid-link screens' headings and messages, the Daily iframe's `title`, both `console.log`/
+      `console.warn`/`console.error` prefixes, `src/lib/duration.ts`'s comment, and `package.json`'s
+      `name` field (`quick-word` → `qwickword`). Also renamed throughout the living docs —
+      `README.md`, `BUILD_PLAN.md`, `REVENUE.md`, and this file's own title/positioning/still-open
+      item text — but **deliberately left every already-dated `[x]`/`[~]` "done" annotation and every
+      STATUS.md/ASKS.md historical run-history entry untouched**, since those are an honest record of
+      what the app actually said and did on those past dates, not living copy — rewriting them to
+      retroactively say "Qwickword" would misrepresent the history. Used "Qwickword," one word,
+      capital Q, matching how Andreas has written it every time — not separately re-confirmed
+      letter-for-letter, flagging in case that's not quite right. One phrasing case worth his eyes:
+      "This Qwickword has ended." (the call-room end screen) reads slightly less naturally than the
+      old "This Quick Word has ended.", since the two-word name doubled as the English idiom "have a
+      quick word" and that wordplay doesn't carry over to the new one-word name — happy to rephrase
+      (e.g. "This call has ended.") if he'd rather.
+      **Still not done — separate follow-up, not attempted tonight:** logo, favicon, colours, and
+      Open Graph / meta tags so a pasted link shows a nice preview (e.g. "A 2-minute Qwickword"). This
+      needs actual visual design work (an image/icon, a colour palette), not a text find-and-replace —
+      keeping it as its own follow-up rather than guessing at a logo tonight.
+      Verified: `npm run lint`/`npm run build` clean, curl-tested both modes (mock and live) against a
+      live dev server confirming zero remaining "Quick Word" occurrences anywhere in a rendered page,
+      then **deployed to production** and re-verified live on both `https://qwickword.com` and
+      `https://quickword.vercel.app` — see STATUS.md for the full verification detail.
 - [ ] Dark mode vs. default/light mode toggle. *(Added 2026-07-21, Andreas, interactive — "add to the
       pipeline of features," not built tonight.)* Current state, worth knowing before building this:
       the app already has *some* dark-mode styling (`dark:` Tailwind classes throughout the
@@ -269,13 +281,13 @@ Goal: something you'd actually send to a colleague without wincing.
 Goal: every call quietly recruits the next user.
 
 - [ ] Zero-friction creation: a first-time user can make a link without signing up.
-- [ ] "Powered by Quick Word" mark on the call and on the "Time's up" screen, linking to create-your-own.
-- [ ] Post-call CTA screen: "Create your own Quick Word" as the primary action.
+- [ ] "Powered by Qwickword" mark on the call and on the "Time's up" screen, linking to create-your-own.
+- [ ] Post-call CTA screen: "Create your own Qwickword" as the primary action.
 - [ ] Rich share: OG image that renders the chosen duration; native share sheet on mobile.
 - [ ] Optional lightweight accounts via magic-link email, so a user can save and reuse links.
       *(Add a datastore here if not already added.)*
 - [ ] Reusable personal link (e.g. `quickword.co/andreas`) that always opens a fresh capped room.
-- [ ] Calendar hooks: "Add to Google/Outlook Calendar" and an .ics download for a scheduled Quick Word.
+- [ ] Calendar hooks: "Add to Google/Outlook Calendar" and an .ics download for a scheduled Qwickword.
 - [ ] Opener notification: email the creator when someone opens or joins their link.
 - [ ] Feedback mechanism: a lightweight way for users to tell us what they'd want to see next (e.g. a
       simple in-app form, or even just a `mailto:`/typeform-style link on the "time's up" or post-call
@@ -293,7 +305,7 @@ Goal: a pricing page, a free tier that converts, and the first paid features.
 - [ ] B2B landing page + the "reclaimed hours & cost" story (see REVENUE.md "B2B wedge"), with the
       savings math clearly labelled as an estimate. Sell prevention + evidence, not a guaranteed ROI.
 - [ ] Team workspace: shared link library, member roles/permissions, org-level settings.
-- [ ] Admin "reclaimed" dashboard driven by REAL usage: count of Quick Words held, estimated
+- [ ] Admin "reclaimed" dashboard driven by REAL usage: count of Qwickwords held, estimated
       meeting-minutes and dollars reclaimed (configurable loaded-cost assumption), per-team breakdown.
       *Done when:* the numbers come from actual logged calls, not hardcoded figures.
 - [ ] `[needs-andreas]` Fake-door pricing test: publish 2–3 tiers, measure click-to-intent before any
@@ -306,7 +318,7 @@ Goal: a pricing page, a free tier that converts, and the first paid features.
 - [ ] Email capture + waitlist for anything not yet shipped.
 - [ ] `[needs-andreas]` Donate / support-the-project option: a simple, low-pressure way for users to
       chip in toward running costs (Daily's API isn't free once real usage shows up), separate from
-      the Pro/Stripe billing plan above — think a single "Support Quick Word" link/button, not a full
+      the Pro/Stripe billing plan above — think a single "Support Qwickword" link/button, not a full
       payment flow. Needs Andreas to pick and set up the actual mechanism (e.g. a Stripe Payment Link,
       Buy Me a Coffee, Ko-fi, GitHub Sponsors) since that means creating/connecting a real account —
       per BUILD_PLAN.md's guardrails, that's not something to do autonomously. *(Added 2026-07-21,
@@ -322,10 +334,10 @@ Goal: the version people evangelize. Re-prioritize this phase based on what Phas
       that reinforces the "time is money, keep it short" story.
 - [ ] AI post-call summary / action items (respecting the short format; opt-in; storage-light).
 - [ ] In-call extras kept deliberately minimal: text chat, reactions, short screen-share.
-- [ ] Slack app + Chrome extension: create a Quick Word link from where you already are.
+- [ ] Slack app + Chrome extension: create a Qwickword link from where you already are.
 - [ ] Embeddable widget / public API so others can drop timed calls into their product (Whereby-style;
       this is also a second revenue line — see REVENUE.md).
-- [ ] Recurring Quick Words and "micro office-hours" scheduling.
+- [ ] Recurring Qwickwords and "micro office-hours" scheduling.
 - [ ] Custom themes / white-label for Pro and teams.
 - [ ] `[needs-andreas]` SSO / SAML for larger B2B buyers (enterprise gating).
 - [ ] Accessibility pass and internationalization.

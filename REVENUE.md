@@ -1,4 +1,4 @@
-# Quick Word — Revenue Model
+# Qwickword — Revenue Model
 
 Honest framing up front: the single best monetization model cannot be *known* before there are real
 users. This document narrows the field with reasoning and comparable-product data, states a
@@ -7,7 +7,7 @@ an answer. The nightly task builds the machinery and instrumentation; the conclu
 traffic and must be reported as measured, not asserted.
 
 ## The economics that shape everything
-Quick Word calls are short and hard-capped, so cost-of-goods per call is tiny and predictable.
+Qwickword calls are short and hard-capped, so cost-of-goods per call is tiny and predictable.
 Daily bills roughly **$0.004 per participant-minute** after a free tier. A capped 2-minute, 2-person
 call is 4 participant-minutes ≈ **$0.016 of video**. Even a 10-minute, 4-person call is ~$0.16.
 
@@ -41,7 +41,7 @@ are the **monetization engine** and the sharpest marketing story (see the B2B we
 
 Lead with **freemium + per-seat Pro**, benchmarked to the $8–12/user/month band that Whereby and
 Calendly occupy. Keep the free tier generous on the *core utility* (creating and joining capped calls)
-and gate on **identity and scale**: remove the "Powered by Quick Word" badge, custom personal slug,
+and gate on **identity and scale**: remove the "Powered by Qwickword" badge, custom personal slug,
 custom domain, team workspace and shared link library, opener notifications, analytics, and integrations.
 The free tier's badge is the growth loop, so the free tier is a marketing cost, not a leak. Hold the
 API/embedding line (model 3) as a deliberate second act once consumer traction exists.
@@ -58,7 +58,7 @@ $100M/year, ~$25,000 per employee, with ~50% of meeting time considered wasted (
 | Scenario | People | Length | Loaded cost @ $80/hr/person |
 |---|---|---|---|
 | Default meeting | 5 | 30 min | **$200** |
-| Quick Word instead | 5 | 5 min | **$33** |
+| Qwickword instead | 5 | 5 min | **$33** |
 | **Saved per meeting** | | | **~$167** |
 
 One such swap per weekday for a 5-person team ≈ **~$3,300/month reclaimed** against ~$50/month in seats.
@@ -68,9 +68,9 @@ prove the meeting would have run long, and reclaimed time isn't always productiv
 Sophisticated buyers discount ROI-calculator claims. So do NOT sell a guaranteed-ROI promise.
 
 **What actually makes the B2B pitch defensible:**
-1. Quick Word doesn't merely *measure* meeting waste (passive calculators already do that) — it
+1. Qwickword doesn't merely *measure* meeting waste (passive calculators already do that) — it
    *structurally prevents the overrun*: the cap can't be extended.
-2. The admin dashboard converts the claim into evidence from real adoption: count of Quick Words held,
+2. The admin dashboard converts the claim into evidence from real adoption: count of Qwickwords held,
    estimated meeting-minutes and dollars reclaimed, team-by-team. Sell behavior change + a dashboard
    that proves it, not a hypothetical spreadsheet.
 3. Culture angle: a lightweight "we have a quick-word culture here" signal that managers can champion.
@@ -89,7 +89,7 @@ The build work is the instrumentation; the answers need real users.
   most-clicked locks reveal what people will actually pay for.
 - **Willingness-to-pay probe.** A light Van Westendorp-style question ("too cheap / too expensive")
   on the pricing page or in an onboarding survey.
-- **Badge & CTA A/B tests.** Measure how much the "Powered by Quick Word" badge and the post-call CTA
+- **Badge & CTA A/B tests.** Measure how much the "Powered by Qwickword" badge and the post-call CTA
   actually drive new link creation — this determines whether free-tier economics work.
 
 ## What needs Andreas (money & legal cannot be autonomous)

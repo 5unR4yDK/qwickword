@@ -51,7 +51,7 @@ export default function CallMedia({
             src={joinUrl ?? undefined}
             allow="camera; microphone; fullscreen; display-capture; autoplay"
             className="h-full w-full border-0"
-            title="Quick Word call"
+            title="Qwickword call"
           />
         )}
       </div>

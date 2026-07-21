@@ -1,14 +1,14 @@
-# Quick Word — Build Plan
+# Qwickword — Build Plan
 
 ## What it is
 A conference-call tool where the call duration is set in advance and **cannot be extended**.
-You create a "Quick Word" link with a fixed max duration (e.g. 2 minutes). Both parties open
+You create a "Qwickword" link with a fixed max duration (e.g. 2 minutes). Both parties open
 the link, they're connected, a countdown runs, and when it hits zero the call ends. There is no
-"extend" button anywhere. If people want more time, they schedule a new Quick Word.
+"extend" button anywhere. If people want more time, they schedule a new Qwickword.
 
 ## MVP scope (what we're building first)
 Link-based version:
-1. A page to generate a Quick Word link with a chosen max duration.
+1. A page to generate a Qwickword link with a chosen max duration.
 2. Opening the link connects both parties in a video/audio call.
 3. A visible countdown timer.
 4. A **hard, server-enforced** end: the call is force-terminated at expiry, not just a client clock.
@@ -38,7 +38,7 @@ Link-based version:
 ## Guardrails — non-negotiable for the autonomous nightly runs
 1. Work ONLY inside this folder (C:\Users\acnic\ClaudeCoding\QuickWord).
 2. NEVER touch any pre-existing / shared / production infrastructure (existing Vercel projects,
-   Cloudflare zones, or the shared database). Quick Word gets its own fresh resources only.
+   Cloudflare zones, or the shared database). Qwickword gets its own fresh resources only.
 3. NEVER enter payment details, spend money, or commit Andreas financially.
 4. Do NOT create third-party accounts that require Andreas's email/phone verification. When a
    signup or key is needed, add it to ASKS.md and stop on that thread — keep building everything else.

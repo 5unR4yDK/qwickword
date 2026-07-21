@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (err instanceof DailyRoomError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    console.error("[Quick Word] Unexpected error creating room:", err);
+    console.error("[Qwickword] Unexpected error creating room:", err);
     return NextResponse.json(
       { error: "Unexpected error creating the room." },
       { status: 500 }

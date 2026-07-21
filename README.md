@@ -1,8 +1,8 @@
-# Quick Word
+# Qwickword
 
 A meeting tool where you set the maximum call length in advance and it **cannot be extended**.
 When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
-clock. If you need more time, you schedule another Quick Word.
+clock. If you need more time, you schedule another Qwickword.
 
 See `BUILD_PLAN.md` for the full design, `ROADMAP.md` for what's built vs. planned, and
 `STATUS.md` for a detailed log of what's been verified so far.
@@ -58,5 +58,5 @@ npm run start   # serve the production build (run npm run build first)
 
 ## Deployment
 
-Not yet deployed. When it is, it will go to a new, dedicated Vercel project — never an existing
-one (see `BUILD_PLAN.md`'s guardrails).
+Live at **https://qwickword.com** (also reachable at `https://quickword.vercel.app`), deployed to
+its own dedicated Vercel project — never an existing/shared one (see `BUILD_PLAN.md`'s guardrails).

@@ -1,4 +1,4 @@
-// Shared duration bounds/presets for Quick Word rooms. Deliberately has no
+// Shared duration bounds/presets for Qwickword rooms. Deliberately has no
 // side effects, no environment access, and no network calls, so it is safe to
 // import from both server code (src/lib/daily-rooms.ts, API validation) and
 // client code (the duration picker on the home page) without pulling
