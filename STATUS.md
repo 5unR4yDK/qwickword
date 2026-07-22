@@ -42,6 +42,19 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Create button color, corrected once more (2026-07-22, interactive, deployed to production):**
+  Andreas rejected the previous attempt at this same complaint: "That's not exactly a solution since we
+  already have two minutes as an option and I don't want that field to be pre filled... the button
+  should just be 1 color and should never change color... leave the field empty and make sure that
+  that button never changes color it just stays white all the time." Reverted the `minutesInput`
+  pre-fill from the previous commit — back to starting blank. The actual fix is on the button itself:
+  dropped `disabled:opacity-60` and scoped the hover colour change to `:enabled`
+  (`hover:enabled:bg-zinc-800`/`dark:hover:enabled:bg-zinc-200`), so the "Create Qwickword" button is
+  always solid black (white in dark mode) regardless of whether the field currently holds a valid
+  value — invalid input still can't submit (`disabled` + `cursor-not-allowed` + the existing hint text),
+  it just no longer looks different when it can't. Verified `eslint`/`tsc --noEmit`/`next build` clean;
+  live-smoke-tested the deployed HTML directly — confirmed `value=""` on the field and no
+  `disabled:opacity-60` anywhere in the submit button's class list.
 - **Create button starting disabled/greyed on load, same-day follow-up (2026-07-22, interactive,
   deployed to production):** Andreas: "you didnt fix the button still beying greyed out. and i know its
   greyed out because it still goes white when i type in a manual number in the manual minutes box." Real
