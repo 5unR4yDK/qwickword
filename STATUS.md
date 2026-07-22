@@ -42,6 +42,17 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Create button starting disabled/greyed on load, same-day follow-up (2026-07-22, interactive,
+  deployed to production):** Andreas: "you didnt fix the button still beying greyed out. and i know its
+  greyed out because it still goes white when i type in a manual number in the manual minutes box." Real
+  root cause, distinct from the earlier `bg-foreground` colour fix: the manual minutes field
+  (`minutesInput`) started empty as part of today's earlier preset-buttons redesign, so `isValidDuration`
+  was false on first render — the "Create Qwickword" submit button was genuinely `disabled`, and
+  `disabled:opacity-60` on a solid white background renders as grey. Andreas's own diagnosis (typing a
+  number turns it white) was exactly right. Pre-filled `minutesInput` with a default (`2`, matching the
+  original pre-preset-redesign default) so the button is enabled — full white/black, no dimming — the
+  moment the page loads. Verified `eslint`/`tsc --noEmit`/`next build` clean; live-smoke-tested the
+  deployed HTML for the pre-filled `value="2"`.
 - **Homepage polish + real fix for countdown surviving a left call (2026-07-22, interactive, deployed
   to production):** four quick items in one pass. (1) CTA buttons (Copy link, Join the meeting now,
   Create Qwickword) switched from `bg-foreground`/`text-background` — a near-white gray (#ededed) in
