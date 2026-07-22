@@ -30,25 +30,35 @@ type CreateState =
     };
 
 /**
- * The core create-link flow. Two ways to set a duration, side by side
- * (2026-07-22, Andreas, interactive: "Reinstate the buttons, so you can
- * still click a duration and get taken straight to the confirmation with
- * link added to clipboard... 1, 2, 5, 10, 15, 20 minutes... keep the manual
- * entry as well and the max of 30 minutes"):
+ * The core create-link flow. Two ways to set a duration:
  *  1. Preset buttons (DURATION_PRESETS_SECONDS, src/lib/duration.ts) —
- *     clicking one creates the room immediately, no separate "Create" step.
- *     This is the original one-click behaviour from 2026-07-21 ("the URL
- *     should automatically be copied... after you click that button"),
- *     reinstated here.
- *  2. A manual minutes field (added later that same night, when the preset
- *     buttons/dropdown were briefly swapped out for it entirely — this
- *     merges the two rather than picking one) for any whole-minute value the
- *     presets don't cover, submitted via its own "Create" button or Enter.
- *     Clamped to the shared MIN_/MAX_DURATION_MINUTES bounds so it can never
- *     submit a value the API route's own bounds check would reject.
+ *     clicking one creates the room immediately, no separate "Create" step
+ *     (2026-07-21: "the URL should automatically be copied... after you
+ *     click that button").
+ *  2. A manual minutes field for any whole-minute value the presets don't
+ *     cover, submitted via its own "Create" button or Enter. Clamped to the
+ *     shared MIN_/MAX_DURATION_MINUTES bounds so it can never submit a value
+ *     the API route's own bounds check would reject.
  * Both paths funnel into the same `handleCreate`, so the success screen
  * below (auto-copy, "Join the meeting now," etc.) behaves identically either
  * way.
+ *
+ * Collapsed by default (2026-07-22, Andreas, interactive: "the whole custom
+ * link section and the button that says Create Quick Word is providing a
+ * lot of bulk and actually it takes away from the simplicity of the front
+ * page... only when you click the custom link does the entire box set
+ * expand down and let you put in the minutes and introduces you to the
+ * create button"). The manual-minutes field, its hint text, and the "Create
+ * Qwickword" button only exist to serve the custom-duration path — for
+ * anyone just clicking a preset (the common case), all three were dead
+ * weight sitting on the page for no reason. Now they're hidden behind a
+ * single discreet toggle, styled exactly like the old always-visible
+ * "or pick a custom length" caption used to be (Andreas: "it should be in
+ * the same text as you have now for the text that says or pick a custom
+ * link so it's discrete it's not imposing"), just relabelled to the single
+ * word "custom" and made clickable. Clicking it expands the same fields that
+ * used to always be there — nothing about the custom-duration mechanism
+ * itself changed, only whether it's visible before someone asks for it.
  */
 export default function CreateLinkForm({
   basePath = "",
@@ -79,11 +89,25 @@ export default function CreateLinkForm({
   const [copied, setCopied] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Whether the custom-duration section (manual minutes field + its hint +
+  // the "Create Qwickword" button) is expanded — see this file's top
+  // comment. Starts collapsed; the "custom" toggle below is the only way in.
+  const [showCustom, setShowCustom] = useState(false);
+  const minutesInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
   }, []);
+
+  // Send focus straight to the minutes field the moment it expands — anyone
+  // who clicked "custom" is about to type a number, so this saves them a
+  // second click and makes the reveal feel purposeful rather than just
+  // decorative.
+  useEffect(() => {
+    if (showCustom) minutesInputRef.current?.focus();
+  }, [showCustom]);
 
   // Whole minutes only, within the shared bounds. An empty, non-integer, or
   // out-of-range value is invalid — the Create button stays disabled and a
@@ -247,6 +271,12 @@ export default function CreateLinkForm({
             setState({ status: "idle" });
             setCopied(false);
             setShowCopiedToast(false);
+            // Back to the simple, presets-only view — not left expanded
+            // from whatever this tab did last time (2026-07-22, Andreas,
+            // interactive — see this file's top comment on why collapsed is
+            // the default state to return to).
+            setShowCustom(false);
+            setMinutesInput("");
           }}
           className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
         >
@@ -286,53 +316,85 @@ export default function CreateLinkForm({
           </button>
         ))}
       </div>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500">
-        or pick a custom length
-      </p>
-      <label
-        htmlFor="duration-minutes"
-        className="sr-only"
+      {/* Collapsed default: a single discreet toggle, same styling as the
+          old always-visible "or pick a custom length" caption (2026-07-22,
+          Andreas, interactive — see this file's top comment). Only shown
+          while collapsed; expanding replaces it with the fields below rather
+          than leaving a now-redundant toggle sitting above them. */}
+      {!showCustom && (
+        <button
+          type="button"
+          onClick={() => setShowCustom(true)}
+          className="text-xs text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+        >
+          custom
+        </button>
+      )}
+
+      {/* Smooth height reveal via the CSS grid-rows trick (0fr -> 1fr),
+          rather than a hard show/hide — Andreas asked for the box to
+          "expand down," not just appear. `overflow-hidden` on the inner
+          wrapper is what makes the 0fr state actually clip to zero height;
+          the fields themselves are unchanged from before this redesign,
+          just no longer visible (and, via aria-hidden, no longer announced)
+          until expanded. */}
+      <div
+        className={`grid w-full transition-[grid-template-rows] duration-300 ease-out ${
+          showCustom ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
       >
-        Custom call length in minutes
-      </label>
-      <div className="flex items-center gap-2">
-        <input
-          id="duration-minutes"
-          type="number"
-          inputMode="numeric"
-          min={MIN_DURATION_MINUTES}
-          max={MAX_DURATION_MINUTES}
-          step={1}
-          value={minutesInput}
-          onChange={(event) => setMinutesInput(event.target.value)}
-          disabled={isLoading}
-          aria-label="Call length in minutes"
-          aria-describedby="duration-hint"
-          aria-invalid={!isValidDuration}
-          className="w-24 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-center text-lg font-medium tabular-nums text-zinc-900 outline-none focus:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/[.4] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
-        <span className="text-base text-zinc-600 dark:text-zinc-400">min</span>
+        <div className="overflow-hidden">
+          <div
+            aria-hidden={!showCustom}
+            className="flex w-full flex-col items-center gap-4 pt-1"
+          >
+            <label htmlFor="duration-minutes" className="sr-only">
+              Custom call length in minutes
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={minutesInputRef}
+                id="duration-minutes"
+                type="number"
+                inputMode="numeric"
+                min={MIN_DURATION_MINUTES}
+                max={MAX_DURATION_MINUTES}
+                step={1}
+                value={minutesInput}
+                onChange={(event) => setMinutesInput(event.target.value)}
+                disabled={isLoading || !showCustom}
+                tabIndex={showCustom ? 0 : -1}
+                aria-label="Call length in minutes"
+                aria-describedby="duration-hint"
+                aria-invalid={!isValidDuration}
+                className="w-24 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-center text-lg font-medium tabular-nums text-zinc-900 outline-none focus:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/[.4] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="text-base text-zinc-600 dark:text-zinc-400">min</span>
+            </div>
+            <p id="duration-hint" className="text-xs text-zinc-400 dark:text-zinc-500">
+              {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole
+              minutes only.
+            </p>
+            {/* Deliberately no `disabled:opacity-*`/colour change here
+                (2026-07-22, Andreas, interactive, earlier this session: "the
+                button should just be 1 color and should never change
+                color... make sure that button never changes color it just
+                stays white all the time"). The field above starts empty on
+                purpose, so this button IS actually `disabled` while invalid
+                — that state is communicated only by
+                `disabled:cursor-not-allowed` and the hint text, not by
+                dimming the button's own colour. */}
+            <button
+              type="submit"
+              disabled={isLoading || !isValidDuration || !showCustom}
+              tabIndex={showCustom ? 0 : -1}
+              className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
+            >
+              {isLoading ? "Creating…" : "Create Qwickword"}
+            </button>
+          </div>
+        </div>
       </div>
-      <p id="duration-hint" className="text-xs text-zinc-400 dark:text-zinc-500">
-        {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole minutes
-        only.
-      </p>
-      {/* Deliberately no `disabled:opacity-*`/colour change here (2026-07-22,
-          Andreas, interactive: "the button should just be 1 color and should
-          never change color... make sure that button never changes color it
-          just stays white all the time"). The field above starts empty on
-          purpose (see minutesInput's init above), so this button IS actually
-          `disabled` — invalid input still can't submit — but that state is
-          no longer communicated by dimming the button's own colour, only by
-          `disabled:cursor-not-allowed` (the cursor) and the hint text below
-          the field explaining the valid range. */}
-      <button
-        type="submit"
-        disabled={isLoading || !isValidDuration}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
-      >
-        {isLoading ? "Creating…" : "Create Qwickword"}
-      </button>
       {state.status === "error" && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {state.message}
