@@ -11,6 +11,7 @@
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",
     "@daily-co/daily-react": "^0.26.0",
+    "@vercel/analytics": "^2.0.1",
     "jotai": "^2.20.2",
     "lucide-react": "^1.25.0",
     "next": "16.2.10",
