@@ -43,19 +43,55 @@
 // instead of anything from this app. Fixed both ends: destroy() now actually
 // runs on cleanup, and src/app/error.tsx was added the same day as a safety
 // net for any future uncaught render error, daily-js-related or not.
+//
+// "Vote to end early" (ROADMAP.md, built 2026-07-22, nightly): the mirror
+// image of the join-detection above — where that reports "how many people
+// are here" up to CallRoom, this reports "how many of them want to end the
+// call early." Same "no new datastore" principle as the rest of this app:
+// the vote tally is never persisted anywhere. Instead, every connected tab's
+// own vote is broadcast to every other tab via daily-js's own
+// `sendAppMessage` (a live WebRTC data-channel-backed broadcast scoped to
+// this one call, gone the moment the call ends — exactly the lifetime a vote
+// should have), and each tab keeps its own live tally by session ID,
+// pruning any session ID that's no longer in the room (someone who left
+// obviously can't still be counted as a "yes"). A late joiner is caught up
+// by having every currently-"yes" tab re-broadcast its vote on
+// `participant-joined`, since votes are otherwise only sent when they
+// change, not on a schedule. CallRoom (src/components/call-room.tsx) owns
+// the actual >50% threshold decision and the one-time call to
+// `POST /api/rooms/[room]/end` — this component's job stops at reporting an
+// accurate, live `{votesToEnd, participantCount}` tally.
 
 import { useEffect, useRef } from "react";
 import DailyIframe, { type DailyCall } from "@daily-co/daily-js";
+
+export type VoteTally = {
+  /** How many currently-present participants have voted to end the call. */
+  votesToEnd: number;
+  /** How many participants are currently in the room. */
+  participantCount: number;
+};
 
 export default function CallMedia({
   room,
   mockMode,
   joinUrl,
+  myVoteToEnd = false,
   onParticipantCountChange,
+  onVoteTallyChange,
 }: {
   room: string;
   mockMode: boolean;
   joinUrl: string | null;
+  /**
+   * This tab's own current vote ("do I want to end the call early?"),
+   * lifted up to CallRoom so it survives this component re-rendering.
+   * Broadcast to every other connected tab whenever it changes — see the
+   * effect below. Ignored (no-op) in mock mode, same as
+   * onParticipantCountChange, since there's no real daily-js call to
+   * broadcast over.
+   */
+  myVoteToEnd?: boolean;
   /**
    * Called with the current number of participants in the room, any time it
    * changes. Not called at all in mock mode — there is no real Daily call to
@@ -63,9 +99,33 @@ export default function CallMedia({
    * manual "Start now" button still works, since it doesn't depend on this).
    */
   onParticipantCountChange?: (count: number) => void;
+  /**
+   * Called with this tab's live view of the end-early vote, any time it
+   * changes (a vote broadcast arrives, or the participant list changes).
+   * Not called in mock mode — see onParticipantCountChange's doc above for
+   * why.
+   */
+  onVoteTallyChange?: (tally: VoteTally) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const callObjectRef = useRef<DailyCall | null>(null);
+  // session_id -> that participant's last-known vote. Purely in-memory, one
+  // tab's own view of a live daily-js broadcast — never persisted, and reset
+  // to empty on every fresh call connection (a new call has no carried-over
+  // votes from whatever call happened to use this room before).
+  const voteMapRef = useRef<Map<string, boolean>>(new Map());
+  // Latest onVoteTallyChange/myVoteToEnd, readable from inside the
+  // long-lived effect below without needing that effect to re-run (which
+  // would tear down and recreate the daily-js call object) — same ref-sync
+  // pattern call-room.tsx already uses for startedRef.
+  const onVoteTallyChangeRef = useRef(onVoteTallyChange);
+  useEffect(() => {
+    onVoteTallyChangeRef.current = onVoteTallyChange;
+  }, [onVoteTallyChange]);
+  const myVoteToEndRef = useRef(myVoteToEnd);
+  useEffect(() => {
+    myVoteToEndRef.current = myVoteToEnd;
+  }, [myVoteToEnd]);
 
   useEffect(() => {
     if (mockMode || !iframeRef.current) return;
@@ -92,6 +152,7 @@ export default function CallMedia({
       return;
     }
     callObjectRef.current = callObject;
+    voteMapRef.current = new Map();
 
     const reportCount = () => {
       try {
@@ -102,14 +163,81 @@ export default function CallMedia({
       }
     };
 
+    // Recomputes this tab's own end-vote tally from voteMapRef against who's
+    // currently actually in the room — see the "Vote to end early" note atop
+    // this file for why the tally is never persisted anywhere beyond that
+    // map and this recompute.
+    const recomputeTally = () => {
+      try {
+        const participants = callObject!.participants();
+        // Daily's own participants() shape includes the local participant
+        // twice — once under the special "local" key, once under their own
+        // session_id (see DailyParticipantsObject in @daily-co/daily-js) —
+        // so this de-dupes via a Set of session_ids before counting, rather
+        // than counting Object.values() entries directly, to avoid
+        // double-counting the local participant against the >50% threshold.
+        const presentIds = new Set(
+          Object.values(participants).map((p) => p.session_id)
+        );
+        for (const votedId of Array.from(voteMapRef.current.keys())) {
+          if (!presentIds.has(votedId)) voteMapRef.current.delete(votedId);
+        }
+        let votesToEnd = 0;
+        for (const id of presentIds) {
+          if (voteMapRef.current.get(id) === true) votesToEnd += 1;
+        }
+        onVoteTallyChangeRef.current?.({
+          votesToEnd,
+          participantCount: presentIds.size,
+        });
+      } catch (err) {
+        console.error("[Qwickword] Failed to recompute the end-call vote tally:", err);
+      }
+    };
+
+    const handleAppMessage = (event: { data?: unknown; fromId?: string }) => {
+      const data = event.data as { type?: string; vote?: boolean } | undefined;
+      if (data?.type !== "qwickword-end-vote" || typeof event.fromId !== "string") {
+        return;
+      }
+      voteMapRef.current.set(event.fromId, Boolean(data.vote));
+      recomputeTally();
+    };
+
+    const handleParticipantJoined = () => {
+      reportCount();
+      recomputeTally();
+      // Votes are only broadcast when they change, not on a schedule, so a
+      // newcomer wouldn't otherwise learn about a vote cast before they
+      // joined — every tab that's currently voting "yes" re-announces it
+      // whenever someone new arrives.
+      if (myVoteToEndRef.current) {
+        try {
+          callObject!.sendAppMessage(
+            { type: "qwickword-end-vote", vote: true },
+            "*"
+          );
+        } catch (err) {
+          console.error("[Qwickword] Failed to re-broadcast end-call vote to a new joiner:", err);
+        }
+      }
+    };
+
+    const handleParticipantLeft = () => {
+      reportCount();
+      recomputeTally();
+    };
+
     callObject.on("joined-meeting", reportCount);
-    callObject.on("participant-joined", reportCount);
-    callObject.on("participant-left", reportCount);
+    callObject.on("participant-joined", handleParticipantJoined);
+    callObject.on("participant-left", handleParticipantLeft);
+    callObject.on("app-message", handleAppMessage);
 
     return () => {
       callObject!.off("joined-meeting", reportCount);
-      callObject!.off("participant-joined", reportCount);
-      callObject!.off("participant-left", reportCount);
+      callObject!.off("participant-joined", handleParticipantJoined);
+      callObject!.off("participant-left", handleParticipantLeft);
+      callObject!.off("app-message", handleAppMessage);
       // Corrected 2026-07-21: this used to skip destroy() on the assumption
       // that removing the <iframe> from the DOM was enough to end the call.
       // That's true for the call itself, but daily-js's own call-object
@@ -123,9 +251,44 @@ export default function CallMedia({
         console.error("[Qwickword] Failed to destroy the daily-js call object:", err);
       }
       callObjectRef.current = null;
+      voteMapRef.current = new Map();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- callObject is created fresh each time this effect runs; onParticipantCountChange is a stable callback from CallRoom's useCallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- callObject is created fresh each time this effect runs; onParticipantCountChange is a stable callback from CallRoom's useCallback; myVoteToEnd/onVoteTallyChange are read via refs above so this effect doesn't need to re-run when they change.
   }, [mockMode]);
+
+  // Broadcasts this tab's own vote to every other connected tab whenever it
+  // changes (toggling the "End for everyone" button in CallRoom). Separate
+  // from the connection-setup effect above so casting/retracting a vote
+  // never tears down and recreates the daily-js call object — it just reads
+  // the same long-lived callObjectRef.
+  useEffect(() => {
+    const callObject = callObjectRef.current;
+    if (mockMode || !callObject) return;
+    try {
+      const localId = callObject.participants().local?.session_id;
+      if (!localId) return;
+      voteMapRef.current.set(localId, myVoteToEnd);
+      callObject.sendAppMessage(
+        { type: "qwickword-end-vote", vote: myVoteToEnd },
+        "*"
+      );
+      // De-duped the same way as recomputeTally above — see its comment for
+      // why (the local participant otherwise appears twice in participants()).
+      const presentIds = new Set(
+        Object.values(callObject.participants()).map((p) => p.session_id)
+      );
+      let votesToEnd = 0;
+      for (const id of presentIds) {
+        if (voteMapRef.current.get(id) === true) votesToEnd += 1;
+      }
+      onVoteTallyChangeRef.current?.({
+        votesToEnd,
+        participantCount: presentIds.size,
+      });
+    } catch (err) {
+      console.error("[Qwickword] Failed to broadcast this tab's end-call vote:", err);
+    }
+  }, [myVoteToEnd, mockMode]);
 
   return (
     <>
