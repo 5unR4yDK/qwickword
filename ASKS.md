@@ -7,15 +7,12 @@ Check this each morning. Clearing these unblocks the next night's progress.
 - [ ] **(Recommended, low urgency) Rotate the Daily API key.** The current key was pasted into a
       chat transcript on 2026-07-12, so best practice is to regenerate it in the Daily dashboard
       (Developers) and replace the value in `.env.local`. One-line swap. Not blocking the build.
-- [ ] **Stray uncommitted work found in the project folder (2026-07-22), needs a decision.**
-      `src/components/create-link-form.tsx` and `src/lib/duration.ts` have an uncommitted,
-      well-written change (a manual minutes field replacing the duration-preset dropdown, "Max 30m")
-      that reads like real interactive work but has no matching STATUS.md entry or ROADMAP.md
-      checkbox — tonight's run left it untouched rather than guessing whether to finish, verify, or
-      discard it. Please take a look at `git diff` in the project folder and either say "finish that"
-      or "discard it" so a future run can act on it cleanly.
 
 ## Done
+- 2026-07-22 (interactive) — Andreas resolved the stray-uncommitted-work item below: "Reinstate the
+  buttons... 1, 2, 5, 10, 15, 20 minutes... keep the manual entry as well and the max of 30 minutes."
+  Merged the preset buttons back in alongside the manual field rather than picking one or the other.
+  Committed, pushed, deployed. See STATUS.md.
 - 2026-07-22 (interactive) — Andreas granted access to the parent `C:\Users\acnic\ClaudeCoding` folder
   (the `QuickWord` folder alone doesn't include it), which is where `secrets.local.txt`
   (`QWICKWORD_GITHUB_PAT`) and `secrets.blackstart.local.txt` (`VERCEL_TOKEN`) actually live — this is

@@ -28,6 +28,20 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `secrets.local.txt`/`secrets.blackstart.local.txt` actually live (outside the `QuickWord` folder
   itself, which is why the nightly run couldn't reach them). Pushed to GitHub and deployed to
   production. Live on `https://qwickword.com`.
+- **One-click duration preset buttons reinstated (2026-07-22, interactive, deployed to production):**
+  Andreas: "Reinstate the buttons, so you can still click a duration and get taken straight to the
+  confirmation with link added to clipboard. We want 1, 2, 5, 10, 15, 20 minutes. and keep the manual
+  entry as well and the max of 30 minutes." This closed out a stray uncommitted change already sitting
+  in the project folder (see ASKS.md, now resolved) that had replaced the preset buttons with a
+  manual-only minutes field. Merged both: `src/components/create-link-form.tsx` now shows a row of
+  preset buttons (`DURATION_PRESETS_SECONDS`, `src/lib/duration.ts`) that call `handleCreate()`
+  directly with no separate submit step, plus the manual minutes field below it (own "Create" button,
+  bounded 1–30 min via `MIN_/MAX_DURATION_MINUTES`) for anything the presets don't cover. Removed the
+  now-unused `CUSTOM_DURATION_MINUTES_OPTIONS` export from `duration.ts` (was for a dropdown that no
+  longer exists). Verified: `eslint src` / `tsc --noEmit` / `next build` all clean (run from a synced
+  `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
+  Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
+  against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
 - **Live bug fixes + "leave the call" fix + bigger call window (2026-07-22, interactive, deployed to
   production):** Andreas used the app live after the vote-to-end-early build and reported three real
   bugs plus two feature requests in quick succession:
