@@ -42,6 +42,38 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **v2 preview follow-up: identity/labeling, countdown bug, page parity, pin+drag self-view, screen
+  share (2026-07-22, interactive, deployed to production):** Andreas tried the first version of `/test`
+  and came back with a real punch list rather than a general impression:
+  1. "it refers back to itself as a test which defeats the purpose" — removed the "v2 preview"
+     badge/link from the call page entirely; every error screen now uses production's exact copy
+     instead of saying "preview."
+  2. "the landing page didn't look in any way like the original... those two pages should be completely
+     identical" — extracted the real home page's markup into `src/components/home-content.tsx`; `/test`
+     now renders that exact same component, `basePath="/test"` the only difference (feeds into
+     `CreateLinkForm`'s new `basePath` prop, which points generated links at `/test/[room]`).
+  3. "the number counter went wrong again so it started at 1400" — the overlay was rendering the
+     pre-start-buffer `exp` as a ticking number before the countdown had actually started, same failure
+     shape as the earlier "1400.56 seconds" bug in a new component. Now shows "Waiting to start" until
+     `started`, matching production.
+  4. "for the self view it should be possible to pin myself... it was impossible for me to see how big
+     the screen actually was unless I had someone else join" — solo now auto-shows the local participant
+     as the full main tile, not a tiny PIP next to an empty placeholder; added an explicit pin/unpin
+     control for after a second person joins.
+  5. "the card... was very close to the edge of the browser Also I couldn't move it around" — the
+     self-view PIP is now draggable (pointer events, clamped to the video container's bounds via a
+     bounds calculation at drag-start) and starts further from the edge.
+  6. "there's no monogram or any indication... the video is off" — camera-off now shows a generic avatar
+     circle instead of plain black, on both the main tile and the PIP.
+  7. "we also need to be able to share screen like in Google Meet" — added via `useScreenShare`; an
+     active share takes the main spotlight (Meet's own convention), both camera feeds drop to a small
+     strip.
+  8. "the settings... were not properly centered under the video... same width" — the prejoin's video,
+     device pickers, and Join button now share one width-controlling wrapper instead of three separately
+     declared `max-w-xl` elements that could drift apart.
+  Verified `eslint`/`tsc --noEmit`/`next build` clean; live-smoke-tested `/test` vs `/` (confirmed
+  structurally identical rendered markup aside from the `basePath` value), a real room create + `/test/[room]`
+  round trip (200, no "preview" text anywhere in the response).
 - **v2 call UI prototype built and deployed under /test (2026-07-22, interactive, deployed to
   production):** Andreas: "Can we build this in parallel to the existing quick word just under a folder
   like '/test' Just to see what it looks like before we start overriding the current view." Built the
