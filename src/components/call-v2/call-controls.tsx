@@ -69,7 +69,7 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
         onClick={toggleMic}
         aria-pressed={!audioTrack.isOff}
         aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
-        className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
           audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -80,7 +80,7 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
         onClick={toggleCamera}
         aria-pressed={!videoTrack.isOff}
         aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
-        className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
           videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -91,7 +91,7 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
         onClick={toggleScreenShare}
         aria-pressed={isSharingScreen}
         aria-label={isSharingScreen ? "Stop sharing your screen" : "Share your screen"}
-        className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
           isSharingScreen ? "bg-blue-600 hover:bg-blue-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -101,7 +101,7 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
         type="button"
         onClick={handleLeave}
         aria-label="Leave call"
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
+        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
       >
         <PhoneOff size={18} />
       </button>

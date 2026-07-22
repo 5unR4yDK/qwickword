@@ -1827,3 +1827,51 @@ throwaway scratch dir, not touching the mount).
   mount type with npm's install process, not specific to this package) — installed in the scratch
   clone instead and copied the resulting `package.json`/`package-lock.json` back, same workaround
   pattern used for git operations on this project all session.
+- 2026-07-22 (interactive): homepage simplified further — `src/components/create-link-form.tsx`'s
+  preset buttons switched from `bg-zinc-50` (essentially invisible against the page's own
+  `bg-zinc-50` background) to genuinely `bg-white`, and from content-driven `min-w-14` to a fixed
+  `w-20` so all six presets render at identical size regardless of label length ("1 min" vs.
+  "20 min"), text staying centered via the existing flex layout. `src/components/home-content.tsx`
+  gained an ambient purple/deep-marine-blue glow (two oversized, heavily-blurred, edge-less radial
+  gradients) spreading out from the Q watermark, replacing the flat single-color version — a prior,
+  harder-edged attempt at this (2026-07-21) was rejected as looking like a "weird square"; this one
+  avoids that by never having a visible edge at all.
+- 2026-07-22 (interactive, live bug reports with screenshots): three more issues, all fixed and
+  deployed together.
+  1. **Cursor never changed to a pointer on hover.** Root cause: Tailwind v4 no longer defaults
+     `<button>` to `cursor: pointer` (a deliberate upstream change matching native browser
+     behavior) — every custom button in this app needed the utility explicitly and none had it.
+     Swept `cursor-pointer` across every button in `create-link-form.tsx`, `call-room.tsx`,
+     `error.tsx`, and the `/test` v2 preview's `call-controls.tsx`/`call-prejoin.tsx`/
+     `call-video-grid.tsx`/`test-call-room.tsx`.
+  2. **`/test` prejoin camera/mic `<select>`s not matching the video/Join button's width**,
+     sticking out asymmetrically — screenshot showed the selects narrower, flush left, with a gap
+     on the right where the video and Join button extended further. Root cause: flex items default
+     to `min-width: auto`, which for a `<select>` means its own content sets a floor on how far it
+     can shrink — "Default - Microphone Array (Realtek(R) Audio)" is long enough that the
+     microphone select refused to shrink to its fair 50% share, so the row's actual width came from
+     content size, not the intended `flex-1` even split. Added `min-w-0` alongside `flex-1` on both
+     selects in `call-prejoin.tsx` — the standard fix for this exact, well-known flexbox gotcha.
+  3. **Video cropping more aggressively as the browser window got wider, "zooming in" on faces.**
+     Andreas caught this live during an actual two-tab call (phone joining a desktop tab) and
+     diagnosed it correctly himself: "the larger I made the window... the more it seemed to zoom in
+     on my face... the smaller I made the browser window, the more was being included from the
+     phone feed." Root cause confirmed: every `DailyVideo` in `call-video-grid.tsx` used
+     `fit="cover"`, which fills its box by cropping whatever doesn't match the box's own aspect
+     ratio — the further a wide desktop window's shape diverges from a phone's portrait camera feed,
+     the more gets cropped away to fill it. Switched every `DailyVideo` (main tile, PIP, and the
+     screen-share camera strip) from `fit="cover"`/`object-cover` to `fit="contain"`/`object-contain`
+     — the full camera frame is now always visible, letterboxed (black bars) on whichever dimension
+     doesn't match, never cropped, exactly per Andreas's explicit instruction: "we should never be
+     cropping the image... we'd rather want to maximize the image inside of the available frame."
+  **Also reported, not code fixes — explained to Andreas rather than guessed at:** (a) a strong red
+  hue on the self-view during the mobile test — almost certainly the warm/tungsten lamp visible in
+  his own screenshot fighting the camera's automatic white balance, not something this app's code
+  touches (Qwickword never processes video frames, Daily/the browser hand it a raw track); (b)
+  perceived low resolution on the mobile call — governed by the camera's actual capability and
+  WebRTC's own bandwidth-adaptive encoding (Daily's simulcast), not a quality setting this app
+  currently sets explicitly; worth a future investigation into requesting higher-resolution camera
+  constraints via daily-js, but not implemented today since it wasn't verified against Daily's
+  current API, per this project's standing habit of not shipping unverified claims.
+  Verified (`eslint`, `tsc --noEmit`, `next build`, all clean) in `/tmp/qwickword`, committed, pushed,
+  deployed to Vercel production, confirmed `Ready` and aliased to `qwickword.com`.

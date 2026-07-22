@@ -254,7 +254,7 @@ export default function CreateLinkForm({
           <button
             type="button"
             onClick={() => handleCopy(state.link)}
-            className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="shrink-0 cursor-pointer rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
             {copied ? "Copied!" : "Copy link"}
           </button>
@@ -278,7 +278,7 @@ export default function CreateLinkForm({
             setShowCustom(false);
             setMinutesInput("");
           }}
-          className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+          className="cursor-pointer text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
         >
           Create another
         </button>
@@ -310,7 +310,28 @@ export default function CreateLinkForm({
             type="button"
             disabled={isLoading}
             onClick={() => handleCreate(seconds)}
-            className="flex h-11 min-w-14 items-center justify-center rounded-full border border-black/[.08] bg-zinc-50 px-4 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-white/[.4]"
+            // 2026-07-22, Andreas, interactive, three fixes in one:
+            // (1) "in the white style that you had before... a little bit
+            // more contrast" — bg-zinc-50 on this page's own bg-zinc-50
+            // background had essentially zero contrast; a genuinely white
+            // fill (bg-white) reads clearly against it, same idea as the
+            // solid black/white buttons elsewhere on this page.
+            // (2) "my cursor just stays an arrow... it has to turn into a
+            // button presser" — Tailwind v4 no longer defaults `<button>`
+            // to `cursor: pointer` the way earlier versions did (a
+            // deliberate upstream change to match native browser
+            // behaviour), so every custom button in this app needs the
+            // utility explicitly now — added here and swept across every
+            // other button below.
+            // (3) "an equal size button for each of the minutes settings...
+            // all be the same size... as long as the text is perfectly
+            // centered in the middle it's OK" — replaced the old
+            // content-driven `min-w-14` (which let "1 min" and "20 min"
+            // render at different widths) with a fixed `w-20`, same for
+            // every preset regardless of label length; flex
+            // items-center/justify-center keeps the (already-uniform
+            // text-sm) label centered inside it either way.
+            className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white px-2 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-white/[.4]"
           >
             {formatDuration(seconds)}
           </button>
@@ -325,7 +346,7 @@ export default function CreateLinkForm({
         <button
           type="button"
           onClick={() => setShowCustom(true)}
-          className="text-xs text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
+          className="cursor-pointer text-xs text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
         >
           custom
         </button>
@@ -388,7 +409,7 @@ export default function CreateLinkForm({
               type="submit"
               disabled={isLoading || !isValidDuration || !showCustom}
               tabIndex={showCustom ? 0 : -1}
-              className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
+              className="flex h-12 w-full cursor-pointer items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
             >
               {isLoading ? "Creating…" : "Create Qwickword"}
             </button>

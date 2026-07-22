@@ -32,6 +32,25 @@
 // Toggling share itself lives in call-controls.tsx (useScreenShare's
 // startScreenShare/stopScreenShare) — this component only renders whatever
 // useScreenShare reports.
+//
+// Never crop a camera feed (2026-07-22, Andreas, interactive, after a real
+// two-tab test — phone joining a desktop call): every DailyVideo below used
+// `fit="cover"`, which fills its box by CROPPING whatever doesn't fit the
+// box's own aspect ratio. Andreas caught the real consequence of that
+// live: "the larger I made the window... the more it seemed to zoom in on
+// my face... the smaller I made the browser window, the more was being
+// included from the phone feed." That's cover working as designed, not a
+// bug in the usual sense — a wide desktop window is a very different shape
+// from a phone's portrait camera feed, and cover crops harder the further
+// those two shapes diverge, so resizing the window changed how much got
+// cropped away. His call: "we should never be cropping the image... we'd
+// rather want to maximize the image inside of the available frame." Every
+// DailyVideo in this file now uses `fit="contain"` instead — the full
+// camera frame is always visible, letterboxed (black bars, matching each
+// tile's own bg-black) on whichever dimension doesn't match, rather than
+// ever cutting part of the picture off. Applies uniformly to the main tile,
+// the PIP, and the screen-share camera strip — "that goes both on the phone
+// and it goes also on the desktop."
 
 import { useCallback, useRef, useState } from "react";
 import { Pin, PinOff, User } from "lucide-react";
@@ -78,16 +97,29 @@ function MainTile({
   const showAvatar = type === "video" && cameraTrack.isOff;
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 bg-black">
       {showAvatar ? (
         <AvatarFallback />
       ) : (
+        // fit="contain" (was "cover") — 2026-07-22, Andreas, interactive:
+        // "we should never be cropping the image... maximize it as far as
+        // we can inside of the canonical architecture... it's OK if
+        // there're empty spaces out on the right and on the left." Also
+        // explains the "the larger I made the window the more it seemed to
+        // zoom in on my face" report: object-fit: cover crops MORE as the
+        // container's aspect ratio diverges further from the source
+        // video's — a wide desktop window vs. a portrait phone feed is
+        // exactly that divergence, so making the window wider kept cropping
+        // tighter around the middle of the frame. `contain` never crops at
+        // all, at any container shape — it letterboxes (shows black bars,
+        // matching this tile's own bg-black) instead, so the full webcam
+        // frame is always visible regardless of window size.
         <DailyVideo
           automirror
-          fit="cover"
+          fit="contain"
           sessionId={sessionId}
           type={type}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
         />
       )}
       {canUnpin && (
@@ -95,7 +127,7 @@ function MainTile({
           type="button"
           onClick={onUnpin}
           aria-label="Unpin"
-          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
+          className="absolute top-4 right-4 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
         >
           <PinOff size={16} />
         </button>
@@ -177,16 +209,18 @@ function PipTile({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-      className="absolute bottom-24 right-6 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 shadow-lg active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
+      className="absolute bottom-24 right-6 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 bg-black shadow-lg active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
     >
       {track.isOff ? (
         <AvatarFallback />
       ) : (
+        // fit="contain" (was "cover") — same reasoning as MainTile above:
+        // never crop, letterbox against this tile's own bg-black instead.
         <DailyVideo
           automirror
-          fit="cover"
+          fit="contain"
           sessionId={sessionId}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
         />
       )}
       <button
@@ -199,7 +233,7 @@ function PipTile({
         }}
         onPointerDown={(event) => event.stopPropagation()}
         aria-label="Pin"
-        className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
+        className="absolute top-1.5 right-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
       >
         <Pin size={13} />
       </button>
@@ -234,13 +268,17 @@ export default function CallVideoGrid() {
           {cameraIds.map((id) => (
             <div
               key={id}
-              className="h-16 w-24 overflow-hidden rounded-lg border border-white/15 shadow-lg sm:h-20 sm:w-32"
+              className="h-16 w-24 overflow-hidden rounded-lg border border-white/15 bg-black shadow-lg sm:h-20 sm:w-32"
             >
+              {/* fit="contain" (was "cover") — same "never crop" rule
+                  applied consistently everywhere DailyVideo renders a
+                  camera feed in this file, per Andreas: "that goes both on
+                  the phone and it goes also on the desktop." */}
               <DailyVideo
                 automirror
-                fit="cover"
+                fit="contain"
                 sessionId={id}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </div>
           ))}
