@@ -50,8 +50,23 @@ type CreateState =
  * below (auto-copy, "Join the meeting now," etc.) behaves identically either
  * way.
  */
+// Default value for the manual minutes field — pre-filled rather than blank
+// (2026-07-22, Andreas, interactive: "you didnt fix the button still beying
+// greyed out. and i know its greyed out because it still goes white when i
+// type in a manual number"). Root cause: the field used to start empty, so
+// isValidDuration was false on first render, which left the "Create
+// Qwickword" submit button `disabled` — and `disabled:opacity-60` on a solid
+// white background reads as grey, exactly what looked like the "button not
+// white by default" bug persisting even after that button's colours were
+// fixed. Pre-filling a valid starting value means the button is genuinely
+// enabled (solid white/black, no dimming) the moment the page loads, not
+// just after the user types something.
+const DEFAULT_DURATION_MINUTES = 2;
+
 export default function CreateLinkForm() {
-  const [minutesInput, setMinutesInput] = useState<string>("");
+  const [minutesInput, setMinutesInput] = useState<string>(
+    String(DEFAULT_DURATION_MINUTES)
+  );
   const [state, setState] = useState<CreateState>({ status: "idle" });
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [copied, setCopied] = useState(false);
