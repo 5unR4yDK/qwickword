@@ -42,6 +42,39 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Call-stats persistence via Neon Postgres (2026-07-22, interactive, deployed to production):**
+  Andreas: "can you help me understand how we store memory of how many calls have been made and how
+  many minutes have been done and statistics on calls... I'd want to have that stored somewhere." This
+  app has no datastore by design (BUILD_PLAN.md/daily-rooms.ts — Daily's own room `exp` is the single
+  source of truth), so the honest answer was: nothing is recorded today. Andreas asked to add one.
+  Tried Supabase first (already connected via MCP) but the account was out of free projects; switched to
+  **Neon Postgres provisioned through the Vercel Marketplace integration** — a separate free-tier quota
+  from Supabase, and it wires `DATABASE_URL` (plus `POSTGRES_*` aliases) directly into every Vercel
+  environment for this project with no manual env-var copying. One step needed a human: accepting Neon's
+  marketplace terms in a browser (`vercel integration add neon` can't do this non-interactively) —
+  Andreas did that, then the CLI install/provisioning completed on retry.
+  - New `calls` table (migration run directly against Neon): `room_name` (unique), `duration_seconds`
+    (requested length), `created_at`, `started_at`, `ended_at`, `end_reason`.
+  - New `src/lib/db.ts`: `recordCallCreated`/`recordCallStarted`/`recordCallEndedEarly`, each a
+    fire-and-forget write wrapped in try/catch — a DB hiccup (or `DATABASE_URL` simply being unset, e.g.
+    local dev) can never break creating/starting/ending a call. This keeps the "no datastore drives the
+    actual call flow" design intact; the DB is purely an observability side-channel.
+  - Wired into `POST /api/rooms` (insert on create, skipped for mock rooms), `POST /api/rooms/[room]/start`
+    (sets `started_at` once), `POST /api/rooms/[room]/end` (sets `ended_at`/`end_reason='vote_early'`,
+    since that route is currently only reachable via the vote-to-end-early feature). A call that simply
+    runs its full requested duration has no explicit "ended" write — there's no server hook for that
+    (Daily's own `eject_at_room_exp` needs no server involvement) — so `duration_seconds` is the source of
+    truth for a call's length unless `end_reason` is set.
+  - New dependency: `pg` (+ `@types/pg` dev). Verified `eslint`/`tsc --noEmit`/`next build` clean.
+    Live-smoke-tested: created a real 2-minute room against `https://qwickword.com`, confirmed the row
+    landed in Neon (`room_name`, `duration_seconds`, `created_at` populated, `started_at`/`ended_at` null
+    as expected for a room nobody joined) via a direct query against the same `DATABASE_URL`.
+  - **Known pre-existing edge case, not from today's work:** calling `POST /api/rooms/[room]/end` on a
+    room that's still in its pre-start buffer (never started) currently 400s — Daily's API rejects the
+    `exp` patch as "in the past" even though the room's actual `exp` is ~24h out. Reproduced consistently
+    while smoke-testing; not something the stats work touches (`endRoomNow` in `daily-rooms.ts` predates
+    this session's stats change). Left as a known issue rather than scope-creeping into a fix — worth its
+    own investigation later.
 - **Call window overflow bug, same-day follow-up (2026-07-22, interactive, deployed to production):**
   the desktop-wide call window from earlier the same day introduced a real regression — Andreas: "making
   the window larger introduced a new UI bug. we get a window that doesnt fit the browser." Screenshot
