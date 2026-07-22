@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DailyRoomError, endRoomNow } from "@/lib/daily-rooms";
+import { recordCallEndedEarly } from "@/lib/db";
 
 /**
  * Ends a room's call immediately (ROADMAP.md "Vote to end early", built
@@ -23,6 +24,8 @@ export async function POST(
 
   try {
     const status = await endRoomNow(room);
+    // Stats logging (see src/lib/db.ts) — fire-and-forget.
+    void recordCallEndedEarly(room);
     return NextResponse.json(status, { status: 200 });
   } catch (err) {
     if (err instanceof DailyRoomError) {
