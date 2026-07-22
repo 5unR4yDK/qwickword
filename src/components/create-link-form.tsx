@@ -50,23 +50,15 @@ type CreateState =
  * below (auto-copy, "Join the meeting now," etc.) behaves identically either
  * way.
  */
-// Default value for the manual minutes field — pre-filled rather than blank
-// (2026-07-22, Andreas, interactive: "you didnt fix the button still beying
-// greyed out. and i know its greyed out because it still goes white when i
-// type in a manual number"). Root cause: the field used to start empty, so
-// isValidDuration was false on first render, which left the "Create
-// Qwickword" submit button `disabled` — and `disabled:opacity-60` on a solid
-// white background reads as grey, exactly what looked like the "button not
-// white by default" bug persisting even after that button's colours were
-// fixed. Pre-filling a valid starting value means the button is genuinely
-// enabled (solid white/black, no dimming) the moment the page loads, not
-// just after the user types something.
-const DEFAULT_DURATION_MINUTES = 2;
-
 export default function CreateLinkForm() {
-  const [minutesInput, setMinutesInput] = useState<string>(
-    String(DEFAULT_DURATION_MINUTES)
-  );
+  // Deliberately blank, not pre-filled (2026-07-22, Andreas, interactive:
+  // "we already have two minutes as an option [the preset button] and I
+  // don't want that field to be pre filled" — correcting the previous
+  // attempt at this same complaint, which pre-filled "2" here specifically
+  // to dodge the disabled-button colour issue below. The real fix for that
+  // is on the button itself, not this field — see the Create button's
+  // className.
+  const [minutesInput, setMinutesInput] = useState<string>("");
   const [state, setState] = useState<CreateState>({ status: "idle" });
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -310,10 +302,19 @@ export default function CreateLinkForm() {
         {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole minutes
         only.
       </p>
+      {/* Deliberately no `disabled:opacity-*`/colour change here (2026-07-22,
+          Andreas, interactive: "the button should just be 1 color and should
+          never change color... make sure that button never changes color it
+          just stays white all the time"). The field above starts empty on
+          purpose (see minutesInput's init above), so this button IS actually
+          `disabled` — invalid input still can't submit — but that state is
+          no longer communicated by dimming the button's own colour, only by
+          `disabled:cursor-not-allowed` (the cursor) and the hint text below
+          the field explaining the valid range. */}
       <button
         type="submit"
         disabled={isLoading || !isValidDuration}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
       >
         {isLoading ? "Creating…" : "Create Qwickword"}
       </button>
