@@ -331,7 +331,18 @@ export default function CreateLinkForm({
             // every preset regardless of label length; flex
             // items-center/justify-center keeps the (already-uniform
             // text-sm) label centered inside it either way.
-            className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white px-2 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-white/[.4]"
+            //
+            // Corrected 2026-07-22, same day (Andreas, interactive: "I told
+            // you to make all the buttons white and they are still black
+            // with white text"): the fix above only actually changed the
+            // LIGHT-mode fill (bg-white) — the dark-mode override right
+            // after it, `dark:bg-zinc-900`/`dark:text-zinc-100`, was left
+            // untouched from before this change, so dark mode kept
+            // rendering the old near-black pill with light text regardless.
+            // White means white in both modes now — dark:bg-white with
+            // dark:text-zinc-900 to match, same as the solid-color buttons
+            // already used elsewhere in dark mode on this page.
+            className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white px-2 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-white dark:text-zinc-900 dark:hover:border-black/[.3]"
           >
             {formatDuration(seconds)}
           </button>
