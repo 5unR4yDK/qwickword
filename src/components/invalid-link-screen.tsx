@@ -6,9 +6,14 @@ import Link from "next/link";
 // syntactically broken link (bad room name or missing/garbled `exp`, caught
 // without ever calling Daily) and a syntactically fine link whose room no
 // longer exists on Daily (caught by checkDailyRoomExists in
-// src/lib/daily-rooms.ts, live mode only). Visually matches CallRoom's
-// "ended" card (src/components/call-room.tsx) so a dead link looks the same
-// however it died.
+// src/lib/daily-rooms.ts, live mode only).
+//
+// Restyled full-bleed black 2026-07-22 alongside the rest of the call page,
+// when it dropped its old light-card PageShell wrapper for the call-object-
+// mode UI's own full-viewport black design (see src/app/[room]/page.tsx) —
+// matches CallRoom's own "ended"/"left" screens (src/components/call-room.tsx)
+// so a dead link looks the same however it died, rather than looking like a
+// leftover from the old light-themed page shell.
 export default function InvalidLinkScreen({
   heading,
   message,
@@ -19,13 +24,13 @@ export default function InvalidLinkScreen({
   return (
     <div
       role="status"
-      className="flex w-full max-w-3xl flex-col items-center gap-3 rounded-2xl border border-black/[.08] bg-white px-6 py-16 text-center dark:border-white/[.145] dark:bg-zinc-950"
+      className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white"
     >
-      <p className="text-lg font-medium text-black dark:text-zinc-50">{heading}</p>
-      <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{message}</p>
+      <p className="text-lg font-medium">{heading}</p>
+      <p className="max-w-sm text-sm text-white/60">{message}</p>
       <Link
         href="/"
-        className="mt-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="mt-2 cursor-pointer rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200"
       >
         Create a new one
       </Link>
