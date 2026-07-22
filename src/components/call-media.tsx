@@ -233,11 +233,34 @@ export default function CallMedia({
     callObject.on("participant-left", handleParticipantLeft);
     callObject.on("app-message", handleAppMessage);
 
+    // Backstop poll (added 2026-07-22, Andreas, interactive: reported a call
+    // where the countdown didn't auto-start when his friend joined — he had
+    // to press "Start now" manually). The event-driven path above
+    // ("participant-joined" -> reportCount) should be sufficient on its own,
+    // but it depends on daily-js reliably firing that event and this tab's
+    // JS timer loop staying responsive to react to it; a backgrounded/
+    // throttled browser tab, or any daily-js event-delivery hiccup, would
+    // silently mean the auto-start never fires with no way to tell from the
+    // UI that anything went wrong (the manual "Start now" button is the only
+    // sign anything's off). Since a two-participant Qwickword call is short
+    // and this is the mechanism the whole "anchor countdown to first join"
+    // feature depends on, this adds a periodic direct read of
+    // `participants()` as a second, independent path to the same
+    // `reportCount`/`recomputeTally` calls — not relying on any single event
+    // firing correctly. Cheap (participants() is a local, synchronous read,
+    // no network call) and idempotent (reportCount/recomputeTally are safe
+    // to call redundantly).
+    const backstopIntervalId = setInterval(() => {
+      reportCount();
+      recomputeTally();
+    }, 2000);
+
     return () => {
       callObject!.off("joined-meeting", reportCount);
       callObject!.off("participant-joined", handleParticipantJoined);
       callObject!.off("participant-left", handleParticipantLeft);
       callObject!.off("app-message", handleAppMessage);
+      clearInterval(backstopIntervalId);
       // Corrected 2026-07-21: this used to skip destroy() on the assumption
       // that removing the <iframe> from the DOM was enough to end the call.
       // That's true for the call itself, but daily-js's own call-object

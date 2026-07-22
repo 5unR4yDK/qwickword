@@ -226,21 +226,34 @@ export default function CallRoom({
     [triggerEnd]
   );
 
-  // Ticks the displayed remaining time off `currentExp`, which only changes
-  // when the countdown actually starts (see triggerStart / the status-poll
-  // effect below) — before that, `currentExp` is the generous pre-start
-  // buffer, so this just idles at a large positive number, harmless since
-  // the waiting UI is shown instead of this value while `!started`. Same
-  // shape as the original single-`exp` version of this effect — setState
-  // only happens inside the interval callback, never synchronously in the
-  // effect body, so the display catches up within one tick (at most a
-  // second) of `currentExp` changing rather than needing an extra
-  // effect-body update, which `react-hooks/set-state-in-effect` flags.
+  // Ticks the displayed remaining time off `currentExp`. Fixed 2026-07-22
+  // (Andreas, interactive: "when I start the meeting the first seconds
+  // shows something like 1400.56 seconds"): this used to *only* recompute
+  // on a once-a-second `setInterval`, which doesn't fire the instant
+  // `currentExp` itself changes (e.g. the moment "Start now"/join-triggered
+  // auto-start flips `started` true and swaps `currentExp` from the ~24h
+  // pre-start buffer to the real countdown) — only on its own next tick, up
+  // to ~1000ms later. That gap meant `CallCountdown` could already be
+  // rendering (`started` had flipped) while `remainingMs` still held its
+  // last *pre-start-buffer* value — tens of thousands of seconds, which
+  // `formatRemaining`'s M:SS display renders as something like "1400:56"
+  // (1400 minutes), exactly what was reported. Fixed by also firing an
+  // immediate recompute via a zero-delay `setTimeout` alongside the regular
+  // interval, closing the gap to effectively the next event-loop tick
+  // instead of up to a full second. Both the timeout and the interval call
+  // `setRemainingMs` from inside their own callbacks, not synchronously in
+  // the effect body itself, which is what keeps this clear of
+  // `react-hooks/set-state-in-effect` (that rule targets setState calls
+  // that happen unconditionally and synchronously as the effect runs, not
+  // ones deferred into a callback like these).
   useEffect(() => {
-    const id = setInterval(() => {
-      setRemainingMs(currentExp * 1000 - Date.now());
-    }, 1000);
-    return () => clearInterval(id);
+    const tick = () => setRemainingMs(currentExp * 1000 - Date.now());
+    const immediateId = setTimeout(tick, 0);
+    const intervalId = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(immediateId);
+      clearInterval(intervalId);
+    };
   }, [currentExp]);
 
   // Picks up a start triggered from a *different* tab (e.g. someone else in
@@ -267,6 +280,47 @@ export default function CallRoom({
     }, 4000);
     return () => clearInterval(id);
   }, [started, durationSeconds, mockMode, room, exp]);
+
+  // Periodically re-syncs `currentExp` against Daily's own live room status
+  // once the countdown has actually started (added 2026-07-22, Andreas,
+  // interactive: reported a call ending "2 seconds early" — i.e. Daily's own
+  // server-side `eject_at_room_exp` enforcement cut the call slightly before
+  // this page's own display reached 0:00). This page's countdown is driven
+  // entirely by the CLIENT's own clock (`currentExp * 1000 - Date.now()`),
+  // while Daily enforces the cutoff on ITS OWN clock — any skew between the
+  // two (typical device clock drift, or latency in when this tab first
+  // learned the real `exp`) means the two can disagree by a second or two,
+  // and there's no way to fully eliminate that without a full clock-sync
+  // protocol. What this *can* do cheaply: periodically ask Daily itself
+  // (via the same `getRoomStatus` this page already uses for the waiting
+  // poll above) what `exp` really is right now, and correct `currentExp` if
+  // it's drifted, so a long-running countdown keeps re-anchoring to the
+  // authoritative source rather than compounding client-clock drift over the
+  // full length of the call. Every 10s is frequent enough to catch drift
+  // well before it becomes visible, without being as chatty as the 4s
+  // waiting-poll (which needs to be snappier since a human is actively
+  // waiting on it). Skipped in mock mode — no persisted room to poll (see
+  // getRoomStatus's doc comment in src/lib/daily-rooms.ts).
+  useEffect(() => {
+    if (!started || mockMode) return;
+    const id = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/rooms/${room}/status?fallbackExp=${currentExp}`
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (typeof data.exp === "number" && data.exp !== currentExp) {
+          setCurrentExp(data.exp);
+        }
+      } catch {
+        // Transient — the next poll gets another chance; worst case the
+        // display keeps running on its last-known `exp` until then, same as
+        // if this resync didn't exist at all.
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [started, mockMode, room, currentExp]);
 
   const isOver = remainingMs <= 0;
 

@@ -115,20 +115,32 @@ export default function CallCountdown({ remainingMs }: { remainingMs: number }) 
   }, []);
 
   return (
-    <p
-      role="timer"
-      aria-live="polite"
-      className={`text-4xl font-semibold tabular-nums ${
-        isOver
-          ? "text-red-600 dark:text-red-400"
-          : isFinalCountdown
-            ? "text-rose-500 dark:text-rose-300"
-            : isEnding
-              ? "text-amber-600 dark:text-amber-400"
-              : "text-black dark:text-zinc-50"
-      }`}
-    >
-      {isOver ? "Time's up" : formatRemaining(remainingMs)}
-    </p>
+    <div className="flex flex-col items-center gap-1">
+      <p
+        role="timer"
+        aria-live="polite"
+        className={`text-4xl font-semibold tabular-nums ${
+          isOver
+            ? "text-red-600 dark:text-red-400"
+            : isFinalCountdown
+              ? "text-rose-500 dark:text-rose-300"
+              : isEnding
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-black dark:text-zinc-50"
+        }`}
+      >
+        {isOver ? "Time's up" : formatRemaining(remainingMs)}
+      </p>
+      {/* T-10s text cue (added 2026-07-22, Andreas, interactive: "Can we
+          have some text appear over or under the timer at t-10 seconds
+          saying Time to wrap!") — rides the same isFinalCountdown window as
+          the rose colour stage and audio tick above, so all three T-10s
+          cues (colour, sound, text) turn on and off together. */}
+      {isFinalCountdown && (
+        <p className="text-sm font-medium text-rose-500 dark:text-rose-300">
+          Time to wrap!
+        </p>
+      )}
+    </div>
   );
 }
