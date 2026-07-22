@@ -270,15 +270,23 @@ export default function CallRoom({
 
   // Picks up a start triggered from a *different* tab (e.g. someone else in
   // the room pressed "Start now," or their tab detected the second join
-  // before this one did). Not needed once `started` is true, for a link with
-  // no duration (nothing to start), or in mock mode (no persisted room to
-  // poll — see getRoomStatus's doc comment in src/lib/daily-rooms.ts).
+  // before this one did) — AND, as of 2026-07-22 (Andreas, interactive, live
+  // bug: countdown not auto-starting when a second person joined from
+  // mobile, "the second time I've seen it"), now also carries
+  // `durationSeconds` so the status route itself can auto-start the room
+  // server-side once Daily's own presence count hits 2, independent of
+  // whether any tab's own daily-js `participant-joined` detection worked —
+  // see the doc comment on /api/rooms/[room]/status/route.ts for why that
+  // client-only path wasn't reliable enough on its own. Not needed once
+  // `started` is true, for a link with no duration (nothing to start), or in
+  // mock mode (no persisted room to poll — see getRoomStatus's doc comment
+  // in src/lib/daily-rooms.ts).
   useEffect(() => {
     if (started || !durationSeconds || mockMode) return;
     const id = setInterval(async () => {
       try {
         const response = await fetch(
-          `/api/rooms/${room}/status?fallbackExp=${exp}`
+          `/api/rooms/${room}/status?fallbackExp=${exp}&durationSeconds=${durationSeconds}`
         );
         if (!response.ok) return;
         const data = await response.json();
@@ -313,6 +321,23 @@ export default function CallRoom({
   // waiting-poll (which needs to be snappier since a human is actively
   // waiting on it). Skipped in mock mode — no persisted room to poll (see
   // getRoomStatus's doc comment in src/lib/daily-rooms.ts).
+  // Extended 2026-07-22 (Andreas, interactive, live bug: after leaving a
+  // call, the page kept showing "Waiting to start"/"Start now" instead of
+  // the left-call screen, even though Daily's own iframe UI had already
+  // shown "You've left the call" — meaning both the `left-meeting` event
+  // AND CallMedia's own 2s `meetingState()` backstop poll failed to report
+  // it for that tab. Same root problem as the auto-start bug above: every
+  // signal this depended on came from that one tab's own daily-js bridge.
+  // This resync poll already asks Daily directly for this room's live `exp`
+  // every 10s — it now also reads `presentCount` from the same response
+  // (Daily's own `/rooms/:name/presence`, computed server-side, nothing to
+  // do with this tab's daily-js state at all). If Daily reports NOBODY
+  // currently present, this tab can't still be genuinely connected either,
+  // whatever its own (apparently unreliable, in this report) local
+  // leave-detection thinks — `emptyPollStreakRef` requires two consecutive
+  // 0-counts (20s) before acting, so a single transient/propagation-delay
+  // reading right after joining can't cause a false positive.
+  const emptyPollStreakRef = useRef(0);
   useEffect(() => {
     if (!started || mockMode) return;
     const id = setInterval(async () => {
@@ -324,6 +349,14 @@ export default function CallRoom({
         const data = await response.json();
         if (typeof data.exp === "number" && data.exp !== currentExp) {
           setCurrentExp(data.exp);
+        }
+        if (data.presentCount === 0) {
+          emptyPollStreakRef.current += 1;
+          if (emptyPollStreakRef.current >= 2) {
+            setHasLeft(true);
+          }
+        } else {
+          emptyPollStreakRef.current = 0;
         }
       } catch {
         // Transient — the next poll gets another chance; worst case the

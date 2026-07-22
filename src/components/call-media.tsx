@@ -157,183 +157,255 @@ export default function CallMedia({
     // app. Wrapping wrap() itself in try/catch, and actually destroying the
     // call object on cleanup, closes both the immediate crash risk and the
     // root cause.
+    //
+    // Retried up to 3 times with a short backoff (added 2026-07-22, Andreas,
+    // interactive, live bug: auto-start not firing plus left-meeting
+    // detection not firing, in the same session). If wrap() throws, this
+    // whole effect used to bail out with NOTHING wired up — no event
+    // listeners, no 2s backstop poll — so the app had no visibility into
+    // that tab's call at all beyond a swallowed console.error, which would
+    // explain both symptoms happening together. A prior DailyCall instance
+    // not being fully torn down before this mount runs (e.g. destroy() from
+    // a just-unmounted previous call still resolving — daily-js's own
+    // destroy() is async) is exactly the kind of transient timing race a
+    // short retry can ride out, without changing behaviour at all in the
+    // normal case where wrap() succeeds first try. Structured as a small
+    // setTimeout-based retry chain (not async/await) so this effect's own
+    // callback stays synchronous and can still return a plain cleanup
+    // function, per React's rules for effects.
+    let cancelled = false;
     let callObject: DailyCall | null = null;
-    try {
-      callObject = DailyIframe.wrap(iframeRef.current);
-    } catch (err) {
-      console.error("[Qwickword] Failed to wrap the call iframe with daily-js:", err);
-      return;
-    }
-    callObjectRef.current = callObject;
-    voteMapRef.current = new Map();
+    let pendingRetryId: ReturnType<typeof setTimeout> | null = null;
+    const RETRY_DELAYS_MS = [0, 250, 750];
 
-    const reportCount = () => {
+    const attemptWrap = (attemptIndex: number) => {
+      if (cancelled || !iframeRef.current) return;
       try {
-        const participants = callObject!.participants();
-        onParticipantCountChange?.(Object.keys(participants).length);
+        callObject = DailyIframe.wrap(iframeRef.current);
       } catch (err) {
-        console.error("[Qwickword] Failed to read participant count:", err);
-      }
-    };
-
-    // Recomputes this tab's own end-vote tally from voteMapRef against who's
-    // currently actually in the room — see the "Vote to end early" note atop
-    // this file for why the tally is never persisted anywhere beyond that
-    // map and this recompute.
-    const recomputeTally = () => {
-      try {
-        const participants = callObject!.participants();
-        // Daily's own participants() shape includes the local participant
-        // twice — once under the special "local" key, once under their own
-        // session_id (see DailyParticipantsObject in @daily-co/daily-js) —
-        // so this de-dupes via a Set of session_ids before counting, rather
-        // than counting Object.values() entries directly, to avoid
-        // double-counting the local participant against the >50% threshold.
-        const presentIds = new Set(
-          Object.values(participants).map((p) => p.session_id)
+        console.error(
+          `[Qwickword] Failed to wrap the call iframe with daily-js (attempt ${
+            attemptIndex + 1
+          }/${RETRY_DELAYS_MS.length}):`,
+          err
         );
-        for (const votedId of Array.from(voteMapRef.current.keys())) {
-          if (!presentIds.has(votedId)) voteMapRef.current.delete(votedId);
+        const nextAttemptIndex = attemptIndex + 1;
+        if (nextAttemptIndex < RETRY_DELAYS_MS.length) {
+          pendingRetryId = setTimeout(
+            () => attemptWrap(nextAttemptIndex),
+            RETRY_DELAYS_MS[nextAttemptIndex]
+          );
         }
-        let votesToEnd = 0;
-        for (const id of presentIds) {
-          if (voteMapRef.current.get(id) === true) votesToEnd += 1;
-        }
-        onVoteTallyChangeRef.current?.({
-          votesToEnd,
-          participantCount: presentIds.size,
-        });
-      } catch (err) {
-        console.error("[Qwickword] Failed to recompute the end-call vote tally:", err);
-      }
-    };
-
-    const handleAppMessage = (event: { data?: unknown; fromId?: string }) => {
-      const data = event.data as { type?: string; vote?: boolean } | undefined;
-      if (data?.type !== "qwickword-end-vote" || typeof event.fromId !== "string") {
         return;
       }
-      voteMapRef.current.set(event.fromId, Boolean(data.vote));
-      recomputeTally();
+      if (cancelled) {
+        // The component unmounted while a retry was in flight — don't wire
+        // up listeners/state for a call object nobody will ever clean up
+        // through the normal cleanup path below.
+        try {
+          callObject.destroy();
+        } catch (err) {
+          console.error("[Qwickword] Failed to destroy a late-arriving daily-js call object:", err);
+        }
+        return;
+      }
+      setUp(callObject);
     };
 
-    const handleParticipantJoined = () => {
-      reportCount();
-      recomputeTally();
-      // Votes are only broadcast when they change, not on a schedule, so a
-      // newcomer wouldn't otherwise learn about a vote cast before they
-      // joined — every tab that's currently voting "yes" re-announces it
-      // whenever someone new arrives.
-      if (myVoteToEndRef.current) {
+    // Everything that depends on a successfully-created callObject — split
+    // out from attemptWrap so the retry chain above can stay focused on just
+    // getting a working callObject, however many tries that takes.
+    const setUp = (callObject: DailyCall) => {
+      callObjectRef.current = callObject;
+      voteMapRef.current = new Map();
+
+      const reportCount = () => {
         try {
-          callObject!.sendAppMessage(
-            { type: "qwickword-end-vote", vote: true },
-            "*"
+          const participants = callObject.participants();
+          onParticipantCountChange?.(Object.keys(participants).length);
+        } catch (err) {
+          console.error("[Qwickword] Failed to read participant count:", err);
+        }
+      };
+
+      // Recomputes this tab's own end-vote tally from voteMapRef against
+      // who's currently actually in the room — see the "Vote to end early"
+      // note atop this file for why the tally is never persisted anywhere
+      // beyond that map and this recompute.
+      const recomputeTally = () => {
+        try {
+          const participants = callObject.participants();
+          // Daily's own participants() shape includes the local participant
+          // twice — once under the special "local" key, once under their own
+          // session_id (see DailyParticipantsObject in @daily-co/daily-js) —
+          // so this de-dupes via a Set of session_ids before counting, rather
+          // than counting Object.values() entries directly, to avoid
+          // double-counting the local participant against the >50% threshold.
+          const presentIds = new Set(
+            Object.values(participants).map((p) => p.session_id)
           );
-        } catch (err) {
-          console.error("[Qwickword] Failed to re-broadcast end-call vote to a new joiner:", err);
-        }
-      }
-    };
-
-    const handleParticipantLeft = () => {
-      reportCount();
-      recomputeTally();
-    };
-
-    // "the timer also should go away after we have left the call, no more
-    // countdown" (2026-07-22, Andreas, interactive). daily-js's own
-    // `left-meeting` event fires specifically for the LOCAL participant
-    // leaving — distinct from `participant-left` above, which fires for
-    // *other* participants leaving (and is what feeds the vote tally/
-    // participant count, still relevant to everyone else in the room).
-    // Wrapped in try/catch like every other daily-js callback in this file,
-    // even though there's nothing here that can meaningfully throw — kept
-    // for consistency with the rest of the file's defensive style.
-    const handleLeftMeeting = () => {
-      try {
-        onLeftMeeting?.();
-      } catch (err) {
-        console.error("[Qwickword] onLeftMeeting callback failed:", err);
-      }
-    };
-
-    callObject.on("joined-meeting", reportCount);
-    callObject.on("participant-joined", handleParticipantJoined);
-    callObject.on("participant-left", handleParticipantLeft);
-    callObject.on("app-message", handleAppMessage);
-    callObject.on("left-meeting", handleLeftMeeting);
-
-    // Backstop poll (added 2026-07-22, Andreas, interactive: reported a call
-    // where the countdown didn't auto-start when his friend joined — he had
-    // to press "Start now" manually). The event-driven path above
-    // ("participant-joined" -> reportCount) should be sufficient on its own,
-    // but it depends on daily-js reliably firing that event and this tab's
-    // JS timer loop staying responsive to react to it; a backgrounded/
-    // throttled browser tab, or any daily-js event-delivery hiccup, would
-    // silently mean the auto-start never fires with no way to tell from the
-    // UI that anything went wrong (the manual "Start now" button is the only
-    // sign anything's off). Since a two-participant Qwickword call is short
-    // and this is the mechanism the whole "anchor countdown to first join"
-    // feature depends on, this adds a periodic direct read of
-    // `participants()` as a second, independent path to the same
-    // `reportCount`/`recomputeTally` calls — not relying on any single event
-    // firing correctly. Cheap (participants() is a local, synchronous read,
-    // no network call) and idempotent (reportCount/recomputeTally are safe
-    // to call redundantly).
-    //
-    // Extended the same day (Andreas, interactive: "Its still counting down
-    // after I leave the call. the countdown should disappear after I leave
-    // the call") — the `left-meeting` event listener above was already in
-    // place and confirmed live in the deployed bundle, but didn't fire for
-    // him in practice: the countdown and "End for everyone" controls kept
-    // rendering even after Daily Prebuilt's own UI showed its "You've left
-    // the call" screen. Same shape of problem as the auto-start bug above —
-    // an event this feature depends on isn't reliably reaching this
-    // listener — so the same fix applies: stop trusting the event alone and
-    // also poll daily-js's own authoritative `meetingState()` directly.
-    // `hasReportedLeftRef` makes this a one-shot signal even though the poll
-    // itself repeats every 2s (once the local participant has left, calling
-    // `onLeftMeeting` again on every subsequent tick would be redundant, not
-    // harmful, but there's no reason to keep doing it).
-    const hasReportedLeftRef = { current: false };
-    const backstopIntervalId = setInterval(() => {
-      reportCount();
-      recomputeTally();
-      if (!hasReportedLeftRef.current) {
-        try {
-          const state = callObject!.meetingState();
-          if (state === "left-meeting" || state === "error") {
-            hasReportedLeftRef.current = true;
-            handleLeftMeeting();
+          for (const votedId of Array.from(voteMapRef.current.keys())) {
+            if (!presentIds.has(votedId)) voteMapRef.current.delete(votedId);
           }
+          let votesToEnd = 0;
+          for (const id of presentIds) {
+            if (voteMapRef.current.get(id) === true) votesToEnd += 1;
+          }
+          onVoteTallyChangeRef.current?.({
+            votesToEnd,
+            participantCount: presentIds.size,
+          });
         } catch (err) {
-          console.error("[Qwickword] Failed to read meetingState() in the backstop poll:", err);
+          console.error("[Qwickword] Failed to recompute the end-call vote tally:", err);
         }
-      }
-    }, 2000);
+      };
+
+      const handleAppMessage = (event: { data?: unknown; fromId?: string }) => {
+        const data = event.data as { type?: string; vote?: boolean } | undefined;
+        if (data?.type !== "qwickword-end-vote" || typeof event.fromId !== "string") {
+          return;
+        }
+        voteMapRef.current.set(event.fromId, Boolean(data.vote));
+        recomputeTally();
+      };
+
+      const handleParticipantJoined = () => {
+        reportCount();
+        recomputeTally();
+        // Votes are only broadcast when they change, not on a schedule, so a
+        // newcomer wouldn't otherwise learn about a vote cast before they
+        // joined — every tab that's currently voting "yes" re-announces it
+        // whenever someone new arrives.
+        if (myVoteToEndRef.current) {
+          try {
+            callObject.sendAppMessage(
+              { type: "qwickword-end-vote", vote: true },
+              "*"
+            );
+          } catch (err) {
+            console.error("[Qwickword] Failed to re-broadcast end-call vote to a new joiner:", err);
+          }
+        }
+      };
+
+      const handleParticipantLeft = () => {
+        reportCount();
+        recomputeTally();
+      };
+
+      // "the timer also should go away after we have left the call, no more
+      // countdown" (2026-07-22, Andreas, interactive). daily-js's own
+      // `left-meeting` event fires specifically for the LOCAL participant
+      // leaving — distinct from `participant-left` above, which fires for
+      // *other* participants leaving (and is what feeds the vote tally/
+      // participant count, still relevant to everyone else in the room).
+      // Wrapped in try/catch like every other daily-js callback in this file,
+      // even though there's nothing here that can meaningfully throw — kept
+      // for consistency with the rest of the file's defensive style.
+      const handleLeftMeeting = () => {
+        try {
+          onLeftMeeting?.();
+        } catch (err) {
+          console.error("[Qwickword] onLeftMeeting callback failed:", err);
+        }
+      };
+
+      callObject.on("joined-meeting", reportCount);
+      callObject.on("participant-joined", handleParticipantJoined);
+      callObject.on("participant-left", handleParticipantLeft);
+      callObject.on("app-message", handleAppMessage);
+      callObject.on("left-meeting", handleLeftMeeting);
+
+      // Backstop poll (added 2026-07-22, Andreas, interactive: reported a
+      // call where the countdown didn't auto-start when his friend joined —
+      // he had to press "Start now" manually). The event-driven path above
+      // ("participant-joined" -> reportCount) should be sufficient on its
+      // own, but it depends on daily-js reliably firing that event and this
+      // tab's JS timer loop staying responsive to react to it; a
+      // backgrounded/throttled browser tab, or any daily-js event-delivery
+      // hiccup, would silently mean the auto-start never fires with no way
+      // to tell from the UI that anything went wrong (the manual "Start
+      // now" button is the only sign anything's off). Since a
+      // two-participant Qwickword call is short and this is the mechanism
+      // the whole "anchor countdown to first join" feature depends on, this
+      // adds a periodic direct read of `participants()` as a second,
+      // independent path to the same `reportCount`/`recomputeTally` calls —
+      // not relying on any single event firing correctly. Cheap
+      // (participants() is a local, synchronous read, no network call) and
+      // idempotent (reportCount/recomputeTally are safe to call
+      // redundantly).
+      //
+      // Extended the same day (Andreas, interactive: "Its still counting
+      // down after I leave the call. the countdown should disappear after I
+      // leave the call") — the `left-meeting` event listener above was
+      // already in place and confirmed live in the deployed bundle, but
+      // didn't fire for him in practice: the countdown and "End for
+      // everyone" controls kept rendering even after Daily Prebuilt's own UI
+      // showed its "You've left the call" screen. Same shape of problem as
+      // the auto-start bug above — an event this feature depends on isn't
+      // reliably reaching this listener — so the same fix applies: stop
+      // trusting the event alone and also poll daily-js's own authoritative
+      // `meetingState()` directly. `hasReportedLeftRef` makes this a
+      // one-shot signal even though the poll itself repeats every 2s (once
+      // the local participant has left, calling `onLeftMeeting` again on
+      // every subsequent tick would be redundant, not harmful, but there's
+      // no reason to keep doing it).
+      //
+      // Both event listeners AND this poll read the SAME callObject this
+      // wrap() call produced — if THIS wrap() succeeded (which retrying
+      // above makes much more likely), everything below should now be
+      // working; the server-side presence fallback added the same day (see
+      // /api/rooms/[room]/status/route.ts) is the true independent backstop
+      // for the (hopefully now much rarer) case where even this doesn't
+      // catch it.
+      const hasReportedLeftRef = { current: false };
+      const backstopIntervalId = setInterval(() => {
+        reportCount();
+        recomputeTally();
+        if (!hasReportedLeftRef.current) {
+          try {
+            const state = callObject.meetingState();
+            if (state === "left-meeting" || state === "error") {
+              hasReportedLeftRef.current = true;
+              handleLeftMeeting();
+            }
+          } catch (err) {
+            console.error("[Qwickword] Failed to read meetingState() in the backstop poll:", err);
+          }
+        }
+      }, 2000);
+
+      cleanupSetUp = () => {
+        callObject.off("joined-meeting", reportCount);
+        callObject.off("participant-joined", handleParticipantJoined);
+        callObject.off("participant-left", handleParticipantLeft);
+        callObject.off("app-message", handleAppMessage);
+        callObject.off("left-meeting", handleLeftMeeting);
+        clearInterval(backstopIntervalId);
+        // Corrected 2026-07-21: this used to skip destroy() on the
+        // assumption that removing the <iframe> from the DOM was enough to
+        // end the call. That's true for the call itself, but daily-js's own
+        // call-object singleton survives the DOM node's removal — leaving it
+        // alive is what makes the *next* wrap() call on this page throw.
+        // destroy() is wrapped in try/catch since it can itself
+        // reject/throw if the call was never fully connected.
+        try {
+          callObject.destroy();
+        } catch (err) {
+          console.error("[Qwickword] Failed to destroy the daily-js call object:", err);
+        }
+        callObjectRef.current = null;
+        voteMapRef.current = new Map();
+      };
+    };
+
+    let cleanupSetUp: (() => void) | null = null;
+    attemptWrap(0);
 
     return () => {
-      callObject!.off("joined-meeting", reportCount);
-      callObject!.off("participant-joined", handleParticipantJoined);
-      callObject!.off("participant-left", handleParticipantLeft);
-      callObject!.off("app-message", handleAppMessage);
-      callObject!.off("left-meeting", handleLeftMeeting);
-      clearInterval(backstopIntervalId);
-      // Corrected 2026-07-21: this used to skip destroy() on the assumption
-      // that removing the <iframe> from the DOM was enough to end the call.
-      // That's true for the call itself, but daily-js's own call-object
-      // singleton survives the DOM node's removal — leaving it alive is what
-      // makes the *next* wrap() call on this page throw. destroy() is wrapped
-      // in try/catch since it can itself reject/throw if the call was never
-      // fully connected.
-      try {
-        callObject!.destroy();
-      } catch (err) {
-        console.error("[Qwickword] Failed to destroy the daily-js call object:", err);
-      }
-      callObjectRef.current = null;
-      voteMapRef.current = new Map();
+      cancelled = true;
+      if (pendingRetryId !== null) clearTimeout(pendingRetryId);
+      cleanupSetUp?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- callObject is created fresh each time this effect runs; onParticipantCountChange is a stable callback from CallRoom's useCallback; myVoteToEnd/onVoteTallyChange are read via refs above so this effect doesn't need to re-run when they change.
   }, [mockMode]);

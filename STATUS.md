@@ -1761,3 +1761,43 @@ throwaway scratch dir, not touching the mount).
   Verified (`eslint`, `tsc --noEmit`, `next build`, all clean) in the `/tmp/qwickword` scratch clone,
   committed and pushed, deployed to Vercel production, confirmed `Ready` and aliased to
   `qwickword.com`.
+- 2026-07-22 (interactive, live production bug report): Andreas hit two bugs on the real
+  `qwickword.com/[room]` flow (not `/test`), with screenshots — "I joined the call from my mobile
+  phone... as a second participant the timer didn't start this is the second time I've seen it... The
+  timer of course has to start as soon as the second person joins what is the way that we can enforce
+  this so it always happens" and "once I leave the call I still have the text at the top that says
+  waiting to start and the button to start now... is there a hook or is there a connector that can send
+  a message back from daily to let me know that I've left the call."
+  **Root cause (both bugs, one shape):** every existing signal for "who's in the call" and "did I
+  leave" — the daily-js `participant-joined`/`left-meeting` events AND the 2s client-side backstop
+  poll added earlier this session for the same class of bug — all live inside ONE browser tab's
+  `DailyIframe.wrap()` bridge. If that bridge glitches for any tab (a stale call-object race is a
+  previously-seen failure mode in this exact file's own history; cross-iframe postMessage flakiness is
+  also a known class of issue for embedded video especially on mobile Safari), every dependent signal
+  fails together silently — which fits both bugs showing up in the same session, and fits "the second
+  time I've seen it" (intermittent, not every call).
+  **Fix — moved the enforcement server-side, independent of any browser tab's daily-js:** Daily's own
+  `GET /rooms/:name/presence` REST endpoint (verified live against a real Daily room —
+  `total_count`/`data` shape confirmed, not just docs) reports who's actually connected, computed by
+  Daily's own server, with zero dependency on any client's JS. Added `getRoomPresence()` to
+  `src/lib/daily-rooms.ts`. `/api/rooms/[room]/status/route.ts` (already polled by every waiting tab
+  every 4s, and by every "in-call" tab every 10s) now: (1) accepts an optional `durationSeconds` param
+  and, if the room hasn't started and Daily reports 2+ people present, calls `startRoomCountdown`
+  itself — server-side auto-start that works even if every connected tab's own daily-js is completely
+  broken; (2) always returns `presentCount` when live. `call-room.tsx`'s waiting-poll now sends
+  `durationSeconds`; its 10s in-call resync poll now treats `presentCount === 0` (for two consecutive
+  polls, so a propagation-delay blip right after joining can't false-trigger) as "nobody's actually
+  still connected" and swaps to the left-call screen, regardless of whether `left-meeting`/`meetingState()`
+  fired for this tab. Both are additive — the existing client-side triggers still fire first in the
+  normal case; these are now a genuinely independent backstop, not a duplicate of the same broken path.
+  Also added a 3-attempt retry (0/250/750ms backoff) around `DailyIframe.wrap()` itself in
+  `call-media.tsx`, restructured into a `attemptWrap`/`setUp` split so the retry chain doesn't need
+  async/await inside the effect body — directly targets the single-root-cause theory (a transient
+  "Duplicate DailyIframe instances" race leaving that tab's whole event/backstop system unwired from
+  the start) without changing behavior when wrap() succeeds first try, which is the common case.
+  Told Andreas honestly that the exact original trigger can't be confirmed without live telemetry from
+  his actual failing session — this is the strongest fix available without that, and it removes the
+  single-point-of-failure the previous fix (client-only backstop poll) still had.
+  Verified (`eslint`, `tsc --noEmit`, `next build` clean; also live-tested `getRoomPresence` against a
+  real throwaway Daily room — `total_count: 0` confirmed, deleted after) in `/tmp/qwickword`, committed,
+  pushed, deployed to Vercel production, confirmed `Ready` and aliased to `qwickword.com`.

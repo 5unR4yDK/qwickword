@@ -421,6 +421,59 @@ export async function getRoomStatus(
   return { exp, started: isCountdownStarted(exp, nowSeconds) };
 }
 
+/**
+ * How many people Daily itself currently reports as present in this room,
+ * straight from its own server-side connection state — added 2026-07-22
+ * (Andreas, interactive, live bug report: "I joined the call from my mobile
+ * phone... the timer didn't start... what is the way that we can enforce
+ * this so it always happens" — and separately, the countdown/"waiting to
+ * start" UI staying stuck even after Daily's own iframe showed "You've left
+ * the call").
+ *
+ * Both bugs share a root cause: the app's *only* signal for "who's actually
+ * in the call" used to be each browser tab's own daily-js event listeners
+ * (src/components/call-media.tsx's `participant-joined`/`left-meeting`
+ * handlers, plus a 2s client-side backstop poll of the same wrapped call
+ * object) — entirely dependent on that one tab's `DailyIframe.wrap()` call
+ * and its event bridge working reliably. If that bridge glitches for any
+ * reason (a stale call-object race, a flaky cross-iframe postMessage channel
+ * — both are real, previously-seen failure classes for daily-js embeds,
+ * especially on mobile Safari), the client-side backstop poll is reading the
+ * SAME broken call object, so it fails right alongside the events it's meant
+ * to be a backup for. Neither bug can be fixed by hardening that path
+ * further; it needs a second signal that doesn't depend on any one browser
+ * tab's daily-js instance at all.
+ *
+ * Daily's own `/rooms/:name/presence` REST endpoint is that second signal:
+ * it's authoritative (computed server-side, from Daily's own connection
+ * state, not from any client's JS), and totally independent of whether this
+ * app's iframe-wrapping bridge happens to be working in any particular
+ * browser tab. See getRoomStatus's callers (the status API route) for how
+ * this now drives both a server-side auto-start fallback and a "has this
+ * room actually gone empty" signal, on top of (not instead of) the existing
+ * client-side detection, which still fires first in the common case.
+ *
+ * Mock mode has no persisted room to check presence on — returns `null`
+ * (distinct from `0`, so callers can tell "no data" from "genuinely empty").
+ */
+export async function getRoomPresence(name: string): Promise<number | null> {
+  const { apiKey, mockMode } = getDailyConfig();
+  if (mockMode) return null;
+
+  const response = await fetch(
+    `${DAILY_API_BASE}/rooms/${encodeURIComponent(name)}/presence`,
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+  if (!response.ok) {
+    throw new DailyRoomError(
+      `Daily API returned ${response.status} fetching presence for room "${name}".`,
+      response.status === 404 ? 404 : 502
+    );
+  }
+  const data = (await response.json()) as { total_count?: number };
+  return typeof data.total_count === "number" ? data.total_count : null;
+}
+
 // Matches both this app's mock room names ("mock-xxxxxxxx") and Daily's own
 // auto-generated names (alphanumeric, sometimes with hyphens). Deliberately
 // permissive — this is a syntax sanity check to reject garbage that could
