@@ -367,12 +367,25 @@ export default function CallMedia({
         // Why can't we be as big?"). The `max-w-6xl` (1152px) cap was the
         // culprit — on any monitor wider than that (most desktops), it left
         // a large gap on either side that Meet, which stretches to fill the
-        // browser window, doesn't have. Dropped the cap entirely at `sm` and
-        // up (`sm:max-w-none`) so the call area now scales with the actual
-        // browser width, same as Meet — `PageShell`'s own horizontal padding
-        // (`sm:px-6`, `src/app/[room]/page.tsx`) is the only thing keeping
-        // it off the literal edge of the window.
-        className="h-[70vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-black/[.08] bg-black sm:aspect-video sm:h-auto sm:max-w-none dark:border-white/[.145]"
+        // browser window, doesn't have.
+        //
+        // Corrected the same day, still 2026-07-22 (Andreas, interactive:
+        // "making the window larger introduced a new UI bug. we get a window
+        // that doesn't fit the browser"). The first fix (`w-full` +
+        // `sm:aspect-video` + `sm:h-auto` + `sm:max-w-none`) drove the box's
+        // WIDTH from the browser window and let height follow the 16:9
+        // ratio — on any monitor much wider than it is tall, that produces a
+        // box taller than the viewport (e.g. a 2500px-wide window makes a
+        // ~1400px-tall box), pushing Daily Prebuilt's pre-join card down
+        // past the fold and forcing a page scroll just to see it. Flipped
+        // which dimension drives the ratio: HEIGHT is now fixed at `70vh`
+        // (guaranteed to fit the viewport by construction) and width follows
+        // the 16:9 ratio from that, capped at `sm:max-w-full` so it still
+        // shrinks to fit on any window too narrow for a full 16:9 box at
+        // that height — same "as big as Meet, but never bigger than the
+        // screen" goal, just measured from the dimension that was actually
+        // overflowing.
+        className="mx-auto h-[70vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-black/[.08] bg-black sm:aspect-video sm:w-auto sm:max-w-full dark:border-white/[.145]"
       >
         {mockMode ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-zinc-300">
