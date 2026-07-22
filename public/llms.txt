@@ -1,0 +1,29 @@
+# Qwickword
+
+> Qwickword is a free, no-signup video calling tool. You pick a time limit
+> (2 to 30 minutes), get a shareable link, and the call ends automatically
+> the moment the timer hits zero — there's no way to extend it.
+
+## What it does
+
+- Creates a single-use video call link with a hard time limit set by the
+  creator.
+- No account, no download, no installation — the call runs in the browser.
+- The countdown starts once a second person joins the call (or the creator
+  manually starts it), not the moment the link is created, so the link can
+  sit unopened without wasting the call's own time.
+- When the timer reaches zero, the call ends for everyone — there is no
+  extend button and no way to rejoin the same link afterward.
+- Participants can also vote to end the call early, before the timer runs
+  out.
+
+## Who it's for
+
+People who want a meeting, catch-up, or quick video chat that is guaranteed
+not to run long — the opposite of a video call tool designed to keep people
+on it indefinitely.
+
+## Site
+
+- Homepage (create a link): https://qwickword.com
+- About / manifesto: https://qwickword.com/manifesto

@@ -1801,3 +1801,29 @@ throwaway scratch dir, not touching the mount).
   Verified (`eslint`, `tsc --noEmit`, `next build` clean; also live-tested `getRoomPresence` against a
   real throwaway Daily room — `total_count: 0` confirmed, deleted after) in `/tmp/qwickword`, committed,
   pushed, deployed to Vercel production, confirmed `Ready` and aliased to `qwickword.com`.
+- 2026-07-22 (interactive): Andreas asked whether the app tracks who's visiting the site and how, since
+  the existing Neon Postgres table only logs actual call activity (created/started/ended), not homepage
+  traffic. Presented four options (Vercel Web Analytics, Plausible/Fathom, Google Analytics, or logging
+  pageviews into the existing Neon DB) with the cookie-consent/cost/effort tradeoffs of each — he picked
+  Vercel Web Analytics. Installed `@vercel/analytics`, added `<Analytics />` to
+  `src/app/layout.tsx`'s body — cookieless, no consent banner needed, free tier (2,500 events/month)
+  plenty for current traffic. Shows up in the Vercel dashboard for the `quickword` project once live
+  traffic starts hitting it.
+  Same message, Andreas also asked for "SEO optimization... and AI search optimization so AIs will find
+  it": added `metadataBase`/`keywords`/`openGraph`/`twitter`/explicit `robots` metadata to
+  `layout.tsx` (title/description text unchanged, just made discoverable to crawlers and link
+  previews); `src/app/robots.ts` (explicit allow-all + sitemap pointer — traditional and AI crawlers,
+  e.g. GPTBot/ClaudeBot/PerplexityBot, mostly read the same robots.txt convention; deliberately doesn't
+  try to pattern-block room links, since robots.txt has no real regex support and those links are
+  unguessable/unlinked anyway — see the file's own note); `src/app/sitemap.ts` (just `/` and
+  `/manifesto` — the site's only two permanent, indexable pages); `public/llms.txt` (an emerging
+  convention — a plain-language "what is this site" doc some AI crawlers/agents check, separate from
+  robots.txt); and a `WebApplication` schema.org JSON-LD block on `src/app/page.tsx` only (not the
+  shared `HomeContent` component, so `/test` doesn't carry the same structured data as the real
+  product page).
+  Verified (`eslint`, `tsc --noEmit`, `next build` — confirmed `/robots.txt` and `/sitemap.xml` both
+  generate as static routes) in `/tmp/qwickword`. Note: `npm install` doesn't work directly on the
+  FUSE-mounted project folder (`ENOTEMPTY` renaming `node_modules/acorn` — a known limitation of this
+  mount type with npm's install process, not specific to this package) — installed in the scratch
+  clone instead and copied the resulting `package.json`/`package-lock.json` back, same workaround
+  pattern used for git operations on this project all session.
