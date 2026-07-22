@@ -119,6 +119,18 @@ export default function CallRoom({
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  // "the timer also should go away after we have left the call, no more
+  // countdown" (2026-07-22, Andreas, interactive). Set once CallMedia
+  // reports daily-js's `left-meeting` event for this tab's own local
+  // participant — see the render below, which swaps to a dedicated "left"
+  // screen in place of the countdown/call area entirely once this is true,
+  // regardless of whether the room's own timer (`isOver`) has actually run
+  // out yet. Deliberately separate from `isOver`: leaving early is a
+  // per-tab, personal thing (the call may well still be running for anyone
+  // else left in it), not the room-wide hard end that `isOver` represents.
+  const [hasLeft, setHasLeft] = useState(false);
+  const handleLeftMeeting = useCallback(() => setHasLeft(true), []);
+
   // Read inside callbacks without re-creating them on every render — see
   // triggerStart and handleParticipantCountChange below.
   const startedRef = useRef(started);
@@ -326,32 +338,24 @@ export default function CallRoom({
 
   return (
     <>
-      {started ? (
-        <CallCountdown remainingMs={remainingMs} />
-      ) : (
-        <div role="status" className="flex flex-col items-center gap-1 text-center">
-          <p className="text-2xl font-semibold text-black dark:text-zinc-50">
-            Waiting to start
-          </p>
-          <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-            {durationSeconds
-              ? `The ${formatDuration(durationSeconds)} countdown starts as soon as someone presses "Start now," or a second person joins.`
-              : "Waiting for someone to join."}
-          </p>
-        </div>
-      )}
-
-      {isOver ? (
+      {hasLeft ? (
+        // "the timer also should go away after we have left the call, no
+        // more countdown" (2026-07-22, Andreas, interactive). Replaces
+        // *everything* below (countdown/waiting text, call area, all the
+        // buttons) the moment this tab's own local participant leaves —
+        // deliberately doesn't say the Qwickword itself has ended, since
+        // from this tab's own leave, it might still be running for whoever
+        // else is left in it.
         <div
           role="status"
           className="flex w-full max-w-3xl flex-col items-center gap-3 rounded-2xl border border-black/[.08] bg-white px-6 py-16 text-center dark:border-white/[.145] dark:bg-zinc-950"
         >
           <p className="text-lg font-medium text-black dark:text-zinc-50">
-            This Qwickword has ended.
+            You&apos;ve left this call.
           </p>
           <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-            It can&apos;t be rejoined or extended — that&apos;s the whole
-            point.
+            It may still be running for anyone else still in it — there&apos;s
+            no way back into this one.
           </p>
           <Link
             href="/"
@@ -362,77 +366,116 @@ export default function CallRoom({
         </div>
       ) : (
         <>
-          <CallMedia
-            room={room}
-            mockMode={mockMode}
-            joinUrl={joinUrl}
-            myVoteToEnd={myVoteToEnd}
-            onParticipantCountChange={handleParticipantCountChange}
-            onVoteTallyChange={handleVoteTallyChange}
-          />
-
-          {!started && durationSeconds && (
-            <button
-              type="button"
-              onClick={() => void triggerStart()}
-              disabled={starting}
-              className="rounded-full bg-black px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-            >
-              {starting ? "Starting…" : "Start now"}
-            </button>
-          )}
-
-          {startError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {startError}
-            </p>
-          )}
-
-          {started && (
-            <div className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  // Mock mode has no real daily-js call to tally votes over
-                  // (same limitation documented on CallMedia's
-                  // onParticipantCountChange) — there's no one else who
-                  // could be voting, so a click here just ends the (mock)
-                  // call directly rather than toggling a vote that can never
-                  // reach a real tally.
-                  if (mockMode) {
-                    void triggerEnd();
-                    return;
-                  }
-                  setMyVoteToEnd((prev) => !prev);
-                }}
-                className={`rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
-                  myVoteToEnd
-                    ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
-                    : "border-black/[.15] bg-transparent text-black hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
-                }`}
-              >
-                {mockMode
-                  ? "End call"
-                  : myVoteToEnd
-                    ? "Cancel end vote"
-                    : "End for everyone"}
-              </button>
-              {!mockMode && voteTally.participantCount > 1 && (
-                <p
-                  role="status"
-                  className="text-xs text-zinc-500 dark:text-zinc-400"
-                >
-                  {voteTally.votesToEnd} of {voteTally.participantCount} want to
-                  end early
-                </p>
-              )}
+          {started ? (
+            <CallCountdown remainingMs={remainingMs} />
+          ) : (
+            <div role="status" className="flex flex-col items-center gap-1 text-center">
+              <p className="text-2xl font-semibold text-black dark:text-zinc-50">
+                Waiting to start
+              </p>
+              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+                {durationSeconds
+                  ? `The ${formatDuration(durationSeconds)} countdown starts as soon as someone presses "Start now," or a second person joins.`
+                  : "Waiting for someone to join."}
+              </p>
             </div>
           )}
 
-          {endError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {endError}
-            </p>
+          {isOver ? (
+            <div
+              role="status"
+              className="flex w-full max-w-3xl flex-col items-center gap-3 rounded-2xl border border-black/[.08] bg-white px-6 py-16 text-center dark:border-white/[.145] dark:bg-zinc-950"
+            >
+              <p className="text-lg font-medium text-black dark:text-zinc-50">
+                This Qwickword has ended.
+              </p>
+              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+                It can&apos;t be rejoined or extended — that&apos;s the whole
+                point.
+              </p>
+              <Link
+                href="/"
+                className="mt-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              >
+                Create a new one
+              </Link>
+            </div>
+          ) : (
+            <>
+              <CallMedia
+                room={room}
+                mockMode={mockMode}
+                joinUrl={joinUrl}
+                myVoteToEnd={myVoteToEnd}
+                onParticipantCountChange={handleParticipantCountChange}
+                onVoteTallyChange={handleVoteTallyChange}
+                onLeftMeeting={handleLeftMeeting}
+              />
+
+              {!started && durationSeconds && (
+                <button
+                  type="button"
+                  onClick={() => void triggerStart()}
+                  disabled={starting}
+                  className="rounded-full bg-black px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                >
+                  {starting ? "Starting…" : "Start now"}
+                </button>
+              )}
+
+              {startError && (
+                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                  {startError}
+                </p>
+              )}
+
+              {started && (
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Mock mode has no real daily-js call to tally votes
+                      // over (same limitation documented on CallMedia's
+                      // onParticipantCountChange) — there's no one else who
+                      // could be voting, so a click here just ends the
+                      // (mock) call directly rather than toggling a vote
+                      // that can never reach a real tally.
+                      if (mockMode) {
+                        void triggerEnd();
+                        return;
+                      }
+                      setMyVoteToEnd((prev) => !prev);
+                    }}
+                    className={`rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
+                      myVoteToEnd
+                        ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
+                        : "border-black/[.15] bg-transparent text-black hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+                    }`}
+                  >
+                    {mockMode
+                      ? "End call"
+                      : myVoteToEnd
+                        ? "Cancel end vote"
+                        : "End for everyone"}
+                  </button>
+                  {!mockMode && voteTally.participantCount > 1 && (
+                    <p
+                      role="status"
+                      className="text-xs text-zinc-500 dark:text-zinc-400"
+                    >
+                      {voteTally.votesToEnd} of {voteTally.participantCount}{" "}
+                      want to end early
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {endError && (
+                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                  {endError}
+                </p>
+              )}
+            </>
           )}
         </>
       )}

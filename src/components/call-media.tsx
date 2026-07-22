@@ -79,6 +79,7 @@ export default function CallMedia({
   myVoteToEnd = false,
   onParticipantCountChange,
   onVoteTallyChange,
+  onLeftMeeting,
 }: {
   room: string;
   mockMode: boolean;
@@ -106,6 +107,18 @@ export default function CallMedia({
    * why.
    */
   onVoteTallyChange?: (tally: VoteTally) => void;
+  /**
+   * Called once this tab's own local participant has left the call —
+   * daily-js's `left-meeting` event, fired when *this* browser leaves
+   * (clicking Daily Prebuilt's own "Leave" control inside the iframe, or any
+   * other reason this tab disconnects). Added 2026-07-22 (Andreas,
+   * interactive: "the timer also should go away after we have left the
+   * call, no more countdown") — this is what lets CallRoom stop showing a
+   * countdown for a call this tab isn't in anymore, independent of whether
+   * the room itself is still running for anyone else. Not called in mock
+   * mode — there is no real daily-js call to leave.
+   */
+  onLeftMeeting?: () => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const callObjectRef = useRef<DailyCall | null>(null);
@@ -228,10 +241,28 @@ export default function CallMedia({
       recomputeTally();
     };
 
+    // "the timer also should go away after we have left the call, no more
+    // countdown" (2026-07-22, Andreas, interactive). daily-js's own
+    // `left-meeting` event fires specifically for the LOCAL participant
+    // leaving — distinct from `participant-left` above, which fires for
+    // *other* participants leaving (and is what feeds the vote tally/
+    // participant count, still relevant to everyone else in the room).
+    // Wrapped in try/catch like every other daily-js callback in this file,
+    // even though there's nothing here that can meaningfully throw — kept
+    // for consistency with the rest of the file's defensive style.
+    const handleLeftMeeting = () => {
+      try {
+        onLeftMeeting?.();
+      } catch (err) {
+        console.error("[Qwickword] onLeftMeeting callback failed:", err);
+      }
+    };
+
     callObject.on("joined-meeting", reportCount);
     callObject.on("participant-joined", handleParticipantJoined);
     callObject.on("participant-left", handleParticipantLeft);
     callObject.on("app-message", handleAppMessage);
+    callObject.on("left-meeting", handleLeftMeeting);
 
     // Backstop poll (added 2026-07-22, Andreas, interactive: reported a call
     // where the countdown didn't auto-start when his friend joined — he had
@@ -260,6 +291,7 @@ export default function CallMedia({
       callObject!.off("participant-joined", handleParticipantJoined);
       callObject!.off("participant-left", handleParticipantLeft);
       callObject!.off("app-message", handleAppMessage);
+      callObject!.off("left-meeting", handleLeftMeeting);
       clearInterval(backstopIntervalId);
       // Corrected 2026-07-21: this used to skip destroy() on the assumption
       // that removing the <iframe> from the DOM was enough to end the call.
