@@ -446,21 +446,48 @@ Goal: something you'd actually send to a colleague without wincing.
       sees lives inside Daily Prebuilt's own iframe UI, so our page has to *find out* the call ended —
       via an event (`left-meeting`) or a poll — rather than *knowing* it, because our own code didn't
       initiate the leave.
-      **The fix:** render our own "Leave call" button in `src/components/call-room.tsx` (or
-      `call-media.tsx`), positioned outside/below the iframe in our own page chrome, that calls the
-      wrapped call object's `daily-js` `.leave()` method directly. Because this component would be the
-      one *initiating* the leave, it can set `hasLeft` the moment that `.leave()` call resolves —
-      no dependency on an event firing back from the iframe at all for this path. This doesn't replace
-      the event listener/backstop poll/presence check already in place (Daily Prebuilt's own in-frame
-      Leave button still exists and still needs those, unless/until the call-object-mode rebuild below
-      replaces Prebuilt entirely — that rebuild's `/test` prototype already has exactly this pattern,
-      see `src/components/call-v2/call-controls.tsx`'s `handleLeave`) — it's a second, more reliable
-      path for the common case of a participant clicking "Leave" on purpose, on top of the fallbacks
-      that already cover every other way a call can end for a tab.
+      **The fix:** render our own "Leave call" button in `src/components/call-room.tsx`, in the same
+      row/area as the existing "End for everyone" vote toggle (Phase 1's "Vote to end early" item) —
+      both are per-tab call-management controls that belong in our own chrome, not inside Daily's
+      iframe, so they should live together, visually distinct from each other (leaving is personal —
+      the call may keep running for whoever's left; ending is for everyone). On click: call the wrapped
+      `daily-js` call object's `.leave()` directly (the same `callObjectRef` `call-media.tsx` already
+      holds internally — this needs a new prop, e.g. exposing a `leave()` callback up through
+      `onLeftMeeting`'s sibling, or lifting a ref, since `callObjectRef` is currently private to that
+      component). Because our own code initiates the leave, it can set `hasLeft` the moment the
+      `.leave()` promise resolves — no dependency on any event firing back from the iframe for this
+      specific path, unlike today's `left-meeting` listener.
+      **Loading/error handling, matching the pattern already used for Start/End:** disable the button
+      and show a brief "Leaving…" state while the promise is in flight (same shape as `triggerStart`'s
+      `starting` state and `triggerEnd`'s `endingRef` guard); if `.leave()` rejects (should be rare —
+      network hiccup, or the call was already over), fall back to the existing detection paths rather
+      than getting stuck — don't leave the user with a button that silently does nothing.
+      **Open question to validate at build time, not assume:** whether Daily Prebuilt's own in-frame
+      Leave button can be hidden via a room/token config option, so there's exactly one Leave control
+      on the page instead of two doing the same thing. Check Daily's current REST API docs for a
+      `properties`/prejoin-UI flag that suppresses it (Daily has iterated on Prebuilt's customization
+      surface before, so don't assume today's docs match this project's earlier research). If there's
+      no such flag, that's fine — a redundant second Leave button inside the iframe isn't harmful, just
+      a little inelegant, and can be left alone until the call-object-mode rebuild (below) replaces
+      Prebuilt's iframe entirely and removes the redundancy for good.
+      **Mobile placement:** needs to sit somewhere that survives the mobile viewport fix already shipped
+      for the `/test` v2 preview (`fixed`/`h-dvh`, no scroll-to-reach-controls) — today's production
+      `/[room]` page doesn't yet use that pattern (it's a scrollable page with the iframe as one block,
+      not the v2 preview's full-viewport lock), so this button just needs normal responsive placement in
+      that existing layout, not a new fixed-positioning scheme of its own.
+      This doesn't replace the event listener/backstop poll/presence check already in place (Daily
+      Prebuilt's own in-frame Leave button, if it can't be hidden, still needs those, and so does any
+      other way a tab can stop being in the call — losing connection, being ejected at `exp`, etc.) —
+      it's an additional, more direct path for the common case of a participant clicking "Leave" on
+      purpose. The call-object-mode rebuild's `/test` prototype already has exactly this pattern for
+      reference (`src/components/call-v2/call-controls.tsx`'s `handleLeave`, which calls
+      `daily.leave()` directly since that whole UI is already built outside any Daily-hosted iframe).
       *Done when:* clicking Qwickword's own Leave button ends the call for that tab and shows the
-      "You've left this call" screen immediately, verified via code review and (once this sandbox has a
-      working way to test it) an actual click-through, not just relying on the presence-poll backstop
-      to eventually catch it within its ~20s window.
+      "You've left this call" screen immediately (not within the presence-poll backstop's ~20s window),
+      the button correctly disables/re-enables around the in-flight `.leave()` call, a rejected
+      `.leave()` doesn't strand the UI, and — noted honestly, consistent with how every other daily-js
+      feature in this project has been verified — this sandbox still has no working headless browser, so
+      final confirmation needs an actual two-tab click-through, not just code review.
 - [ ] Rebuild the call UI on Daily's call-object mode (full custom UI, `@daily-co/daily-react`),
       replacing today's Daily Prebuilt iframe embed, styled to look and feel like Google Meet:
       full-bleed video, a small floating control pill instead of a full-width bar, self-view as a
