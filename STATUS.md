@@ -42,6 +42,23 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Call UI rebuild spec written, not yet built (2026-07-22, interactive, docs only — no deploy):**
+  Andreas asked whether the call window could be maximized further and Daily Prebuilt's own banners
+  shrunk or overlaid with our branding. Researched Daily's actual customization tiers (color theming +
+  CSS injection into Prebuilt via `createFrame()`, vs. full "call-object mode" where we render every
+  pixel ourselves via `@daily-co/daily-react`) and laid out three options by effort. Andreas picked the
+  full rebuild: "i like the rebuild full control... We want it to look very similar to Google Meets."
+  Wrote `CALL_UI_REBUILD_SPEC.md` — screen-by-screen breakdown (prejoin, in-call, ended/left), Meet
+  conventions to borrow (full-bleed video, floating control pill, self-view PIP, branding as a video
+  overlay not a banner, dark by default, zero decorative chrome during the call), the daily-react
+  architecture, a component map (today's files → their replacements), what's explicitly out of scope,
+  and an honest effort/risk section — this is a multi-session rebuild, not a quick tweak, and this
+  sandbox still has no way to run a real two-browser live test, which matters more here than for any
+  prior daily-js change since it touches rendering, not just event wiring. Logged as a new (unchecked)
+  Phase 1 ROADMAP.md item pointing at the spec. Nothing has been built yet — next step is the prejoin
+  screen (see the spec's suggested build order), pending Andreas's answers to the spec's open questions
+  (layout for two participants, self-view PIP behaviour, whether `enable_prejoin_ui` is still needed,
+  how literally to match Meet's own icon/colour language).
 - **Create button color, corrected once more (2026-07-22, interactive, deployed to production):**
   Andreas rejected the previous attempt at this same complaint: "That's not exactly a solution since we
   already have two minutes as an option and I don't want that field to be pre filled... the button

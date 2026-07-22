@@ -431,6 +431,21 @@ Goal: something you'd actually send to a colleague without wincing.
 - [ ] Privacy-friendly, cookie-light analytics (e.g. self-host Plausible-style events) capturing the
       core funnel: link_created → link_opened → call_started → call_completed → cta_clicked.
       *Done when:* those five events fire and are queryable.
+- [ ] Rebuild the call UI on Daily's call-object mode (full custom UI, `@daily-co/daily-react`),
+      replacing today's Daily Prebuilt iframe embed, styled to look and feel like Google Meet:
+      full-bleed video, a small floating control pill instead of a full-width bar, self-view as a
+      corner PIP, "Qwickword" + the live countdown as a translucent overlay on the video instead of a
+      banner above it. Andreas, interactive, 2026-07-22: after asking whether the call window could be
+      maximized and Daily Prebuilt's own banners shrunk (answer: only partially — Daily Prebuilt's own
+      chrome isn't ours to resize past color theming), he chose the full rebuild: "i like the rebuild
+      full control... We want it to look very similar to Google Meets." **Approved to start, not yet
+      built.** Full spec in `CALL_UI_REBUILD_SPEC.md` (screen-by-screen breakdown, architecture,
+      component map, effort/risk, open questions for Andreas before building) — read that first, this
+      is a real rebuild spanning several sessions, not a quick tweak.
+      *Done when:* the in-call screen matches the spec's Meet-conventions section, all existing
+      call behaviour (hard expiry, auto-start, vote-to-end, leave detection, stats logging) still works
+      unchanged, and a real two-person live call has been tested (not just code review — this sandbox
+      still has no way to run that test itself).
 
 ## Phase 2 — Shareable: build the growth loop
 Goal: every call quietly recruits the next user.
