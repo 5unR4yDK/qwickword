@@ -178,7 +178,7 @@ export default function TestCallRoom({
               type="button"
               onClick={() => void triggerStart()}
               disabled={starting}
-              className="absolute top-4 right-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="absolute top-4 right-4 cursor-pointer rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {starting ? "Starting…" : "Start now"}
             </button>

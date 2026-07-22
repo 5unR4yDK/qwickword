@@ -450,7 +450,7 @@ export default function CallRoom({
                   type="button"
                   onClick={() => void triggerStart()}
                   disabled={starting}
-                  className="rounded-full bg-black px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  className="cursor-pointer rounded-full bg-black px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                 >
                   {starting ? "Starting…" : "Start now"}
                 </button>
@@ -479,7 +479,7 @@ export default function CallRoom({
                       }
                       setMyVoteToEnd((prev) => !prev);
                     }}
-                    className={`rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
+                    className={`cursor-pointer rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
                       myVoteToEnd
                         ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
                         : "border-black/[.15] bg-transparent text-black hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
