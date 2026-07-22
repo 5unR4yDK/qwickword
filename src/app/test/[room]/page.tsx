@@ -122,8 +122,22 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
 
   const joinUrl = `https://${domain}/${room}`;
 
+  // Fixed + h-dvh instead of the old h-screen/w-screen (2026-07-22, Andreas,
+  // interactive, mobile: "the image didnt fit inside my mobile screen, so in
+  // order to toggle any of the buttons I had to swipe down which then would
+  // make the timer disappear at the top"). h-screen is 100vh, which on
+  // mobile Safari is measured with the browser chrome (address bar) HIDDEN —
+  // when the chrome is showing (the normal starting state), 100vh is taller
+  // than what's actually visible, so the page becomes scrollable and the
+  // controls at the bottom sit below the fold. Scrolling to reach them also
+  // drags the top overlay (the countdown) out of view since everything was
+  // in the same scrollable flow. `fixed inset-0` takes this out of document
+  // flow entirely — nothing to scroll, so there's no way to hide the timer
+  // to reach the buttons. `h-dvh` (dynamic viewport height) as a fallback
+  // also tracks the CURRENT visible height as the browser chrome shows/hides,
+  // rather than always assuming the chrome-hidden maximum.
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
+    <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
       <TestCallRoom
         room={room}
         joinUrl={joinUrl}

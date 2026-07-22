@@ -36,7 +36,15 @@ export default function CallOverlay({
   const isFinalCountdown = started && !isOver && remainingSeconds <= 10;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-0.5 bg-gradient-to-b from-black/70 to-transparent px-4 pt-4 pb-10 text-center">
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-0.5 bg-gradient-to-b from-black/70 to-transparent px-4 pb-10 text-center"
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+    >
+      {/* Explicit safe-area padding, not just pt-4 (2026-07-22, Andreas,
+          interactive, mobile). The timer needs to stay clear of the notch
+          on phones where the browser chrome overlaps the top of the
+          viewport, on top of the h-dvh/fixed fix in the page route that
+          keeps this overlay from being scrolled out of view at all. */}
       <p className="text-xs font-medium tracking-wide text-white/70">Qwickword</p>
       {started ? (
         <>

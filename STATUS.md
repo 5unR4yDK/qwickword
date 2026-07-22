@@ -1732,3 +1732,32 @@ throwaway scratch dir, not touching the mount).
   three calls succeeded. Live on `https://qwickword.com`. ASKS.md's now-resolved credentials-access item
   moved to Done; the separate stray-uncommitted-duration-field-WIP item from earlier tonight is still
   open (unrelated, not touched).
+- 2026-07-22 (interactive, v2 preview mobile follow-up): Andreas tried `/test` on his phone.
+  Reported (with a screenshot): "the image didnt fit inside my mobile screen, so in order to toggle any
+  of the buttons I had to swipe down which then would make the timer disappear at the top." Root cause:
+  `src/app/test/[room]/page.tsx`'s outer wrapper used `h-screen w-screen` (`100vh`) — on mobile Safari
+  `100vh` is measured with the browser chrome (address bar) *hidden*, so while the chrome is showing
+  (the normal state on load) the page was actually taller than the visible viewport, making it
+  scrollable. Scrolling down to reach the bottom control pill dragged the top countdown overlay out of
+  view with it, since both lived in the same scrollable flow. Fixed by switching the wrapper to
+  `fixed inset-0 h-dvh w-dvw touch-none overscroll-none` — `fixed` takes it out of document flow
+  entirely (nothing to scroll, so there's no way to hide the timer to reach the buttons), `h-dvh`
+  tracks the actual current visible height as the chrome shows/hides instead of assuming the
+  chrome-hidden maximum. Also added explicit `env(safe-area-inset-top/bottom)` padding to
+  `call-overlay.tsx` and `call-controls.tsx` so the timer and control pill clear the notch/home-indicator
+  on phones like the one in Andreas's screenshot, rather than relying on the fixed `pt-4`/`bottom-6`
+  Tailwind classes.
+  **Also reported, not a code fix:** "I took a screenshot and then suddenly the video view on my main
+  screen on the desktop was super zoomed in on the other persons face. This persisted even after
+  leaving the qwickword on mobile and rejoining." This is very unlikely to be a Qwickword bug —
+  `CallVideoGrid`'s `DailyVideo` renders whatever the incoming WebRTC track actually looks like;
+  `fit="cover"` recomputes automatically from the track's real dimensions, it isn't a stale-CSS state
+  that could get "stuck" across a leave/rejoin. The most plausible explanation is iOS's own camera
+  auto-framing (Center Stage / continuity camera reframing) engaging on the phone's front camera —
+  something outside this app's control, since Daily/the browser only sees the frames the OS hands it.
+  Told Andreas this directly rather than guessing at a fake in-app fix; suggested toggling the camera
+  off/on as a workaround if it recurs, and flagged it as worth watching for a pattern (e.g. does it
+  only happen right after a phone screenshot specifically) if it keeps happening.
+  Verified (`eslint`, `tsc --noEmit`, `next build`, all clean) in the `/tmp/qwickword` scratch clone,
+  committed and pushed, deployed to Vercel production, confirmed `Ready` and aliased to
+  `qwickword.com`.

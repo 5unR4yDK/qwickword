@@ -57,7 +57,13 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
   }, [daily, onLeave]);
 
   return (
-    <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur">
+    <div
+      className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+    >
+      {/* Explicit safe-area padding (2026-07-22, Andreas, interactive,
+          mobile) so the control pill clears the home-indicator bar on
+          notched phones, same reasoning as call-overlay.tsx's top padding. */}
       <button
         type="button"
         onClick={toggleMic}
