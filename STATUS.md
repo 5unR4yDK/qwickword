@@ -23,6 +23,53 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   yet** — this session had no GitHub push credentials available (`secrets.local.txt` with
   `QWICKWORD_GITHUB_PAT` wasn't present in this run's environment), so the change is a local commit
   only for now; see ASKS.md/the run-history entry below for full detail and what unblocks the deploy.
+  **Update, later the same day (interactive): now deployed.** See the interactive run-history entry
+  below — Andreas granted access to the parent `C:\Users\acnic\ClaudeCoding` folder, which is where
+  `secrets.local.txt`/`secrets.blackstart.local.txt` actually live (outside the `QuickWord` folder
+  itself, which is why the nightly run couldn't reach them). Pushed to GitHub and deployed to
+  production. Live on `https://qwickword.com`.
+- **Live bug fixes + "leave the call" fix + bigger call window (2026-07-22, interactive, deployed to
+  production):** Andreas used the app live after the vote-to-end-early build and reported three real
+  bugs plus two feature requests in quick succession:
+  1. **Countdown flash ("1400.56 seconds"):** right when a call started, the display briefly showed a
+     huge stale number (the ~24h pre-start-buffer value, rendered by the M:SS formatter as something
+     like "1400:56") before snapping to the real countdown. Root cause: `remainingMs` only recomputed
+     once a second on its own `setInterval`, not synchronously the instant `currentExp` itself changed.
+     Fixed in `src/components/call-room.tsx` by also firing an immediate zero-delay `setTimeout`
+     recompute alongside the regular interval — both live inside the same effect's callbacks (not
+     synchronously in the effect body), so this stays clear of `react-hooks/set-state-in-effect`.
+  2. **Auto-start unreliable:** the countdown didn't start automatically when his friend joined; he had
+     to click "Start now" manually. No definitive root cause found (couldn't reproduce with a real
+     two-person browser session in this sandbox — see below), but added a defensive fix: a 2s backstop
+     poll of `daily-js`'s `participants()` in `src/components/call-media.tsx`, alongside the existing
+     event-driven `participant-joined` listener, so a single missed/delayed event can no longer silently
+     block the auto-start.
+  3. **Ending ~2 seconds early:** Daily's own server-side `eject_at_room_exp` enforcement was cutting the
+     call slightly before the client's own displayed countdown reached 0:00 — client/server clock skew.
+     Added a 10s periodic resync of `currentExp` against Daily's own live room status
+     (`src/components/call-room.tsx`, reusing the existing `GET /api/rooms/[room]/status` route) once
+     `started`, so a long-running countdown keeps re-anchoring to the authoritative source instead of
+     drifting further from it.
+  4. **"Time to wrap!" text at T-10s:** added alongside the existing rose colour stage and audio tick in
+     `src/components/call-countdown.tsx` — same window, same trigger.
+  5. **Call window too small vs. Google Meet:** Andreas compared a screenshot; the `max-w-6xl` (1152px)
+     cap on the call area (`src/components/call-media.tsx`) left a large gap on any monitor wider than
+     that. Dropped to `sm:max-w-none` — the call area now scales with the actual browser width, with
+     `PageShell`'s own horizontal padding as the only thing keeping it off the literal window edge.
+  6. **"the timer also should go away after we have left the call, no more countdown":** added a new
+     `onLeftMeeting` callback to `CallMedia` (daily-js's `left-meeting` event, fired specifically for the
+     *local* participant leaving — distinct from `participant-left`, which covers others). `CallRoom`
+     now tracks `hasLeft` and swaps to a dedicated "You've left this call" screen in place of the
+     countdown/call area/buttons entirely once true — independent of the room's own `isOver`, since the
+     call may still be running for whoever else is left in it.
+  Verified: `npm run lint` / `tsc --noEmit` / `npm run build` all clean for every change above. The
+  auto-start backstop and clock-skew resync are defensive/redundancy improvements verified by code
+  review (same standard as other daily-js work in this app) — no real two-tab browser reproduction was
+  possible in this sandbox (still no working headless browser). Deployed via the Vercel CLI (installed
+  into a sibling directory per the established pattern, token read from `secrets.blackstart.local.txt`
+  in the now-accessible `ClaudeCoding` parent folder) after pushing to GitHub (`QWICKWORD_GITHUB_PAT`
+  from `secrets.local.txt`, same folder). Live-smoke-tested a real create → start → end round trip
+  against `https://qwickword.com` directly after deploying — all green. Live on `https://qwickword.com`.
 - **Large decorative "Q" watermark (Phase 1, done 2026-07-21, interactive, deployed to
   production):** Andreas sketched a big Q-sized shape over a screenshot of the create-flow card and
   asked for a large serif Q as part of the design, "same font type as Times New Roman or similar
@@ -1464,3 +1511,48 @@ throwaway scratch dir, not touching the mount).
   finished `.git` back onto the mount; did not attempt to push to GitHub or deploy to Vercel without
   the tokens to do so safely. See ASKS.md for what unblocks this next.
   ROADMAP.md's "Vote to end early" item marked `[x]`.
+- 2026-07-22 (later, interactive): the sandbox VM this run had been using reset mid-session (a fresh
+  `/tmp`, disk usage back down from 100% full to 68%) — the scratch git clone from the nightly portion
+  above was lost, but the mount's working tree (edited via the `Write`/`Edit` tools, which target the
+  Windows-side mount directly, not the ephemeral Linux sandbox) was untouched. Rebuilt the scratch
+  environment fresh; this time `git commit` worked directly on the mount without the corruption
+  documented in the platform note above (tested carefully — staged, committed, then verified with
+  `git show`/`git fsck` that the result wasn't NUL-padded or otherwise corrupted) — the earlier session's
+  corruption may have been specific to that session's degraded disk state rather than a permanent
+  block; worth a future run re-testing this rather than assuming the scratch-clone workaround is always
+  required.
+  Andreas then used the app live and reported three real bugs plus two feature/design requests, handled
+  in order as they came in — see "Live bug fixes + 'leave the call' fix + bigger call window" in
+  "Current state" above for full detail on each: the countdown-flash bug, the unreliable auto-start, the
+  early-end clock skew, a T-10s "Time to wrap!" text cue, and (in a follow-up message) a much wider call
+  window to match Google Meet's. Root-caused the countdown flash precisely (a genuine synchronous-state
+  timing bug, fixed and confirmed via code review of the exact render/effect sequence); the auto-start
+  and clock-skew fixes are defensive redundancy rather than confirmed root-cause fixes, since no real
+  two-tab browser session was reproducible in this sandbox to pin down the exact failure — told Andreas
+  this distinction honestly rather than claiming more certainty than the verification actually supports.
+  Then Andreas asked for one more behavior change: "the timer also should go away after we have left the
+  call, no more countdown" — added `left-meeting` detection (daily-js's event for the *local*
+  participant leaving) and a dedicated "You've left this call" screen, replacing the countdown/call
+  area/buttons entirely once left, independent of whether the room itself has actually ended for anyone
+  else still in it.
+  All of the above verified the same way as the rest of tonight's work (`npm run lint` / `tsc --noEmit`
+  / `npm run build`, all clean at every step) and committed directly on the mount (four separate commits,
+  one per logical change, matching this project's usual granularity).
+  **Deploy blocker, then resolved:** this session had no path to `secrets.local.txt`
+  (`QWICKWORD_GITHUB_PAT`) or `secrets.blackstart.local.txt` (`VERCEL_TOKEN`) — both live in the parent
+  `C:\Users\acnic\ClaudeCoding` folder, one level above the `QuickWord` folder this session was scoped
+  to, so they were invisible no matter where inside `QuickWord` was searched. Asked Andreas directly
+  (interactive, not an ASKS.md entry, since he was present) rather than guessing or working around it;
+  he granted access to the parent folder via `request_cowork_directory`. Read both tokens (one line
+  each, same pattern as every previous session that's used them), pushed all of tonight's commits to
+  GitHub with a one-off authenticated push URL (token not saved into `.git/config`), installed the
+  Vercel CLI into a sibling directory (`/tmp/vercel-cli`, outside the app's own folder tree — the
+  established pattern for avoiding the `package.json` pollution bug documented earlier in this file),
+  linked the existing `quickword` Vercel project (confirmed by listing projects first — `quickword`,
+  live at `qwickword.com`, was already there; didn't create a new one), and deployed
+  (`vercel deploy --prod`). `vercel link` appended a `VERCEL_OIDC_TOKEN` line to `.env.local` — checked
+  it didn't disturb the existing `DAILY_API_KEY`/`DAILY_DOMAIN` lines, which it didn't. Live-smoke-tested
+  a full create → start → end round trip directly against `https://qwickword.com` after deploying — all
+  three calls succeeded. Live on `https://qwickword.com`. ASKS.md's now-resolved credentials-access item
+  moved to Done; the separate stray-uncommitted-duration-field-WIP item from earlier tonight is still
+  open (unrelated, not touched).
