@@ -5,6 +5,7 @@ import {
   MIN_DURATION_SECONDS,
   startRoomCountdown,
 } from "@/lib/daily-rooms";
+import { recordCallStarted } from "@/lib/db";
 
 /**
  * Starts the real countdown for a room (see the design note above
@@ -52,6 +53,10 @@ export async function POST(
 
   try {
     const status = await startRoomCountdown(room, durationSeconds);
+    // Stats logging (see src/lib/db.ts) — fire-and-forget. No-op if this
+    // room was never recorded in the first place (mock rooms), since the
+    // UPDATE simply matches zero rows.
+    void recordCallStarted(room);
     return NextResponse.json(status, { status: 200 });
   } catch (err) {
     if (err instanceof DailyRoomError) {
