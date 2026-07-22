@@ -50,7 +50,22 @@ type CreateState =
  * below (auto-copy, "Join the meeting now," etc.) behaves identically either
  * way.
  */
-export default function CreateLinkForm() {
+export default function CreateLinkForm({
+  basePath = "",
+}: {
+  /**
+   * Prefix for the generated call link's path — "" (default) for the real
+   * flow (`/[room]`), "/test" for the v2 call UI preview
+   * (`/test/[room]`). Added 2026-07-22 (Andreas, interactive: "those two
+   * pages should be completely identical in both functionalities and in
+   * UI... everything from creating it to the confirmation to all
+   * everything") so the v2 preview's landing page can reuse this exact
+   * component — same styling, same validation, same success screen — rather
+   * than a hand-rolled duplicate that could quietly drift from the real one.
+   * Every other line of behaviour here is identical regardless of basePath.
+   */
+  basePath?: string;
+}) {
   // Deliberately blank, not pre-filled (2026-07-22, Andreas, interactive:
   // "we already have two minutes as an option [the preset button] and I
   // don't want that field to be pre filled" — correcting the previous
@@ -129,7 +144,7 @@ export default function CreateLinkForm() {
     // joins (src/lib/daily-rooms.ts, "Anchor the countdown to first join").
     // `d` is what the call page uses to start the real countdown at that
     // point, and what the waiting screen displays before then.
-    const roomPath = `/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
+    const roomPath = `${basePath}/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
     const link = `${window.location.origin}${roomPath}`;
 
     setState({

@@ -171,7 +171,7 @@ export default function TestCallRoom({
         <>
           <AutoStartWatcher onSecondParticipant={() => void triggerStart()} />
           <CallVideoGrid />
-          <CallOverlay remainingMs={remainingMs} />
+          <CallOverlay remainingMs={remainingMs} started={started} />
           <CallControls onLeave={() => setPhase("left")} />
           {!started && (
             <button

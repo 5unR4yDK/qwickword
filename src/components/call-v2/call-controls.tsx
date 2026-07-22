@@ -12,14 +12,26 @@
 // porting the rest of the call's behaviour over.
 
 import { useCallback } from "react";
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
-import { useAudioTrack, useDaily, useLocalSessionId, useVideoTrack } from "@daily-co/daily-react";
+import { Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from "lucide-react";
+import {
+  useAudioTrack,
+  useDaily,
+  useLocalSessionId,
+  useScreenShare,
+  useVideoTrack,
+} from "@daily-co/daily-react";
 
 export default function CallControls({ onLeave }: { onLeave: () => void }) {
   const daily = useDaily();
   const localSessionId = useLocalSessionId();
   const videoTrack = useVideoTrack(localSessionId ?? "");
   const audioTrack = useAudioTrack(localSessionId ?? "");
+  // "we also need to be able to share screen like in Google Meet"
+  // (2026-07-22, Andreas, interactive). isSharingScreen only reflects the
+  // LOCAL participant's own share — this button toggles that; whichever
+  // participant (either side) is sharing gets the spotlight in
+  // call-video-grid.tsx regardless of who started it.
+  const { isSharingScreen, startScreenShare, stopScreenShare } = useScreenShare();
 
   const toggleMic = useCallback(() => {
     daily?.setLocalAudio(audioTrack.isOff);
@@ -28,6 +40,14 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
   const toggleCamera = useCallback(() => {
     daily?.setLocalVideo(videoTrack.isOff);
   }, [daily, videoTrack.isOff]);
+
+  const toggleScreenShare = useCallback(() => {
+    if (isSharingScreen) {
+      stopScreenShare();
+    } else {
+      startScreenShare();
+    }
+  }, [isSharingScreen, startScreenShare, stopScreenShare]);
 
   const handleLeave = useCallback(() => {
     daily?.leave().catch((err) => {
@@ -59,6 +79,17 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
         }`}
       >
         {videoTrack.isOff ? <VideoOff size={18} /> : <Video size={18} />}
+      </button>
+      <button
+        type="button"
+        onClick={toggleScreenShare}
+        aria-pressed={isSharingScreen}
+        aria-label={isSharingScreen ? "Stop sharing your screen" : "Share your screen"}
+        className={`flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors ${
+          isSharingScreen ? "bg-blue-600 hover:bg-blue-700" : "bg-white/15 hover:bg-white/25"
+        }`}
+      >
+        {isSharingScreen ? <MonitorX size={18} /> : <MonitorUp size={18} />}
       </button>
       <button
         type="button"

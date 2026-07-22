@@ -21,9 +21,16 @@ import TestCallRoom from "@/components/call-v2/test-call-room";
 // preview route. See STATUS.md.
 //
 // Deliberately no PageShell (src/app/[room]/page.tsx's header/footer
-// wrapper) — the whole point of the rebuild is video filling the viewport,
-// so this page is just a full-bleed black canvas plus a small "back to v2
-// preview" link, not Qwickword's usual page chrome.
+// wrapper) — the whole point of the rebuild is video filling the viewport.
+//
+// No visible "v2"/"preview"/"test" labeling anywhere on this page (2026-07-22,
+// Andreas, interactive: "it refers back to itself as a test which defeats
+// the purpose of the test It's supposed to look like the final product so I
+// can compare"). The only earlier concession to this being a parallel route
+// was a small "v2 preview" badge in the corner — removed. Error-screen
+// copy below matches production's own wording (src/app/[room]/page.tsx,
+// src/components/call-room.tsx) as closely as this route's slightly
+// different failure modes allow, rather than saying "preview" anywhere.
 
 type Props = {
   params: Promise<{ room: string }>;
@@ -50,7 +57,7 @@ function ErrorScreen({ heading, message }: { heading: string; message: string })
         href="/test"
         className="mt-2 rounded-full bg-white px-5 py-2 text-sm font-medium text-black hover:bg-zinc-200"
       >
-        Back to the v2 preview
+        Create a new one
       </Link>
     </div>
   );
@@ -68,8 +75,8 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
   if (!hasValidRoomName || !hasValidLinkExp || durationSeconds === null) {
     return (
       <ErrorScreen
-        heading="This preview link isn't valid"
-        message="It's missing information this page needs — try creating a fresh one from the v2 preview home."
+        heading="This link isn't valid"
+        message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
       />
     );
   }
@@ -79,8 +86,8 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
   if (mockMode) {
     return (
       <ErrorScreen
-        heading="The v2 preview needs a live Daily connection"
-        message="No DAILY_API_KEY/DAILY_DOMAIN configured in this environment — the call-object-mode rebuild has nothing real to connect to in mock mode."
+        heading="This Qwickword can't connect right now"
+        message="No live video connection is configured in this environment."
       />
     );
   }
@@ -95,8 +102,8 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
     if (err instanceof DailyRoomError && err.status === 404) {
       return (
         <ErrorScreen
-          heading="This preview room doesn't exist"
-          message="It may have expired, or the link was mistyped."
+          heading="This Qwickword doesn't exist"
+          message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
         />
       );
     }
@@ -107,8 +114,8 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
   if (initialRemainingMs <= 0) {
     return (
       <ErrorScreen
-        heading="This preview Qwickword has ended"
-        message="Create a fresh one from the v2 preview home to keep testing."
+        heading="This Qwickword has ended."
+        message="It can't be rejoined or extended — that's the whole point."
       />
     );
   }
@@ -117,12 +124,6 @@ export default async function TestRoomPage({ params, searchParams }: Props) {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <Link
-        href="/test"
-        className="absolute top-4 left-4 z-10 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur hover:text-white"
-      >
-        v2 preview
-      </Link>
       <TestCallRoom
         room={room}
         joinUrl={joinUrl}

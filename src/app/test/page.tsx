@@ -1,28 +1,18 @@
-import Link from "next/link";
-import TestCreateForm from "@/components/call-v2/test-create-form";
+import HomeContent from "@/components/home-content";
 
-// v2 call UI preview entry point (CALL_UI_REBUILD_SPEC.md). Andreas,
-// interactive: "Can we build this in parallel to the existing quick word
-// just under a folder like '/test' Just to see what it looks like before we
-// start overriding the current view." Deliberately unlinked from the
-// production home page (src/app/page.tsx) — reachable only by typing
-// /test, not from any nav a real visitor would see.
+// v2 call UI preview landing page (CALL_UI_REBUILD_SPEC.md). Andreas,
+// interactive, after the first version of this page looked nothing like the
+// real home page: "those two pages should be completely identical in both
+// functionalities and in UI... everything from creating it to the
+// confirmation to all everything." Renders the exact same HomeContent as
+// src/app/page.tsx — same Q watermark, same slogan, same create form, same
+// success/confirmation screen — with only `basePath="/test"` different, so
+// the generated link points at /test/[room] (the new call-object-mode call
+// page) instead of /[room] (Daily Prebuilt, unchanged). This route is
+// reachable only by typing /test directly — no link to it anywhere a real
+// visitor would see.
+export const dynamic = "force-dynamic";
 
 export default function TestHome() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-black px-6 py-24 text-center">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-white">Qwickword — v2 call UI preview</h1>
-        <p className="max-w-md text-sm text-zinc-400">
-          Daily call-object mode, styled like Google Meet — full-bleed video, a
-          floating control pill, branding as an overlay instead of a banner.
-          Pick a length to create a real (short) test call and see it live.
-        </p>
-      </div>
-      <TestCreateForm />
-      <Link href="/" className="text-xs text-zinc-600 underline underline-offset-4 hover:text-zinc-400">
-        Back to the real Qwickword
-      </Link>
-    </div>
-  );
+  return <HomeContent basePath="/test" />;
 }

@@ -94,94 +94,106 @@ export default function CallPrejoin({
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black px-4 py-8">
-      <div className="relative aspect-video w-full max-w-xl overflow-hidden rounded-2xl bg-zinc-900">
-        {videoTrack.isOff || !videoTrack.persistentTrack ? (
-          <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
-            {starting ? "Starting camera…" : "Camera is off"}
+      {/* Single width-controlling wrapper around the video, the device
+          pickers, and the Join button (2026-07-22, Andreas, interactive:
+          "the settings for the video call were not properly centered under
+          the video... they should be centered and ideally the same width").
+          Every child below is `w-full` and relies on THIS element for its
+          max-width/centering, rather than each declaring its own max-w-xl
+          separately — that duplication was the actual bug: any small
+          difference between the video's and the selects' own width/margin
+          classes would show up as visible misalignment. One source of truth
+          for the width fixes that by construction. */}
+      <div className="flex w-full max-w-xl flex-col items-center gap-4">
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-zinc-900">
+          {videoTrack.isOff || !videoTrack.persistentTrack ? (
+            <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
+              {starting ? "Starting camera…" : "Camera is off"}
+            </div>
+          ) : (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="h-full w-full -scale-x-100 object-cover"
+            />
+          )}
+
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/60 px-4 py-2 backdrop-blur">
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={starting}
+              aria-pressed={!audioTrack.isOff}
+              aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+              }`}
+            >
+              {audioTrack.isOff ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+            <button
+              type="button"
+              onClick={toggleCamera}
+              disabled={starting}
+              aria-pressed={!videoTrack.isOff}
+              aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+              }`}
+            >
+              {videoTrack.isOff ? <VideoOff size={18} /> : <Video size={18} />}
+            </button>
           </div>
-        ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="h-full w-full -scale-x-100 object-cover"
-          />
+        </div>
+
+        {(cameras.length > 0 || microphones.length > 0) && (
+          <div className="flex w-full flex-col gap-2 sm:flex-row">
+            {cameras.length > 0 && (
+              <select
+                aria-label="Camera"
+                onChange={(event) => setCamera(event.target.value)}
+                className="flex-1 rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
+              >
+                {cameras.map((cam) => (
+                  <option key={cam.device.deviceId} value={cam.device.deviceId}>
+                    {cam.device.label || "Camera"}
+                  </option>
+                ))}
+              </select>
+            )}
+            {microphones.length > 0 && (
+              <select
+                aria-label="Microphone"
+                onChange={(event) => setMicrophone(event.target.value)}
+                className="flex-1 rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
+              >
+                {microphones.map((mic) => (
+                  <option key={mic.device.deviceId} value={mic.device.deviceId}>
+                    {mic.device.label || "Microphone"}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         )}
 
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/60 px-4 py-2 backdrop-blur">
-          <button
-            type="button"
-            onClick={toggleMic}
-            disabled={starting}
-            aria-pressed={!audioTrack.isOff}
-            aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
-            }`}
-          >
-            {audioTrack.isOff ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
-          <button
-            type="button"
-            onClick={toggleCamera}
-            disabled={starting}
-            aria-pressed={!videoTrack.isOff}
-            aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
-            }`}
-          >
-            {videoTrack.isOff ? <VideoOff size={18} /> : <Video size={18} />}
-          </button>
-        </div>
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void handleJoin()}
+          disabled={starting || joining}
+          className="flex h-12 w-full items-center justify-center rounded-full bg-white px-6 text-base font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {joining ? "Joining…" : "Join"}
+        </button>
       </div>
-
-      {(cameras.length > 0 || microphones.length > 0) && (
-        <div className="flex w-full max-w-xl flex-col gap-2 sm:flex-row">
-          {cameras.length > 0 && (
-            <select
-              aria-label="Camera"
-              onChange={(event) => setCamera(event.target.value)}
-              className="flex-1 rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
-            >
-              {cameras.map((cam) => (
-                <option key={cam.device.deviceId} value={cam.device.deviceId}>
-                  {cam.device.label || "Camera"}
-                </option>
-              ))}
-            </select>
-          )}
-          {microphones.length > 0 && (
-            <select
-              aria-label="Microphone"
-              onChange={(event) => setMicrophone(event.target.value)}
-              className="flex-1 rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
-            >
-              {microphones.map((mic) => (
-                <option key={mic.device.deviceId} value={mic.device.deviceId}>
-                  {mic.device.label || "Microphone"}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <p role="alert" className="text-sm text-red-400">
-          {error}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={() => void handleJoin()}
-        disabled={starting || joining}
-        className="flex h-12 w-full max-w-xl items-center justify-center rounded-full bg-white px-6 text-base font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {joining ? "Joining…" : "Join"}
-      </button>
     </div>
   );
 }
