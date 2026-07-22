@@ -329,7 +329,18 @@ export default function CallMedia({
         // shape, since a wide desktop window is exactly where that shape
         // makes sense. Daily Prebuilt's own UI inside the iframe is already
         // responsive to whatever box it's given — this only changes the box.
-        className="h-[70vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-black/[.08] bg-black sm:aspect-video sm:h-auto dark:border-white/[.145]"
+        //
+        // Enlarged again 2026-07-22 (Andreas, interactive, comparing a
+        // screenshot against Google Meet: "notice how small our window is...
+        // Why can't we be as big?"). The `max-w-6xl` (1152px) cap was the
+        // culprit — on any monitor wider than that (most desktops), it left
+        // a large gap on either side that Meet, which stretches to fill the
+        // browser window, doesn't have. Dropped the cap entirely at `sm` and
+        // up (`sm:max-w-none`) so the call area now scales with the actual
+        // browser width, same as Meet — `PageShell`'s own horizontal padding
+        // (`sm:px-6`, `src/app/[room]/page.tsx`) is the only thing keeping
+        // it off the literal edge of the window.
+        className="h-[70vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-black/[.08] bg-black sm:aspect-video sm:h-auto sm:max-w-none dark:border-white/[.145]"
       >
         {mockMode ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-zinc-300">
