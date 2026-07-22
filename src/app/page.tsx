@@ -58,8 +58,8 @@ export default function Home() {
             {slogan}
           </p>
           <p className="text-lg leading-7 text-zinc-600 dark:text-zinc-400">
-            Set a time limit, share the link. When it hits zero, the call
-            ends — there is no extend button.
+            Set a time limit, share the link. When the timer hits zero, the
+            call ends.
           </p>
         </div>
 

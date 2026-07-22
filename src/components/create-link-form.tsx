@@ -165,19 +165,30 @@ export default function CreateLinkForm() {
   if (state.status === "success") {
     return (
       <div className="flex w-full flex-col items-center gap-4 text-center">
-        {showCopiedToast && (
-          // In-flow, not `fixed` (was fixed to the viewport top, which
-          // overlapped the page's own "Qwickword" heading above this card —
-          // Andreas flagged this 2026-07-21). Sitting in the normal layout
-          // right above the "ready" line keeps it near the action without
-          // ever covering unrelated content, regardless of viewport size.
-          <div
-            role="status"
-            className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-emerald-500"
-          >
-            Link copied to clipboard!
-          </div>
-        )}
+        {/* In-flow, not `fixed` (was fixed to the viewport top, which
+            overlapped the page's own "Qwickword" heading above this card —
+            Andreas flagged this 2026-07-21). Sitting in the normal layout
+            right above the "ready" line keeps it near the action without
+            ever covering unrelated content, regardless of viewport size.
+
+            Always rendered now, faded in/out via opacity rather than
+            mounted/unmounted (2026-07-22, Andreas: "the green clipboard
+            message pushes down the content because when it disappears it
+            makes the content reorient back up"). Conditionally rendering it
+            reserved no space while hidden, so the rest of the success screen
+            visibly jumped up the instant the toast's 2.5s timer unmounted
+            it. Keeping the element always in the DOM (just invisible)
+            reserves its height permanently, so nothing below it ever
+            moves. */}
+        <div
+          role="status"
+          aria-hidden={!showCopiedToast}
+          className={`rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity duration-200 dark:bg-emerald-500 ${
+            showCopiedToast ? "opacity-100" : "invisible opacity-0"
+          }`}
+        >
+          Link copied to clipboard!
+        </div>
         <p className="text-lg font-medium text-black dark:text-zinc-50">
           Your {formatDuration(state.durationSeconds)} Qwickword is ready.
         </p>
@@ -197,14 +208,14 @@ export default function CreateLinkForm() {
           <button
             type="button"
             onClick={() => handleCopy(state.link)}
-            className="shrink-0 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+            className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           >
             {copied ? "Copied!" : "Copy link"}
           </button>
         </div>
         <Link
           href={state.roomPath}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-foreground px-5 text-base font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
         >
           Join the meeting now
         </Link>
@@ -287,7 +298,7 @@ export default function CreateLinkForm() {
       <button
         type="submit"
         disabled={isLoading || !isValidDuration}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-foreground px-5 text-base font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-[#ccc]"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
       >
         {isLoading ? "Creating…" : "Create Qwickword"}
       </button>

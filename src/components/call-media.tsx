@@ -281,9 +281,36 @@ export default function CallMedia({
     // firing correctly. Cheap (participants() is a local, synchronous read,
     // no network call) and idempotent (reportCount/recomputeTally are safe
     // to call redundantly).
+    //
+    // Extended the same day (Andreas, interactive: "Its still counting down
+    // after I leave the call. the countdown should disappear after I leave
+    // the call") — the `left-meeting` event listener above was already in
+    // place and confirmed live in the deployed bundle, but didn't fire for
+    // him in practice: the countdown and "End for everyone" controls kept
+    // rendering even after Daily Prebuilt's own UI showed its "You've left
+    // the call" screen. Same shape of problem as the auto-start bug above —
+    // an event this feature depends on isn't reliably reaching this
+    // listener — so the same fix applies: stop trusting the event alone and
+    // also poll daily-js's own authoritative `meetingState()` directly.
+    // `hasReportedLeftRef` makes this a one-shot signal even though the poll
+    // itself repeats every 2s (once the local participant has left, calling
+    // `onLeftMeeting` again on every subsequent tick would be redundant, not
+    // harmful, but there's no reason to keep doing it).
+    const hasReportedLeftRef = { current: false };
     const backstopIntervalId = setInterval(() => {
       reportCount();
       recomputeTally();
+      if (!hasReportedLeftRef.current) {
+        try {
+          const state = callObject!.meetingState();
+          if (state === "left-meeting" || state === "error") {
+            hasReportedLeftRef.current = true;
+            handleLeftMeeting();
+          }
+        } catch (err) {
+          console.error("[Qwickword] Failed to read meetingState() in the backstop poll:", err);
+        }
+      }
     }, 2000);
 
     return () => {
