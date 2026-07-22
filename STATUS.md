@@ -42,6 +42,27 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Homepage polish + real fix for countdown surviving a left call (2026-07-22, interactive, deployed
+  to production):** four quick items in one pass. (1) CTA buttons (Copy link, Join the meeting now,
+  Create Qwickword) switched from `bg-foreground`/`text-background` — a near-white gray (#ededed) in
+  dark mode, not solid white, per Andreas: "i dont like that the button is not white by default" — to
+  explicit solid black/white with a dark-mode flip, matching the rest of the app. (2) The "Link copied to
+  clipboard!" toast was conditionally rendered, so it reserved zero space while hidden and the whole
+  success screen visibly jumped when its 2.5s timer unmounted it — Andreas: "the green clipboard message
+  pushes down the content... when it disappears it makes the content reorient back up." Now always
+  rendered, faded via opacity instead of mounted/unmounted, so its height stays permanently reserved.
+  (3) Trimmed the homepage tagline per "Remove the 'There is no extend button' text. and it should be
+  When the *timer* hits zero, no when *it*." (4) A real bug: "Its still counting down after I leave the
+  call. the countdown should disappear after I leave the call" — the `left-meeting` listener from the
+  earlier same-day fix was confirmed present in the live production bundle (checked directly against the
+  deployed JS chunks) but didn't fire for him in practice. Same shape of problem as the earlier auto-start
+  bug: don't trust a single daily-js event. Added a `meetingState()` backstop poll piggybacking the
+  existing 2s interval in `call-media.tsx` — an independent, direct read of daily-js's own state that
+  fires the same `onLeftMeeting` callback if the event was missed. Verified `eslint`/`tsc --noEmit`/
+  `next build` clean; live-smoke-tested the homepage copy changes directly against the deployed HTML.
+  The left-meeting backstop itself is, like the auto-start backstop before it, verified by code review
+  rather than a real two-browser reproduction (still no headless browser in this sandbox) — worth
+  confirming with Andreas on his next real call.
 - **Call-stats persistence via Neon Postgres (2026-07-22, interactive, deployed to production):**
   Andreas: "can you help me understand how we store memory of how many calls have been made and how
   many minutes have been done and statistics on calls... I'd want to have that stored somewhere." This
