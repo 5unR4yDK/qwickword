@@ -1,6 +1,4 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { getDailyConfig } from "@/lib/daily-config";
 import { remainingMsUntil } from "@/lib/time";
 import {
@@ -61,13 +59,24 @@ import InvalidLinkScreen from "@/components/invalid-link-screen";
  * than trusting the link's own `exp`, since that's the only way two tabs
  * opening the same link at very different times agree on the same real
  * countdown once it's started. CallRoom (src/components/call-room.tsx) is
- * what actually starts it (a manual "Start now" button, or daily-js
- * detecting a second participant) and owns the waiting-vs-counting-down UI.
+ * what actually starts it (a manual "Start now" button, or a second
+ * participant joining) and owns the waiting-vs-counting-down UI.
  *
  * Backward compatible with links minted before this feature (`d` missing):
  * those links' `exp` was already the real, already-ticking countdown at
  * creation time — this page treats a missing `d` as "already started," so an
  * older link keeps behaving exactly as it always did.
+ *
+ * Full-bleed black wrapper, no header/footer chrome (2026-07-22, Andreas,
+ * interactive: promoting the call-object-mode UI — previously /test-only —
+ * to be the default production call experience, replacing this page's old
+ * light "Qwickword" header + call card + footer link, since that whole
+ * design assumed a Daily Prebuilt iframe sized to fit inside a card rather
+ * than video filling the viewport). `fixed inset-0 h-dvh w-dvw` (rather than
+ * `h-screen`/`w-screen`) is the same mobile-viewport fix already proven out
+ * on the old /test route: `h-dvh` tracks the CURRENT visible height as the
+ * browser chrome shows/hides, so there's never a way to scroll the countdown
+ * or controls out of view.
  */
 
 type Props = {
@@ -126,29 +135,6 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   };
 }
 
-function PageShell({ children }: { children: ReactNode }) {
-  // Padding/gap trimmed on mobile (2026-07-21, alongside CallMedia's enlarged
-  // video area, same complaint about the call feeling small/cropped) — every
-  // bit of vertical room matters on a phone screen; sm and up keeps the
-  // original, more generous spacing.
-  return (
-    <div className="flex flex-1 flex-col items-center gap-3 bg-zinc-50 px-4 py-4 sm:gap-6 sm:px-6 sm:py-10 dark:bg-black">
-      <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
-        Qwickword
-      </h1>
-
-      {children}
-
-      <Link
-        href="/"
-        className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-800 dark:hover:text-zinc-200"
-      >
-        Create your own Qwickword
-      </Link>
-    </div>
-  );
-}
-
 export default async function RoomPage({ params, searchParams }: Props) {
   const { room } = await params;
   const { exp: rawExp, d: rawDuration } = await searchParams;
@@ -162,12 +148,12 @@ export default async function RoomPage({ params, searchParams }: Props) {
 
   if (!hasValidRoomName || !hasValidLinkExp) {
     return (
-      <PageShell>
+      <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
         <InvalidLinkScreen
           heading="This link isn't valid"
           message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
         />
-      </PageShell>
+      </div>
     );
   }
 
@@ -192,12 +178,12 @@ export default async function RoomPage({ params, searchParams }: Props) {
       } catch (err) {
         if (err instanceof DailyRoomError && err.status === 404) {
           return (
-            <PageShell>
+            <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
               <InvalidLinkScreen
                 heading="This Qwickword doesn't exist"
                 message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
               />
-            </PageShell>
+            </div>
           );
         }
         // Unexpected error (network blip, Daily hiccup) — fall back to the
@@ -218,12 +204,12 @@ export default async function RoomPage({ params, searchParams }: Props) {
       const exists = await checkDailyRoomExists(room);
       if (!exists) {
         return (
-          <PageShell>
+          <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
             <InvalidLinkScreen
               heading="This Qwickword doesn't exist"
               message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
             />
-          </PageShell>
+          </div>
         );
       }
     }
@@ -233,7 +219,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
   const joinUrl = mockMode ? null : `https://${domain}/${room}`;
 
   return (
-    <PageShell>
+    <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
       <CallRoom
         room={room}
         exp={exp}
@@ -243,6 +229,6 @@ export default async function RoomPage({ params, searchParams }: Props) {
         mockMode={mockMode}
         joinUrl={joinUrl}
       />
-    </PageShell>
+    </div>
   );
 }

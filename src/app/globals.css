@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (2026-07-22, Andreas, interactive: "introduce the
+   toggle top left corner... to dark mode... default is dark mode and then...
+   someone who doesn't like dark mode can switch it off"). Without this,
+   Tailwind v4's `dark:` variant defaults to `prefers-color-scheme: dark` —
+   it follows the OS/browser setting with no way for a visitor to override
+   it. This line makes every `dark:` utility in the app respond to a `.dark`
+   class on <html> (or an ancestor) instead, which src/app/layout.tsx sets by
+   default and src/components/theme-toggle.tsx flips client-side. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,11 +22,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Was `@media (prefers-color-scheme: dark)` — switched to the same `.dark`
+   class selector as the custom variant above, so this base body
+   background/foreground always agrees with every `dark:` Tailwind utility
+   on the page, rather than the two ever being able to disagree (OS says
+   dark, manual toggle says light, or vice versa). */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {

@@ -81,8 +81,30 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
+      // Defaults to dark (2026-07-22, Andreas, interactive: "the default is
+      // dark mode and then... someone who doesn't like dark mode can switch
+      // it off"). The `dark` class here is what src/app/globals.css's
+      // `@custom-variant dark` now keys every `dark:` utility off of.
+      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} dark h-full antialiased`}
     >
+      <head>
+        {/* Blocking (no defer/async), runs before first paint — the
+            standard fix for the "flash of wrong theme" problem: without
+            this, a visitor who'd previously chosen light mode would see a
+            flash of dark (the server-rendered default above) before
+            src/components/theme-toggle.tsx's own React effect ever runs.
+            Only ever REMOVES the dark class (when localStorage explicitly
+            says "light") — if unset, or set to "dark", or reading
+            localStorage throws (private browsing, disabled storage), it's a
+            silent no-op and the server-rendered dark default just stands,
+            which is the correct fallback either way. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('qwickword-theme')==='light'){document.documentElement.classList.remove('dark');}}catch(e){}",
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         {/* Vercel Web Analytics (2026-07-22, Andreas, interactive: "I would

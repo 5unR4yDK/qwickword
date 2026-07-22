@@ -1,15 +1,9 @@
 "use client";
 
-// v2 call UI preview — CALL_UI_REBUILD_SPEC.md, section 2 ("Floating bottom
-// control bar") and section 3b. A small centered pill of icon buttons over
-// the video, matching Meet's placement/weight — replacing Daily Prebuilt's
-// full-width control tray, which the production /[room] flow still uses.
-//
-// Scope note (see CALL_UI_REBUILD_SPEC.md section 6 and STATUS.md): this
-// preview intentionally does NOT yet include the "End for everyone" vote
-// button from the production flow (src/components/call-room.tsx) — mic,
-// camera, and leave only, enough to judge the Meet-style look before
-// porting the rest of the call's behaviour over.
+// Floating bottom control bar — CALL_UI_REBUILD_SPEC.md, section 2 and 3b. A
+// small centered pill of icon buttons over the video, matching Meet's
+// placement/weight. Promoted to production 2026-07-22 alongside the rest of
+// the call-object-mode UI — see src/components/call-room.tsx.
 
 import { useCallback } from "react";
 import { Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from "lucide-react";
@@ -21,16 +15,28 @@ import {
   useVideoTrack,
 } from "@daily-co/daily-react";
 
-export default function CallControls({ onLeave }: { onLeave: () => void }) {
+export default function CallControls({
+  onLeave,
+  started,
+  starting,
+  onStart,
+}: {
+  onLeave: () => void;
+  /** Whether the real countdown has started — see call-room.tsx. */
+  started: boolean;
+  /** True while a triggerStart() request is in flight. */
+  starting: boolean;
+  /** Manual start trigger — the other path (a second participant joining) is
+   * handled by call-room.tsx's own AutoStartWatcher, not this component. */
+  onStart: () => void;
+}) {
   const daily = useDaily();
   const localSessionId = useLocalSessionId();
   const videoTrack = useVideoTrack(localSessionId ?? "");
   const audioTrack = useAudioTrack(localSessionId ?? "");
-  // "we also need to be able to share screen like in Google Meet"
-  // (2026-07-22, Andreas, interactive). isSharingScreen only reflects the
-  // LOCAL participant's own share — this button toggles that; whichever
-  // participant (either side) is sharing gets the spotlight in
-  // call-video-grid.tsx regardless of who started it.
+  // isSharingScreen only reflects the LOCAL participant's own share — this
+  // button toggles that; whichever participant (either side) is sharing gets
+  // the spotlight in call-video-grid.tsx regardless of who started it.
   const { isSharingScreen, startScreenShare, stopScreenShare } = useScreenShare();
 
   const toggleMic = useCallback(() => {
@@ -51,7 +57,7 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
 
   const handleLeave = useCallback(() => {
     daily?.leave().catch((err) => {
-      console.error("[Qwickword v2] Failed to leave the call cleanly:", err);
+      console.error("[Qwickword] Failed to leave the call cleanly:", err);
     });
     onLeave();
   }, [daily, onLeave]);
@@ -61,9 +67,8 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
       className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
     >
-      {/* Explicit safe-area padding (2026-07-22, Andreas, interactive,
-          mobile) so the control pill clears the home-indicator bar on
-          notched phones, same reasoning as call-overlay.tsx's top padding. */}
+      {/* Explicit safe-area padding so the control pill clears the
+          home-indicator bar on notched phones. */}
       <button
         type="button"
         onClick={toggleMic}
@@ -97,6 +102,30 @@ export default function CallControls({ onLeave }: { onLeave: () => void }) {
       >
         {isSharingScreen ? <MonitorX size={18} /> : <MonitorUp size={18} />}
       </button>
+      {/* "Start now," folded into this same pill (2026-07-22, Andreas,
+          interactive: "the start now button... should feature down next to
+          the toggle buttons for microphone and camera and sharing and
+          ending call... an equally colored, equally formatted button down
+          there... of equal height and same coloring format"). Used to be a
+          separate floating white pill top-right, disconnected from the rest
+          of the call's controls — now it's just another member of the same
+          bar, same h-11 height as every icon button beside it. Kept the
+          white fill (rather than the neutral bg-white/15 the toggle buttons
+          use) since Start is a one-time primary action, not a toggle — same
+          "white = the primary action" language this app already uses for
+          Join/Copy/Create elsewhere. Only rendered before the countdown has
+          actually started; once `started` is true there's nothing left to
+          start. */}
+      {!started && (
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={starting}
+          className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {starting ? "Starting…" : "Start now"}
+        </button>
+      )}
       <button
         type="button"
         onClick={handleLeave}

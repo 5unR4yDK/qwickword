@@ -1,14 +1,20 @@
 "use client";
 
-// v2 call UI preview — CALL_UI_REBUILD_SPEC.md, section 2 ("Video is the
-// entire canvas") and section 3b. Full-bleed video, self-view as a small
-// corner PIP — the Google Meet convention this rebuild chases.
+// The call's video surface — CALL_UI_REBUILD_SPEC.md, section 2 ("Video is
+// the entire canvas"). Full-bleed video, self-view as a small corner PIP —
+// the Google Meet convention this rebuild chases. Promoted to production
+// 2026-07-22 (Andreas, interactive: "the test setup as now being the
+// default setup... at least as it relates to the video view, how the video
+// is viewed, that is now the standard") — this file used to live at
+// src/components/call-v2/call-video-grid.tsx as a parallel /test preview;
+// it's now simply THE call video surface, no "v2"/"test" framing left
+// anywhere in the app.
 //
-// Extended 2026-07-22 (Andreas, interactive, after trying the first version
-// solo): "for the self view it should be possible to pin myself so that I
-// just see myself because at the moment it was impossible for me to see how
-// big the screen actually was... unless I had someone else join the call
-// which I can't when I'm just testing." Two changes:
+// Self-view pin (added after trying the first version solo): "for the self
+// view it should be possible to pin myself so that I just see myself
+// because at the moment it was impossible for me to see how big the screen
+// actually was... unless I had someone else join the call which I can't
+// when I'm just testing." Two changes:
 //  1. When nobody else is in the call, the local participant is now the
 //     MAIN tile automatically (not a tiny corner PIP next to an empty
 //     "waiting" placeholder) — solves the actual problem (judging the
@@ -16,41 +22,35 @@
 //  2. An explicit pin control: click the small PIP tile's pin icon to swap
 //     it into the main position; the main tile then shows an "unpin" icon
 //     to go back to automatic (remote-takes-main-if-present) layout.
-// Also added: the small PIP tile is now draggable (pointer events, clamped
-// to the video container's bounds) instead of fixed in the bottom-right
-// corner where Andreas found it "very close to the edge of the browser" and
-// un-movable. And: a camera-off state now shows a generic avatar circle
-// instead of plain black, so it's visually clear someone's still there with
-// their camera off, not that the video failed — Andreas: "there's no
-// monogram or any indication... I think there has to be something to
-// indicate that it's just the video is off."
+// Also: the small PIP tile is draggable (pointer events, clamped to the
+// video container's bounds) instead of fixed in a corner. And: a camera-off
+// state shows a generic avatar circle instead of plain black, so it's
+// visually clear someone's still there with their camera off, not that the
+// video failed.
 //
-// Screen share (Andreas: "we also need to be able to share screen like in
-// Google Meet"): when either participant is sharing, the shared screen
-// takes over the main tile (Meet's own convention — screen share always
-// gets the spotlight), and both camera feeds drop to a small tile strip.
-// Toggling share itself lives in call-controls.tsx (useScreenShare's
+// Screen share: when either participant is sharing, the shared screen takes
+// over the main tile (Meet's own convention — screen share always gets the
+// spotlight), and both camera feeds drop to a small tile strip. Toggling
+// share itself lives in call-controls.tsx (useScreenShare's
 // startScreenShare/stopScreenShare) — this component only renders whatever
 // useScreenShare reports.
 //
 // Never crop a camera feed (2026-07-22, Andreas, interactive, after a real
-// two-tab test — phone joining a desktop call): every DailyVideo below used
+// two-tab test — phone joining a desktop call): every DailyVideo used to use
 // `fit="cover"`, which fills its box by CROPPING whatever doesn't fit the
-// box's own aspect ratio. Andreas caught the real consequence of that
-// live: "the larger I made the window... the more it seemed to zoom in on
-// my face... the smaller I made the browser window, the more was being
+// box's own aspect ratio. Andreas caught the real consequence of that live:
+// "the larger I made the window... the more it seemed to zoom in on my
+// face... the smaller I made the browser window, the more was being
 // included from the phone feed." That's cover working as designed, not a
 // bug in the usual sense — a wide desktop window is a very different shape
 // from a phone's portrait camera feed, and cover crops harder the further
 // those two shapes diverge, so resizing the window changed how much got
 // cropped away. His call: "we should never be cropping the image... we'd
 // rather want to maximize the image inside of the available frame." Every
-// DailyVideo in this file now uses `fit="contain"` instead — the full
-// camera frame is always visible, letterboxed (black bars, matching each
-// tile's own bg-black) on whichever dimension doesn't match, rather than
-// ever cutting part of the picture off. Applies uniformly to the main tile,
-// the PIP, and the screen-share camera strip — "that goes both on the phone
-// and it goes also on the desktop."
+// DailyVideo here uses `fit="contain"` instead — the full camera frame is
+// always visible, letterboxed (black bars, matching each tile's own
+// bg-black) on whichever dimension doesn't match, rather than ever cutting
+// part of the picture off.
 
 import { useCallback, useRef, useState } from "react";
 import { Pin, PinOff, User } from "lucide-react";
@@ -66,12 +66,42 @@ type Offset = { x: number; y: number };
 
 const ZERO_OFFSET: Offset = { x: 0, y: 0 };
 
-/** Generic silhouette shown in place of video when a camera track is off. */
-function AvatarFallback() {
+/**
+ * Camera-off fallback for the full-bleed MAIN tile — a bordered box in the
+ * video's own aspect ratio, centered on the tile's black backdrop, rather
+ * than a flat fill covering the entire screen. (2026-07-22, Andreas,
+ * interactive: "when we switch off the video... everything just becomes
+ * black but I think actually we should still be seeing the outline of
+ * where the video field was normally... I think that's normal in other
+ * applications.") Deliberately the same "frame, not a flat fill" idea as
+ * the `fit="contain"` change above — the bordered box IS the outline of
+ * where the video would render if the camera were on.
+ */
+function MainAvatarFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-black p-6 sm:p-10">
+      <div className="flex aspect-video max-h-full max-w-full flex-1 items-center justify-center rounded-2xl border border-white/15 bg-zinc-900">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
+          <User size={24} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Camera-off fallback for the small PIP/thumbnail tiles. These already sit
+ * inside their own bordered/rounded container (see PipTile and the
+ * screen-share camera strip below), which already reads as "the outline of
+ * where the video would be" at that size — a second nested bordered box
+ * inside an already-small tile would just look cramped, so this stays a
+ * simple flat fill.
+ */
+function SmallAvatarFallback() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-zinc-800">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
-        <User size={24} />
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
+        <User size={18} />
       </div>
     </div>
   );
@@ -99,21 +129,8 @@ function MainTile({
   return (
     <div className="absolute inset-0 bg-black">
       {showAvatar ? (
-        <AvatarFallback />
+        <MainAvatarFallback />
       ) : (
-        // fit="contain" (was "cover") — 2026-07-22, Andreas, interactive:
-        // "we should never be cropping the image... maximize it as far as
-        // we can inside of the canonical architecture... it's OK if
-        // there're empty spaces out on the right and on the left." Also
-        // explains the "the larger I made the window the more it seemed to
-        // zoom in on my face" report: object-fit: cover crops MORE as the
-        // container's aspect ratio diverges further from the source
-        // video's — a wide desktop window vs. a portrait phone feed is
-        // exactly that divergence, so making the window wider kept cropping
-        // tighter around the middle of the frame. `contain` never crops at
-        // all, at any container shape — it letterboxes (shows black bars,
-        // matching this tile's own bg-black) instead, so the full webcam
-        // frame is always visible regardless of window size.
         <DailyVideo
           automirror
           fit="contain"
@@ -212,10 +229,8 @@ function PipTile({
       className="absolute bottom-24 right-6 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 bg-black shadow-lg active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
     >
       {track.isOff ? (
-        <AvatarFallback />
+        <SmallAvatarFallback />
       ) : (
-        // fit="contain" (was "cover") — same reasoning as MainTile above:
-        // never crop, letterbox against this tile's own bg-black instead.
         <DailyVideo
           automirror
           fit="contain"
@@ -270,10 +285,6 @@ export default function CallVideoGrid() {
               key={id}
               className="h-16 w-24 overflow-hidden rounded-lg border border-white/15 bg-black shadow-lg sm:h-20 sm:w-32"
             >
-              {/* fit="contain" (was "cover") — same "never crop" rule
-                  applied consistently everywhere DailyVideo renders a
-                  camera feed in this file, per Andreas: "that goes both on
-                  the phone and it goes also on the desktop." */}
               <DailyVideo
                 automirror
                 fit="contain"

@@ -2,30 +2,24 @@ import Link from "next/link";
 import { getDailyConfig } from "@/lib/daily-config";
 import { pickRandomSlogan } from "@/lib/slogans";
 import CreateLinkForm from "@/components/create-link-form";
+import ThemeToggle from "@/components/theme-toggle";
 
 /**
  * The home page's actual content — extracted out of src/app/page.tsx
- * (2026-07-22) so the v2 call UI preview's landing page
- * (src/app/test/page.tsx) can render the exact same markup, one prop
- * different. Andreas, interactive, after seeing the preview's landing page
- * look nothing like the real one: "those two pages should be completely
- * identical in both functionalities and in UI... everything from creating
- * it to the confirmation to all everything." A hand-duplicated copy of this
- * JSX in two files could only ever drift over time as one got tweaked and
- * not the other — a single shared component makes that impossible.
- *
- * `basePath` is the only thing that varies: "" for the real flow
- * (CreateLinkForm builds `/[room]` links), "/test" for the preview
- * (`/test/[room]` links, which render the new call-object-mode UI instead
- * of today's Daily Prebuilt iframe — see CALL_UI_REBUILD_SPEC.md). Nothing
- * else about the page differs, on purpose.
+ * (2026-07-22) for what was, at the time, the v2 call UI preview's landing
+ * page. That preview (and the /test route it lived under) was removed the
+ * same day once the call-object-mode UI it previewed was promoted to be the
+ * production default (see src/components/call-room.tsx) — this component
+ * now just is the home page's content, no basePath/variant split left.
  */
-export default function HomeContent({ basePath = "" }: { basePath?: string }) {
+export default function HomeContent() {
   const { mockMode } = getDailyConfig();
   const slogan = pickRandomSlogan();
 
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
+      <ThemeToggle />
+
       {/* Ambient background glow, spreading out from the Q (2026-07-22,
           Andreas, interactive: "a little bit more sort of a purple hue dark
           deep purple a deep marine blue mix hue that sort of spreads out
@@ -93,7 +87,7 @@ export default function HomeContent({ basePath = "" }: { basePath?: string }) {
           </p>
         </div>
 
-        <CreateLinkForm basePath={basePath} />
+        <CreateLinkForm />
 
         {/* Still discreet — muted, unlabeled beyond a single lowercase word,
             not styled as a real nav item — but moved into the main content

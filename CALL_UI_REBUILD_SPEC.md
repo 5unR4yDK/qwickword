@@ -1,10 +1,17 @@
 # Qwickword — Call UI Rebuild Spec (Daily call-object mode, Google Meet-style)
 
-Status: **draft, not started.** Written 2026-07-22 after Andreas asked whether the call window could
-be maximized and Daily Prebuilt's banners shrunk or overlaid — the honest answer was that Daily
-Prebuilt's own chrome (header bar, control tray) isn't ours to resize past a point, only Daily's own
-theme/CSS hooks. Andreas chose the full rebuild: "i like the rebuild full control... We want it to look
-very similar to Google Meets." This document specifies that rebuild before any code is written.
+Status: **shipped and live in production.** Written 2026-07-22 after Andreas asked whether the call
+window could be maximized and Daily Prebuilt's banners shrunk or overlaid — the honest answer was that
+Daily Prebuilt's own chrome (header bar, control tray) isn't ours to resize past a point, only Daily's
+own theme/CSS hooks. Andreas chose the full rebuild: "i like the rebuild full control... We want it to
+look very similar to Google Meets." Built as a parallel `/test` preview the same day this spec was
+written, iterated on over several follow-up sessions (mobile viewport, prejoin device-select alignment,
+never-crop video, cursor-pointer sweep, dark-mode button colors), then promoted to be the production
+default and the `/test` preview deleted entirely, 2026-07-22 (Andreas, interactive: "the test setup as
+now being the default setup... that is now the standard"). `src/components/call-media.tsx` (the old
+Daily Prebuilt iframe wrap described just below) no longer exists — `src/components/call-room.tsx` now
+owns a call-object-mode call directly, per the design below. See ROADMAP.md's "Rebuild the call UI on
+Daily's call-object mode" entry and STATUS.md for the full promotion detail.
 
 ## 1. What's changing and why
 

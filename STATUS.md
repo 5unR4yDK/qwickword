@@ -10,6 +10,13 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **The call-object-mode UI (formerly the `/test` preview) is now the production default, and `/test`
+  no longer exists (2026-07-22, interactive — full detail in the run-history entry below).**
+  `src/components/call-room.tsx` owns a real Daily call object directly (`@daily-co/daily-react`), not
+  a Daily Prebuilt `<iframe>` — `src/components/call-media.tsx` and `call-countdown.tsx` are deleted,
+  as is the whole `src/components/call-v2/` and `src/app/test/` scaffolding. `src/app/[room]/page.tsx`
+  is now a full-bleed black `fixed inset-0 h-dvh w-dvw` layout with no header/footer chrome. The home
+  page also gained a dark/light mode toggle (`src/components/theme-toggle.tsx`), dark by default.
 - **Vote to end early (Phase 1, built 2026-07-22, nightly; not yet deployed):** once a call has
   `started`, an "End for everyone" toggle plus a live "N of M want to end early" count let
   participants cut a call short — the instant a strict majority (>50%) has voted, the room's `exp` is
@@ -1875,3 +1882,72 @@ throwaway scratch dir, not touching the mount).
   current API, per this project's standing habit of not shipping unverified claims.
   Verified (`eslint`, `tsc --noEmit`, `next build`, all clean) in `/tmp/qwickword`, committed, pushed,
   deployed to Vercel production, confirmed `Ready` and aliased to `qwickword.com`.
+- 2026-07-22 (interactive): **the call-object-mode UI, previously the `/test` preview, promoted to be
+  the production default; `/test` deleted entirely.** Andreas: "the test setup as now being the
+  default setup I think we have done good work on the test setup and it should be the standard...
+  at least as it relates to the video view, how the video is viewed, that is now the standard,"
+  plus four specific refinements, plus a dark-mode toggle, all in one interactive turn. Broken down:
+  1. **Dark/light toggle, dark by default.** New `src/components/theme-toggle.tsx`, top-left on the
+     home page. `src/app/globals.css` switched from `@media (prefers-color-scheme: dark)` to Tailwind
+     v4's `@custom-variant dark (&:where(.dark, .dark *));`, keyed off a `.dark` class Set server-side
+     on `<html>` (`src/app/layout.tsx`) rather than the OS setting alone. A small blocking inline
+     `<script>` in `layout.tsx`'s `<head>` (runs before paint) removes the `dark` class when
+     `localStorage`'s `qwickword-theme` key says "light," avoiding a flash of the wrong theme —
+     otherwise a silent no-op, so the server-rendered dark default stands. Choice persisted per-browser
+     via `localStorage`, no accounts, consistent with the app's standing "no login" stance.
+  2. **Call-object-mode promoted from `/test` to production.** `src/components/call-room.tsx` now
+     creates a real Daily call object directly (`DailyIframe.createCallObject()`) instead of wrapping a
+     Daily Prebuilt `<iframe>` (`DailyIframe.wrap()`) — the entire custom UI built and iterated on under
+     `/test` over the preceding sessions (prejoin, video grid, overlay, controls) is now what every real
+     Qwickword call renders. Every reliability fix the old iframe-based flow had earned through real
+     production bugs was ported onto the new lifecycle, not dropped: the cross-tab waiting poll
+     (durationSeconds-aware server-side auto-start), the clock-skew resync poll, the presence-based
+     leave/empty-room backstop (Daily's own `GET /rooms/:name/presence`), and vote-to-end-early — the
+     last of these re-homed into a new `src/components/call-end-vote.tsx`, which uses `useDaily()` to
+     read/broadcast over the same call object the rest of the tree already has, rather than wrapping its
+     own iframe the way the old `call-media.tsx` did; same app-message broadcast/tally mechanism
+     otherwise. The T-10s audio-tick countdown cue (previously in `call-countdown.tsx`, never carried
+     into the `/test` preview) was folded into the new `src/components/call-overlay.tsx` so it wasn't
+     silently lost in the promotion.
+  3. **"Start now" moved into the main control pill.** Andreas: "the start now button... should feature
+     down next to the toggle buttons for microphone and camera and sharing and ending call... an equally
+     colored, equally formatted button down there... of equal height and same coloring format." Used to
+     float as its own white pill, top-right, disconnected from the rest of the call's controls; now it's
+     `h-11`, same as every icon button beside it, inside `src/components/call-controls.tsx`'s existing
+     bottom pill — only rendered before `started`.
+  4. **Bigger desktop timer.** Andreas: "on desktop it's OK for the counter... to be slightly bigger...
+     it should be more central given how important it is." `call-overlay.tsx`'s countdown grew from a
+     flat `text-2xl` to `text-2xl sm:text-4xl` — unchanged on mobile (tighter screens, the existing size
+     already read fine there), bigger from the `sm` breakpoint up.
+  5. **Camera-off fallback now shows the outline of where video would be**, instead of the tile going
+     flat black. Andreas: "when we switch off the video... everything just becomes black but I think
+     actually we should still be seeing the outline of where the video field was normally... that's
+     normal in other applications." `src/components/call-video-grid.tsx`'s main-tile fallback
+     (`MainAvatarFallback`) is now a bordered, rounded, aspect-video box centered on the black backdrop
+     — the border itself reads as the outline. The small PIP tile's fallback is unchanged (it already
+     sits inside its own bordered container at that size, so a second nested border would just look
+     cramped).
+  **Also, per Andreas's explicit closing instruction ("remove the test view so just completely get rid
+  of that secondary version two page preview"):** `src/app/test/` and `src/components/call-v2/` deleted
+  entirely, along with the now-superseded `src/components/call-media.tsx` and `call-countdown.tsx`.
+  `src/app/[room]/page.tsx` dropped its old light `PageShell` header/footer wrapper (a "Qwickword" `<h1>`
+  + card + footer link, sized for a Prebuilt iframe sitting inside a card) for the same full-bleed black
+  `fixed inset-0 h-dvh w-dvw` layout the `/test` route pioneered for the mobile-viewport fix — video now
+  fills the whole page, not a card on a page. `src/components/invalid-link-screen.tsx` restyled to match
+  (full-bleed black, matching `call-room.tsx`'s own "ended"/"left" screens) rather than looking like a
+  leftover light-theme card. `src/components/create-link-form.tsx` and `home-content.tsx` dropped the
+  now-dead `basePath` prop that used to let `/test`'s landing page reuse the same components.
+  **Verified:** ran the full pipeline from a fresh `/tmp/qwickword` scratch sync — `eslint` clean (one
+  real finding along the way: `theme-toggle.tsx`'s mount effect set `isDark` synchronously inside the
+  effect body, tripping `react-hooks/set-state-in-effect`; fixed with the same zero-delay-`setTimeout`
+  deferral pattern already used elsewhere in this app, e.g. `call-room.tsx`'s countdown tick), `tsc
+  --noEmit` clean (caught two real leftovers: a stale `.next/types` cache still referencing the just-
+  deleted `/test` routes, cleared by removing `.next` before re-running; and `home-content.tsx` still
+  passing a now-nonexistent `basePath` prop into `CreateLinkForm`, fixed), and `next build` clean —
+  route table confirms no `/test` routes remain, and `/[room]` builds as the expected dynamic (`ƒ`)
+  route. No real two-person live-call test was possible in this sandbox (still no working headless
+  browser — consistent with every other daily-js feature in this project to date); verified by code
+  review, plus the fact that every reliability mechanism carried over is the same one already proven
+  live in production before tonight, just re-homed onto the call-object lifecycle. Committed, pushed,
+  and deployed to Vercel production — see the deploy confirmation immediately following this entry, if
+  present, or ASKS.md for anything still open.

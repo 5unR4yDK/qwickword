@@ -1,10 +1,45 @@
 "use client";
 
+// The call page's live, ticking core: the call-object lifecycle, the
+// prejoin/in-call/left state machine, the countdown/auto-start/vote-to-end
+// mechanics, and the hard swap to a "Time's up" screen once the shared `exp`
+// passes. Promoted to production 2026-07-22 (Andreas, interactive: "the test
+// setup as now being the default setup... I think we have done good work on
+// the test setup and it should be the standard") — this file used to wrap a
+// Daily Prebuilt <iframe> (DailyIframe.wrap(), see the old
+// src/components/call-media.tsx, deleted the same day); it now owns a
+// call-object-mode call directly (DailyIframe.createCallObject(), no
+// iframe — full custom UI via @daily-co/daily-react, see
+// CALL_UI_REBUILD_SPEC.md) with a custom prejoin screen, video grid, overlay,
+// and control bar (call-prejoin.tsx / call-video-grid.tsx / call-overlay.tsx /
+// call-controls.tsx) instead of Daily's own hosted lobby + Prebuilt chrome.
+//
+// Everything the old iframe-based flow had earned through real production
+// bugs is carried over unchanged, just re-homed onto the call-object
+// lifecycle instead of an iframe:
+//  - Cross-tab waiting poll (durationSeconds-aware server-side auto-start).
+//  - Clock-skew resync poll, plus the presence-based leave/empty-room
+//    backstop (Daily's own /rooms/:name/presence, independent of any single
+//    tab's own daily-js state).
+//  - Vote-to-end-early (now in call-end-vote.tsx, using useDaily() instead of
+//    wrapping an iframe, but the same app-message broadcast/tally mechanism).
+//  - mockMode's no-API-key fallback (no real Daily call to create at all).
+//
+// "The start now button... should feature down next to the toggle buttons
+// for microphone and camera and sharing and ending call... equal height and
+// same coloring format" (2026-07-22, Andreas, interactive): Start now is no
+// longer a separate floating control — see call-controls.tsx, which now owns
+// it. This file only supplies the `started`/`starting`/`onStart` it needs.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import CallCountdown from "@/components/call-countdown";
-import CallMedia, { type VoteTally } from "@/components/call-media";
-import { formatDuration } from "@/lib/duration";
+import DailyIframe, { type DailyCall } from "@daily-co/daily-js";
+import { DailyAudio, DailyProvider, useParticipantCounts } from "@daily-co/daily-react";
+import CallPrejoin from "@/components/call-prejoin";
+import CallVideoGrid from "@/components/call-video-grid";
+import CallControls from "@/components/call-controls";
+import CallOverlay from "@/components/call-overlay";
+import CallEndVote, { type VoteTally } from "@/components/call-end-vote";
 
 type Props = {
   room: string;
@@ -23,25 +58,16 @@ type Props = {
   /**
    * Whether the real countdown has already started, per the server's own
    * live check (src/lib/daily-rooms.ts's `isCountdownStarted`). `false` means
-   * this page should show the waiting state below rather than a ticking
-   * countdown, until a manual "Start now" click or a second participant
-   * joining starts it.
+   * this page should show the waiting state until a manual "Start now" click
+   * or a second participant joining starts it.
    */
   initialStarted: boolean;
   /**
    * Remaining milliseconds computed by the server (page.tsx), using the
-   * server's own clock at request time: `exp * 1000 - Date.now()`. Passing
-   * this down as a prop — rather than each side independently calling
-   * `Date.now()` during render — means the server-rendered HTML and the
-   * client's first render use the exact same number, so there is no
-   * hydration-mismatch risk, and no placeholder tick is needed before the
-   * real state is known.
-   *
-   * The useful side effect: an already-expired link renders the ended
-   * screen directly in the server-rendered HTML, on the very first
-   * response — the call area (CallMedia, including the Daily iframe) is
-   * never sent to the browser at all for a dead link, not even for a
-   * flash before JavaScript runs.
+   * server's own clock at request time — see the equivalent prop's doc on
+   * the pre-promotion version of this file for why this avoids a
+   * hydration-mismatch risk and lets an already-expired link render the
+   * ended screen on the very first response.
    */
   initialRemainingMs: number;
   mockMode: boolean;
@@ -49,61 +75,53 @@ type Props = {
 };
 
 /**
- * Owns the live, ticking portion of the call page (Phase 0 item 6,
- * "Hard-end experience"): the clock, the call area (CallMedia — a Daily
- * iframe or the mock placeholder), and the hard swap to a "Time's up" screen
- * once the shared `exp` passes.
- *
- * The swap unmounts CallMedia entirely rather than just hiding it — React
- * removes the `<iframe>` from the DOM, which drops this tab's side of the
- * call, and there is no path back to it from the ended screen: no rejoin
- * button, no "open in new tab" link (that link pointed at the same,
- * now-expired room), nothing that continues or restarts *this* call. That's
- * a client-side belt to Daily's server-side suspenders
- * (`eject_at_room_exp` / `eject_after_elapsed`, already enforced since
- * Phase 0 item 3 — see src/lib/daily-rooms.ts): even if this page's own
- * 1-second-granularity timer fires a moment before or after Daily's own
- * enforcement, the user has no control on this page that keeps the call
- * going. The only interactive elements here are links to `/` (a new room,
- * not a continuation of this one): the explicit "Create a new one" button
- * added in Phase 0 item 7 for a call that just ended mid-session, plus the
- * page's own persistent "Create your own Qwickword" footer link (rendered
- * one level up, in page.tsx's PageShell, unchanged by this component).
- *
- * "Anchor the countdown to first join, not link creation" (built 2026-07-21,
- * interactive): when `durationSeconds` is set and the countdown hasn't
- * started yet (`initialStarted: false`), this component shows a waiting
- * state instead of a ticking countdown — the call itself (CallMedia) still
- * renders, so people already in the pre-join lobby or call are genuinely
- * waiting together, not blocked from connecting. Two independent triggers
- * can start the real countdown, and whichever fires first wins:
- *  1. Manual: the "Start now" button below, visible to anyone on this page.
- *  2. Automatic: CallMedia's daily-js integration reports the live
- *     participant count from *inside the call itself* (no server needed for
- *     this one) — once it reaches 2, this component calls the same start
- *     endpoint on its own.
- * Both call `POST /api/rooms/[room]/start`, which is itself the thing that
- * decides "already started, no-op" vs. "start it now" (src/lib/daily-rooms.ts)
- * — so a race between the two triggers can't reset the clock.
- * A tab that's only waiting (hasn't triggered start itself) polls
- * `GET /api/rooms/[room]/status` every few seconds to pick up a start
- * triggered from a *different* tab — its own daily-js participant count is
- * only visible to tabs that are actually in the call.
- *
- * "Vote to end early" (ROADMAP.md, built 2026-07-22, nightly): the mirror
- * image of "Start now" — once `started`, an "End for everyone" button lets
- * anyone toggle their own vote; CallMedia reports back a live
- * `{votesToEnd, participantCount}` tally (daily-js app-message broadcasts
- * between tabs, no server involved — see call-media.tsx). The moment that
- * tally crosses a strict majority (`votesToEnd * 2 > participantCount` —
- * "over 50%," per Andreas's own phrasing, which is why exactly 2 of 2 is
- * required for two participants, not 1 of 2), this component calls
- * `POST /api/rooms/[room]/end` itself, exactly once (guarded the same way
- * `triggerStart` guards against double-firing). That endpoint sets the
- * room's real `exp` to right now, so the existing `isOver` swap below (built
- * for the original timer running out) handles the rest — ending a call
- * early reuses the exact same hard-end mechanism, just triggered sooner.
+ * Lives inside DailyProvider so it can use daily-react's participant-count
+ * hook — mirrors the old iframe flow's "second participant joined, start the
+ * countdown" auto-start. Renders nothing; it's a side-effect-only watcher.
  */
+function AutoStartWatcher({ onSecondParticipant }: { onSecondParticipant: () => void }) {
+  const counts = useParticipantCounts();
+  useEffect(() => {
+    if (counts.present >= 2) onSecondParticipant();
+  }, [counts.present, onSecondParticipant]);
+  return null;
+}
+
+function LeftScreen() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
+      <p className="text-lg font-medium">You&apos;ve left this call.</p>
+      <p className="max-w-sm text-sm text-white/60">
+        It may still be running for anyone else still in it — there&apos;s no
+        way back into this one.
+      </p>
+      <Link
+        href="/"
+        className="mt-2 cursor-pointer rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200"
+      >
+        Create a new one
+      </Link>
+    </div>
+  );
+}
+
+function EndedScreen() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
+      <p className="text-lg font-medium">This Qwickword has ended.</p>
+      <p className="max-w-sm text-sm text-white/60">
+        It can&apos;t be rejoined or extended — that&apos;s the whole point.
+      </p>
+      <Link
+        href="/"
+        className="mt-2 cursor-pointer rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200"
+      >
+        Create a new one
+      </Link>
+    </div>
+  );
+}
+
 export default function CallRoom({
   room,
   exp,
@@ -113,6 +131,8 @@ export default function CallRoom({
   mockMode,
   joinUrl,
 }: Props) {
+  const [callObject, setCallObject] = useState<DailyCall | null>(null);
+  const [phase, setPhase] = useState<"prejoin" | "in-call">("prejoin");
   const [currentExp, setCurrentExp] = useState<number>(exp);
   const [started, setStarted] = useState<boolean>(initialStarted);
   const [remainingMs, setRemainingMs] = useState<number>(initialRemainingMs);
@@ -120,24 +140,37 @@ export default function CallRoom({
   const [startError, setStartError] = useState<string | null>(null);
 
   // "the timer also should go away after we have left the call, no more
-  // countdown" (2026-07-22, Andreas, interactive). Set once CallMedia
-  // reports daily-js's `left-meeting` event for this tab's own local
-  // participant — see the render below, which swaps to a dedicated "left"
-  // screen in place of the countdown/call area entirely once this is true,
-  // regardless of whether the room's own timer (`isOver`) has actually run
-  // out yet. Deliberately separate from `isOver`: leaving early is a
-  // per-tab, personal thing (the call may well still be running for anyone
-  // else left in it), not the room-wide hard end that `isOver` represents.
-  const [hasLeft, setHasLeft] = useState(false);
-  const handleLeftMeeting = useCallback(() => setHasLeft(true), []);
+  // countdown" — set either by CallControls's own Leave button (a click,
+  // synchronous) or by the presence-based backstop poll below (this tab
+  // silently dropped out without a clean click). Deliberately separate from
+  // `isOver`: leaving early is a per-tab, personal thing, not the room-wide
+  // hard end `isOver` represents.
+  const [leftCall, setLeftCall] = useState(false);
 
-  // Read inside callbacks without re-creating them on every render — see
-  // triggerStart and handleParticipantCountChange below.
   const startedRef = useRef(started);
   useEffect(() => {
     startedRef.current = started;
   }, [started]);
   const startingRef = useRef(false);
+  const endingRef = useRef(false);
+
+  // Call-object mode: create the call object directly, no <iframe> to wrap.
+  // The setCallObject call is deferred via a zero-delay setTimeout so this
+  // stays clear of react-hooks/set-state-in-effect (that rule targets
+  // setState calls made unconditionally and synchronously as the effect body
+  // runs, not ones deferred into a callback like this). Skipped entirely in
+  // mock mode — there's no API key to actually create a call with.
+  useEffect(() => {
+    if (mockMode) return;
+    const co = DailyIframe.createCallObject();
+    const id = setTimeout(() => setCallObject(co), 0);
+    return () => {
+      clearTimeout(id);
+      co.destroy().catch((err) => {
+        console.error("[Qwickword] Failed to destroy the call object:", err);
+      });
+    };
+  }, [mockMode]);
 
   const triggerStart = useCallback(async () => {
     if (startingRef.current || startedRef.current || !durationSeconds) return;
@@ -159,75 +192,47 @@ export default function CallRoom({
       setCurrentExp(data.exp);
       setStarted(true);
     } catch (err) {
-      setStartError(
-        err instanceof Error ? err.message : "Couldn't start the countdown."
-      );
+      setStartError(err instanceof Error ? err.message : "Couldn't start the countdown.");
     } finally {
       startingRef.current = false;
       setStarting(false);
     }
   }, [room, durationSeconds]);
 
-  const handleParticipantCountChange = useCallback(
-    (count: number) => {
-      if (count >= 2) void triggerStart();
-    },
-    [triggerStart]
-  );
+  const handleSecondParticipant = useCallback(() => {
+    void triggerStart();
+  }, [triggerStart]);
 
-  // "Vote to end early" — see the doc comment above for the full mechanism.
-  // myVoteToEnd is this tab's own vote, lifted up here (rather than living
-  // inside CallMedia) so it survives CallMedia's own re-renders and so this
-  // component can decide, in one place, when the live tally crosses the
-  // threshold. voteTally is CallMedia's report of what it currently knows
-  // from daily-js — not persisted, recomputed fresh every time it changes.
+  // "Vote to end early" tally, lifted up here (rather than living inside
+  // CallEndVote) so it survives that component's own re-renders and so this
+  // component can decide, in one place, when the live tally crosses a
+  // majority. See call-end-vote.tsx for the broadcast/tally mechanism.
   const [myVoteToEnd, setMyVoteToEnd] = useState(false);
   const [voteTally, setVoteTally] = useState<VoteTally>({
     votesToEnd: 0,
     participantCount: 0,
   });
   const [endError, setEndError] = useState<string | null>(null);
-  const endingRef = useRef(false);
 
   const triggerEnd = useCallback(async () => {
-    // Guarded internally (same shape as triggerStart above) rather than by
-    // the caller, so every call site — the majority check below, and mock
-    // mode's direct "End call" button — shares one source of truth for
-    // "is it valid to end this call right now." Ending only makes sense once
-    // the countdown has actually started; there's nothing to cut short
-    // before that.
     if (endingRef.current || !startedRef.current) return;
     endingRef.current = true;
     setEndError(null);
     try {
-      const response = await fetch(`/api/rooms/${room}/end`, {
-        method: "POST",
-      });
+      const response = await fetch(`/api/rooms/${room}/end`, { method: "POST" });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(
-          typeof data?.error === "string" ? data.error : "Couldn't end the call."
-        );
+        throw new Error(typeof data?.error === "string" ? data.error : "Couldn't end the call.");
       }
       setCurrentExp(data.exp);
       // Deliberately not resetting endingRef here: once the call has
-      // actually been ended, there's nothing left to retry — the isOver
-      // swap below takes over from the next tick of the countdown effect.
+      // actually been ended, there's nothing left to retry.
     } catch (err) {
       setEndError(err instanceof Error ? err.message : "Couldn't end the call.");
-      // Allow a retry (e.g. a transient network blip) rather than
-      // permanently wedging this tab's ability to end the call.
       endingRef.current = false;
     }
   }, [room]);
 
-  // Receives CallMedia's live tally and, in the same callback (not a
-  // separate effect watching voteTally — calling triggerEnd synchronously
-  // from an effect body trips react-hooks/set-state-in-effect, since
-  // triggerEnd itself sets state), fires the actual end the moment it
-  // crosses a strict majority. Mirrors handleParticipantCountChange above,
-  // which does the same "check the incoming value, call the trigger
-  // directly" thing for starting rather than ending.
   const handleVoteTallyChange = useCallback(
     (tally: VoteTally) => {
       setVoteTally(tally);
@@ -238,26 +243,10 @@ export default function CallRoom({
     [triggerEnd]
   );
 
-  // Ticks the displayed remaining time off `currentExp`. Fixed 2026-07-22
-  // (Andreas, interactive: "when I start the meeting the first seconds
-  // shows something like 1400.56 seconds"): this used to *only* recompute
-  // on a once-a-second `setInterval`, which doesn't fire the instant
-  // `currentExp` itself changes (e.g. the moment "Start now"/join-triggered
-  // auto-start flips `started` true and swaps `currentExp` from the ~24h
-  // pre-start buffer to the real countdown) — only on its own next tick, up
-  // to ~1000ms later. That gap meant `CallCountdown` could already be
-  // rendering (`started` had flipped) while `remainingMs` still held its
-  // last *pre-start-buffer* value — tens of thousands of seconds, which
-  // `formatRemaining`'s M:SS display renders as something like "1400:56"
-  // (1400 minutes), exactly what was reported. Fixed by also firing an
-  // immediate recompute via a zero-delay `setTimeout` alongside the regular
-  // interval, closing the gap to effectively the next event-loop tick
-  // instead of up to a full second. Both the timeout and the interval call
-  // `setRemainingMs` from inside their own callbacks, not synchronously in
-  // the effect body itself, which is what keeps this clear of
-  // `react-hooks/set-state-in-effect` (that rule targets setState calls
-  // that happen unconditionally and synchronously as the effect runs, not
-  // ones deferred into a callback like these).
+  // Ticks the displayed remaining time off `currentExp` — see the
+  // pre-promotion version of this file for why both an immediate zero-delay
+  // setTimeout AND a 1s setInterval are needed (closes the gap that caused
+  // the "1400.56 seconds" flash bug).
   useEffect(() => {
     const tick = () => setRemainingMs(currentExp * 1000 - Date.now());
     const immediateId = setTimeout(tick, 0);
@@ -268,19 +257,11 @@ export default function CallRoom({
     };
   }, [currentExp]);
 
-  // Picks up a start triggered from a *different* tab (e.g. someone else in
-  // the room pressed "Start now," or their tab detected the second join
-  // before this one did) — AND, as of 2026-07-22 (Andreas, interactive, live
-  // bug: countdown not auto-starting when a second person joined from
-  // mobile, "the second time I've seen it"), now also carries
-  // `durationSeconds` so the status route itself can auto-start the room
+  // Picks up a start triggered from a *different* tab, and carries
+  // `durationSeconds` so the status route can auto-start the room
   // server-side once Daily's own presence count hits 2, independent of
-  // whether any tab's own daily-js `participant-joined` detection worked —
-  // see the doc comment on /api/rooms/[room]/status/route.ts for why that
-  // client-only path wasn't reliable enough on its own. Not needed once
-  // `started` is true, for a link with no duration (nothing to start), or in
-  // mock mode (no persisted room to poll — see getRoomStatus's doc comment
-  // in src/lib/daily-rooms.ts).
+  // whether any tab's own daily-js detection worked. Skipped once `started`,
+  // for a link with no duration, or in mock mode (no persisted room to poll).
   useEffect(() => {
     if (started || !durationSeconds || mockMode) return;
     const id = setInterval(async () => {
@@ -301,50 +282,21 @@ export default function CallRoom({
     return () => clearInterval(id);
   }, [started, durationSeconds, mockMode, room, exp]);
 
-  // Periodically re-syncs `currentExp` against Daily's own live room status
-  // once the countdown has actually started (added 2026-07-22, Andreas,
-  // interactive: reported a call ending "2 seconds early" — i.e. Daily's own
-  // server-side `eject_at_room_exp` enforcement cut the call slightly before
-  // this page's own display reached 0:00). This page's countdown is driven
-  // entirely by the CLIENT's own clock (`currentExp * 1000 - Date.now()`),
-  // while Daily enforces the cutoff on ITS OWN clock — any skew between the
-  // two (typical device clock drift, or latency in when this tab first
-  // learned the real `exp`) means the two can disagree by a second or two,
-  // and there's no way to fully eliminate that without a full clock-sync
-  // protocol. What this *can* do cheaply: periodically ask Daily itself
-  // (via the same `getRoomStatus` this page already uses for the waiting
-  // poll above) what `exp` really is right now, and correct `currentExp` if
-  // it's drifted, so a long-running countdown keeps re-anchoring to the
-  // authoritative source rather than compounding client-clock drift over the
-  // full length of the call. Every 10s is frequent enough to catch drift
-  // well before it becomes visible, without being as chatty as the 4s
-  // waiting-poll (which needs to be snappier since a human is actively
-  // waiting on it). Skipped in mock mode — no persisted room to poll (see
-  // getRoomStatus's doc comment in src/lib/daily-rooms.ts).
-  // Extended 2026-07-22 (Andreas, interactive, live bug: after leaving a
-  // call, the page kept showing "Waiting to start"/"Start now" instead of
-  // the left-call screen, even though Daily's own iframe UI had already
-  // shown "You've left the call" — meaning both the `left-meeting` event
-  // AND CallMedia's own 2s `meetingState()` backstop poll failed to report
-  // it for that tab. Same root problem as the auto-start bug above: every
-  // signal this depended on came from that one tab's own daily-js bridge.
-  // This resync poll already asks Daily directly for this room's live `exp`
-  // every 10s — it now also reads `presentCount` from the same response
-  // (Daily's own `/rooms/:name/presence`, computed server-side, nothing to
-  // do with this tab's daily-js state at all). If Daily reports NOBODY
+  // Re-syncs `currentExp` against Daily's own live room status once the
+  // countdown has started (corrects client-clock drift against Daily's own
+  // server-side eject_at_room_exp enforcement), and doubles as the
+  // presence-based leave/empty-room backstop: if Daily reports nobody
   // currently present, this tab can't still be genuinely connected either,
-  // whatever its own (apparently unreliable, in this report) local
-  // leave-detection thinks — `emptyPollStreakRef` requires two consecutive
-  // 0-counts (20s) before acting, so a single transient/propagation-delay
-  // reading right after joining can't cause a false positive.
+  // whatever its own local leave-detection thinks. `emptyPollStreakRef`
+  // requires two consecutive 0-counts (20s) before acting, so a single
+  // transient/propagation-delay reading right after joining can't cause a
+  // false positive. Skipped in mock mode — no persisted room to poll.
   const emptyPollStreakRef = useRef(0);
   useEffect(() => {
     if (!started || mockMode) return;
     const id = setInterval(async () => {
       try {
-        const response = await fetch(
-          `/api/rooms/${room}/status?fallbackExp=${currentExp}`
-        );
+        const response = await fetch(`/api/rooms/${room}/status?fallbackExp=${currentExp}`);
         if (!response.ok) return;
         const data = await response.json();
         if (typeof data.exp === "number" && data.exp !== currentExp) {
@@ -353,15 +305,13 @@ export default function CallRoom({
         if (data.presentCount === 0) {
           emptyPollStreakRef.current += 1;
           if (emptyPollStreakRef.current >= 2) {
-            setHasLeft(true);
+            setLeftCall(true);
           }
         } else {
           emptyPollStreakRef.current = 0;
         }
       } catch {
-        // Transient — the next poll gets another chance; worst case the
-        // display keeps running on its last-known `exp` until then, same as
-        // if this resync didn't exist at all.
+        // Transient — the next poll gets another chance.
       }
     }, 10_000);
     return () => clearInterval(id);
@@ -369,149 +319,148 @@ export default function CallRoom({
 
   const isOver = remainingMs <= 0;
 
-  return (
-    <>
-      {hasLeft ? (
-        // "the timer also should go away after we have left the call, no
-        // more countdown" (2026-07-22, Andreas, interactive). Replaces
-        // *everything* below (countdown/waiting text, call area, all the
-        // buttons) the moment this tab's own local participant leaves —
-        // deliberately doesn't say the Qwickword itself has ended, since
-        // from this tab's own leave, it might still be running for whoever
-        // else is left in it.
-        <div
-          role="status"
-          className="flex w-full max-w-3xl flex-col items-center gap-3 rounded-2xl border border-black/[.08] bg-white px-6 py-16 text-center dark:border-white/[.145] dark:bg-zinc-950"
-        >
-          <p className="text-lg font-medium text-black dark:text-zinc-50">
-            You&apos;ve left this call.
-          </p>
-          <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-            It may still be running for anyone else still in it — there&apos;s
-            no way back into this one.
-          </p>
-          <Link
-            href="/"
-            className="mt-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+  if (leftCall) {
+    return <LeftScreen />;
+  }
+
+  if (mockMode) {
+    // No API key configured — there's no real Daily call to create, so this
+    // renders a simplified stand-in that still exercises the countdown/
+    // start/end mechanics (all server-route-driven, not dependent on a real
+    // daily-js connection) without any camera/mic/video UI.
+    return (
+      <div className="relative h-full w-full bg-black">
+        <CallOverlay remainingMs={remainingMs} started={started} />
+        {isOver ? (
+          <EndedScreen />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center text-white">
+            <p className="text-base font-medium">Mock call — no Daily API key configured</p>
+            <p className="text-sm text-white/60">Room: {room}</p>
+          </div>
+        )}
+        {!isOver && (
+          <div
+            className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
           >
-            Create a new one
-          </Link>
-        </div>
-      ) : (
+            {!started && durationSeconds && (
+              <button
+                type="button"
+                onClick={() => void triggerStart()}
+                disabled={starting}
+                className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {starting ? "Starting…" : "Start now"}
+              </button>
+            )}
+            {started && (
+              // Mock mode has no real daily-js call to tally votes over —
+              // there's no one else who could be voting, so this ends the
+              // (mock) call directly rather than toggling a vote that could
+              // never reach a real tally.
+              <button
+                type="button"
+                onClick={() => void triggerEnd()}
+                className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+              >
+                End call
+              </button>
+            )}
+          </div>
+        )}
+        {(startError || endError) && (
+          <p
+            role="alert"
+            className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
+          >
+            {startError || endError}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (!joinUrl) {
+    // Shouldn't happen — page.tsx only ever passes a null joinUrl alongside
+    // mockMode: true, handled above — but keeps this branch total rather
+    // than letting CallPrejoin below receive a null join URL.
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black px-6 text-center text-sm text-white/60">
+        Something went wrong setting up this call. Try reloading the page.
+      </div>
+    );
+  }
+
+  if (!callObject) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black text-sm text-zinc-500">
+        Loading…
+      </div>
+    );
+  }
+
+  if (phase === "in-call" && isOver) {
+    return <EndedScreen />;
+  }
+
+  return (
+    <DailyProvider callObject={callObject}>
+      <DailyAudio />
+      {phase === "prejoin" && (
+        <CallPrejoin joinUrl={joinUrl} onJoined={() => setPhase("in-call")} />
+      )}
+      {phase === "in-call" && (
         <>
-          {started ? (
-            <CallCountdown remainingMs={remainingMs} />
-          ) : (
-            <div role="status" className="flex flex-col items-center gap-1 text-center">
-              <p className="text-2xl font-semibold text-black dark:text-zinc-50">
-                Waiting to start
-              </p>
-              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-                {durationSeconds
-                  ? `The ${formatDuration(durationSeconds)} countdown starts as soon as someone presses "Start now," or a second person joins.`
-                  : "Waiting for someone to join."}
-              </p>
+          <AutoStartWatcher onSecondParticipant={handleSecondParticipant} />
+          <CallEndVote myVoteToEnd={myVoteToEnd} onVoteTallyChange={handleVoteTallyChange} />
+          <CallVideoGrid />
+          <CallOverlay remainingMs={remainingMs} started={started} />
+          <CallControls
+            onLeave={() => setLeftCall(true)}
+            started={started}
+            starting={starting}
+            onStart={() => void triggerStart()}
+          />
+
+          {started && (
+            // "End for everyone" — the mirror of Start now, now that Start
+            // now itself has moved down into the control pill. Placed
+            // top-right, offset below MainTile's own unpin icon (same
+            // corner, top-4) so the two never overlap on the rare occasion
+            // both are visible at once (pinned + started).
+            <div className="absolute top-16 right-4 z-10 flex flex-col items-end gap-1">
+              <button
+                type="button"
+                onClick={() => setMyVoteToEnd((prev) => !prev)}
+                className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-medium backdrop-blur transition-colors ${
+                  myVoteToEnd
+                    ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
+                    : "border-white/20 bg-black/50 text-white hover:bg-black/70"
+                }`}
+              >
+                {myVoteToEnd ? "Cancel end vote" : "End for everyone"}
+              </button>
+              {voteTally.participantCount > 1 && (
+                <p role="status" className="text-xs text-white/70">
+                  {voteTally.votesToEnd} of {voteTally.participantCount} want to end early
+                </p>
+              )}
             </div>
           )}
 
-          {isOver ? (
-            <div
-              role="status"
-              className="flex w-full max-w-3xl flex-col items-center gap-3 rounded-2xl border border-black/[.08] bg-white px-6 py-16 text-center dark:border-white/[.145] dark:bg-zinc-950"
+          {(startError || endError) && (
+            <p
+              role="alert"
+              className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
+              style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
             >
-              <p className="text-lg font-medium text-black dark:text-zinc-50">
-                This Qwickword has ended.
-              </p>
-              <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-                It can&apos;t be rejoined or extended — that&apos;s the whole
-                point.
-              </p>
-              <Link
-                href="/"
-                className="mt-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-              >
-                Create a new one
-              </Link>
-            </div>
-          ) : (
-            <>
-              <CallMedia
-                room={room}
-                mockMode={mockMode}
-                joinUrl={joinUrl}
-                myVoteToEnd={myVoteToEnd}
-                onParticipantCountChange={handleParticipantCountChange}
-                onVoteTallyChange={handleVoteTallyChange}
-                onLeftMeeting={handleLeftMeeting}
-              />
-
-              {!started && durationSeconds && (
-                <button
-                  type="button"
-                  onClick={() => void triggerStart()}
-                  disabled={starting}
-                  className="cursor-pointer rounded-full bg-black px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-                >
-                  {starting ? "Starting…" : "Start now"}
-                </button>
-              )}
-
-              {startError && (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                  {startError}
-                </p>
-              )}
-
-              {started && (
-                <div className="flex flex-col items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Mock mode has no real daily-js call to tally votes
-                      // over (same limitation documented on CallMedia's
-                      // onParticipantCountChange) — there's no one else who
-                      // could be voting, so a click here just ends the
-                      // (mock) call directly rather than toggling a vote
-                      // that can never reach a real tally.
-                      if (mockMode) {
-                        void triggerEnd();
-                        return;
-                      }
-                      setMyVoteToEnd((prev) => !prev);
-                    }}
-                    className={`cursor-pointer rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
-                      myVoteToEnd
-                        ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
-                        : "border-black/[.15] bg-transparent text-black hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
-                    }`}
-                  >
-                    {mockMode
-                      ? "End call"
-                      : myVoteToEnd
-                        ? "Cancel end vote"
-                        : "End for everyone"}
-                  </button>
-                  {!mockMode && voteTally.participantCount > 1 && (
-                    <p
-                      role="status"
-                      className="text-xs text-zinc-500 dark:text-zinc-400"
-                    >
-                      {voteTally.votesToEnd} of {voteTally.participantCount}{" "}
-                      want to end early
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {endError && (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                  {endError}
-                </p>
-              )}
-            </>
+              {startError || endError}
+            </p>
           )}
         </>
       )}
-    </>
+    </DailyProvider>
   );
 }

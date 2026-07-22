@@ -12,10 +12,7 @@ export const dynamic = "force-dynamic";
 // Qwickword actually is, on top of the plain title/description text in
 // src/app/layout.tsx — WebApplication is the schema.org type Google's own
 // guidance recommends for a browser-based tool like this one (as opposed to
-// SoftwareApplication, which implies something installable). Only on this
-// page, deliberately — not in the shared HomeContent component, since /test
-// (src/app/test/page.tsx, also built on HomeContent) is a preview route, not
-// the real product page this data should be describing.
+// SoftwareApplication, which implies something installable).
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "WebApplication",

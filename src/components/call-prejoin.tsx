@@ -1,9 +1,9 @@
 "use client";
 
-// v2 call UI preview — CALL_UI_REBUILD_SPEC.md, section 3a. A custom prejoin
-// screen (camera preview, device pickers, mic/camera toggle, Join button),
-// replacing Daily Prebuilt's own hosted lobby (which the production /[room]
-// flow still uses — this file is /test-only, see src/app/test/[room]/page.tsx).
+// Custom prejoin screen (camera preview, device pickers, mic/camera toggle,
+// Join button) — CALL_UI_REBUILD_SPEC.md, section 3a. Replaces Daily
+// Prebuilt's own hosted lobby. Promoted to production 2026-07-22 alongside
+// the rest of the call-object-mode UI — see src/components/call-room.tsx.
 //
 // Built per Daily's own "Add a prejoin UI" pattern: startCamera({ url })
 // starts local media and previews it WITHOUT joining the room yet; join()
@@ -44,7 +44,7 @@ export default function CallPrejoin({
       try {
         await daily.startCamera({ url: joinUrl });
       } catch (err) {
-        console.error("[Qwickword v2] Failed to start the camera preview:", err);
+        console.error("[Qwickword] Failed to start the camera preview:", err);
         if (!cancelled) {
           setError(
             "Couldn't access your camera or microphone. Check your browser permissions and try again."
@@ -86,7 +86,7 @@ export default function CallPrejoin({
       await daily.join();
       onJoined();
     } catch (err) {
-      console.error("[Qwickword v2] Failed to join the call:", err);
+      console.error("[Qwickword] Failed to join the call:", err);
       setError("Couldn't join the call. Try again.");
       setJoining(false);
     }

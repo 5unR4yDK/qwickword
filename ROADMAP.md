@@ -337,27 +337,23 @@ Goal: something you'd actually send to a colleague without wincing.
       live dev server confirming zero remaining "Quick Word" occurrences anywhere in a rendered page,
       then **deployed to production** and re-verified live on both `https://qwickword.com` and
       `https://quickword.vercel.app` — see STATUS.md for the full verification detail.
-- [ ] Dark mode vs. default/light mode toggle. *(Added 2026-07-21, Andreas, interactive — "add to the
-      pipeline of features," not built tonight.)* Current state, worth knowing before building this:
-      the app already has *some* dark-mode styling (`dark:` Tailwind classes throughout the
-      components, `src/app/globals.css` has a `prefers-color-scheme: dark` block) but it's
-      automatic-only, driven purely by the visitor's OS/browser setting — there's no in-app toggle and
-      no way for a visitor to override their system preference. "Default/light mode" in Andreas's
-      phrasing suggests light should be the default appearance regardless of OS setting, with dark as
-      an explicit opt-in — that's a change from today's behaviour (currently a visitor with a
-      dark-mode OS sees dark automatically), so confirm that reading with him if it's not obvious by
-      the time this is built, rather than assume. Likely mechanics: switch Tailwind's dark-mode
-      strategy from the current `media` (OS-driven) to `class`-based, add a small toggle control
-      (probably in the page header/footer), and persist the choice client-side (`localStorage` is fine
-      for this — it's a real browser app, not one of the ephemeral chat-rendered widgets that can't use
-      it). **Persistence, confirmed 2026-07-21:** Andreas wants the choice remembered per-visitor "probably
-      a cookie," but explicitly does NOT want any login/account system built for this or anything else
-      right now. Either `localStorage` or a plain (non-auth) cookie satisfies that — both remember the
-      choice on that browser with zero accounts, zero server-side state, and no datastore. `localStorage`
-      is the simpler default (no cookie-consent-banner question to even consider, since nothing is sent
-      to the server); a cookie only becomes the better choice if a future item needs the *server* (e.g.
-      a Server Component) to know the preference before first paint to avoid a flash of the wrong theme
-      — worth deciding at build time, not a foregone conclusion either way, but no accounts either way.
+- [x] Dark mode vs. default/light mode toggle. *(Added 2026-07-21, Andreas, interactive — "add to the
+      pipeline of features," not built that night.)* **Built 2026-07-22 (interactive: "introduce the
+      toggle top left corner... to dark mode so basically I'd say the default is dark mode and then...
+      someone who doesn't like dark mode can switch it off").** Went with the opposite default from
+      this item's original framing — dark by default, light as the opt-out — per Andreas's explicit
+      instruction this time, not the "light default" reading guessed at below when this was first
+      queued. Mechanics landed exactly as anticipated: `src/app/globals.css` switched from
+      `@media (prefers-color-scheme: dark)` to Tailwind v4's `@custom-variant dark
+      (&:where(.dark, .dark *));`, keyed off a `.dark` class on `<html>` (`src/app/layout.tsx`) rather
+      than the OS setting alone. `src/components/theme-toggle.tsx` (new) is the switch — toggles the
+      class and remembers the choice in `localStorage` (`qwickword-theme`), per-browser, no accounts,
+      matching Andreas's standing "no login/account system for this or anything else" stance from earlier
+      dark-mode/settings-menu discussions. A small blocking inline `<script>`
+      in `layout.tsx`'s `<head>` (runs before paint, only ever *removes* the server-rendered dark
+      default when `localStorage` says "light") avoids a flash-of-wrong-theme on repeat visits who'd
+      chosen light. Verified: `npm run lint`/`tsc --noEmit`/`npm run build` clean as part of the same
+      day's larger call-UI-rebuild verification pass (see the item below) — see STATUS.md.
 - [ ] Settings menu on the home page: a small icon in a corner (hamburger or gear — Andreas said
       "like a hamburger," not necessarily literally one) opening a panel to pre-set camera/microphone
       and sound preferences *before* joining a call. *(Added 2026-07-21, Andreas, interactive: "add to
@@ -431,8 +427,18 @@ Goal: something you'd actually send to a colleague without wincing.
 - [ ] Privacy-friendly, cookie-light analytics (e.g. self-host Plausible-style events) capturing the
       core funnel: link_created → link_opened → call_started → call_completed → cta_clicked.
       *Done when:* those five events fire and are queryable.
-- [ ] **Our own "Leave call" button, outside the Daily iframe, instead of relying only on Daily
-      Prebuilt's own in-frame Leave button.** *(Added 2026-07-22, Andreas, interactive: "Instead of
+- [x] **Our own "Leave call" button, outside the Daily iframe, instead of relying only on Daily
+      Prebuilt's own in-frame Leave button.** **Superseded and delivered 2026-07-22, same day, by the
+      call-object-mode rebuild below**, which was built the very same session — rather than adding a
+      "our own Leave button" onto the still-iframe-based UI as originally scoped, that whole UI was
+      replaced. `src/components/call-controls.tsx`'s `handleLeave` calls the call object's own
+      `.leave()` directly (no iframe, no bridge to find out after the fact — the exact mechanism this
+      item asked for) and immediately swaps `call-room.tsx` to the "You've left this call" screen, no
+      dependency on any event firing back. The presence-based backstop poll from earlier the same day
+      (Daily's `GET /rooms/:name/presence`, still in `call-room.tsx`) remains in place underneath it,
+      exactly as this item anticipated, for any other way a tab can stop being in the call (losing
+      connection, being ejected at `exp`, etc.) — not replaced, just no longer the *only* path for the
+      common "clicked Leave on purpose" case. *(Original ask, 2026-07-22, Andreas, interactive: "Instead of
       relying on the daily app to provide us the exit button to leave a meeting can we instead have
       our own button that sits outside of the frame... in such a way that we are in control and we
       understand when a meeting has been ended because at the moment it seems like when we end a
@@ -488,21 +494,38 @@ Goal: something you'd actually send to a colleague without wincing.
       `.leave()` doesn't strand the UI, and — noted honestly, consistent with how every other daily-js
       feature in this project has been verified — this sandbox still has no working headless browser, so
       final confirmation needs an actual two-tab click-through, not just code review.
-- [ ] Rebuild the call UI on Daily's call-object mode (full custom UI, `@daily-co/daily-react`),
+- [x] Rebuild the call UI on Daily's call-object mode (full custom UI, `@daily-co/daily-react`),
       replacing today's Daily Prebuilt iframe embed, styled to look and feel like Google Meet:
       full-bleed video, a small floating control pill instead of a full-width bar, self-view as a
       corner PIP, "Qwickword" + the live countdown as a translucent overlay on the video instead of a
       banner above it. Andreas, interactive, 2026-07-22: after asking whether the call window could be
       maximized and Daily Prebuilt's own banners shrunk (answer: only partially — Daily Prebuilt's own
       chrome isn't ours to resize past color theming), he chose the full rebuild: "i like the rebuild
-      full control... We want it to look very similar to Google Meets." **Approved to start, not yet
-      built.** Full spec in `CALL_UI_REBUILD_SPEC.md` (screen-by-screen breakdown, architecture,
-      component map, effort/risk, open questions for Andreas before building) — read that first, this
-      is a real rebuild spanning several sessions, not a quick tweak.
-      *Done when:* the in-call screen matches the spec's Meet-conventions section, all existing
-      call behaviour (hard expiry, auto-start, vote-to-end, leave detection, stats logging) still works
-      unchanged, and a real two-person live call has been tested (not just code review — this sandbox
-      still has no way to run that test itself).
+      full control... We want it to look very similar to Google Meets." Full spec in
+      `CALL_UI_REBUILD_SPEC.md`.
+      **Built as a parallel `/test` preview first** (this same day, then iterated on over several
+      follow-up sessions — mobile viewport fix, prejoin device-select alignment, never-crop video
+      fix, cursor-pointer sweep — see this file's other entries and STATUS.md), **then promoted to be
+      the production default and the preview route deleted, 2026-07-22 (Andreas, interactive: "the
+      test setup as now being the default setup... at least as it relates to the video view... that is
+      now the standard").** In the same pass: the "Start now" button moved off its own floating
+      top-right pill and into the same control bar as mic/camera/share/leave
+      (`src/components/call-controls.tsx`, equal `h-11` height, matching format); the countdown timer
+      grew to `sm:text-4xl` on desktop (`src/components/call-overlay.tsx`); the camera-off avatar
+      fallback for the main tile gained a bordered aspect-video box instead of a flat black fill, so
+      the outline of where video would normally render stays visible
+      (`src/components/call-video-grid.tsx`'s `MainAvatarFallback`). Every reliability feature the old
+      iframe-based flow had earned through real production bugs was ported onto the call-object
+      lifecycle rather than dropped: the cross-tab waiting poll, the clock-skew resync poll, the
+      presence-based leave/empty-room backstop (all still in `src/components/call-room.tsx`), the T-10s
+      audio tick (folded into `call-overlay.tsx`), and vote-to-end-early (re-homed to
+      `src/components/call-end-vote.tsx`, using `useDaily()` instead of wrapping an iframe, same
+      app-message broadcast/tally mechanism). `src/app/[room]/page.tsx` dropped its old light
+      `PageShell` header/footer wrapper for a full-bleed black `fixed inset-0 h-dvh w-dvw` layout
+      matching the new UI; `src/components/invalid-link-screen.tsx` restyled to match.
+      `src/app/test/` and `src/components/call-v2/` (the preview scaffolding), plus the old
+      iframe-based `src/components/call-media.tsx` and `src/components/call-countdown.tsx`, were all
+      deleted the same day the promotion shipped — see STATUS.md for the full verification detail.
 
 ## Phase 2 — Shareable: build the growth loop
 Goal: every call quietly recruits the next user.
