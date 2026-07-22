@@ -227,25 +227,44 @@ Goal: something you'd actually send to a colleague without wincing.
         headless browser — see STATUS.md), so the join-triggered auto-start path is verified by code
         review and the shared `triggerStart` path (identical to the manual-button path once called) —
         not by an actual two-person call.
-- [ ] **Vote to end early.** *(Added 2026-07-21, Andreas, interactive: "add to roadmap an option for
+- [x] **Vote to end early.** *(Added 2026-07-21, Andreas, interactive: "add to roadmap an option for
       meeting participants to vote for meeting to end, if over 50% vote for it to end it ends
-      immediately".)* The mirror image of "Start now" above — that item lets someone delay the clock
-      from starting until they're ready; this one lets participants cut a call short once it's already
-      running, for the equally common case of "we're done early, no need to burn the rest of the
-      slot." Should reuse the same mechanism this item's build introduced rather than invent a second
-      one: ending a call early is just calling `startRoomCountdown`-style logic with `exp = now` (or a
-      new sibling function that sets it directly), which is already how this whole feature enforces a
-      real, server-side cutoff rather than a client-side display trick — same "Daily's room config is
-      the single source of truth, no new datastore" principle applies here too, since a vote's tally
-      can live in daily-js's own live participant list (who's voted) rather than a database: each
-      client already knows the current participant count from the same `daily-js` wrapping added for
-      the second-join detection above, so ">50% of current participants have pressed 'end call'" can be
-      computed the same way, client-side, by any tab, calling the same "set exp to now" endpoint once
-      the threshold is crossed. Needs a small UI addition on the call screen (an "End for everyone"
-      button + a live vote count, e.g. "2 of 3 want to end"), and a decision at build time on whether a
-      single participant can un-vote, and whether the threshold is a strict majority (>50%, per
-      Andreas's own phrasing) or something else for edge cases like exactly 2 participants (1 of 2 is
-      50%, not "over 50%" — needs 2 of 2).
+      immediately".)* **Built 2026-07-22 (nightly):** the mirror image of "Start now" above, built
+      exactly the way this item's own notes anticipated. `src/lib/daily-rooms.ts` gained
+      `endRoomNow(name)` — only ever moves a room's `exp` earlier (never later), idempotent once the
+      room is already over. New `POST /api/rooms/[room]/end` route (unauthenticated, same trust model
+      as the rest of this stateless app). The vote tally itself is never persisted anywhere: each
+      connected tab broadcasts its own vote to every other tab via daily-js's own `sendAppMessage`
+      (`src/components/call-media.tsx`), and keeps a live tally by session ID, pruned against who's
+      actually still in the room — same "Daily/daily-js state is the single source of truth, no new
+      datastore" principle as the rest of Phase 1. A late joiner is caught up by every currently-"yes"
+      tab re-broadcasting on `participant-joined`. `src/components/call-room.tsx` renders an
+      "End for everyone" toggle (visible once the call has actually `started` — ending a call that
+      hasn't started yet isn't a meaningful action) plus a live "N of M want to end early" count, and
+      calls the end endpoint itself, exactly once, the instant the tally crosses a **strict majority**
+      (`votesToEnd * 2 > participantCount` — resolves the two open decisions from this item's original
+      notes: a single participant *can* un-vote, by clicking the toggle again; and yes, exactly 2 of 2
+      is required for two participants, not 1 of 2, per Andreas's own "over 50%" phrasing). Mock mode
+      has no real daily-js call to tally votes over, so its version of the button ("End call") ends the
+      call directly instead of toggling a vote that could never reach a real tally — documented
+      limitation, consistent with mock mode's existing participant-count limitation.
+      Verified: `npm run lint` / `tsc --noEmit` clean. Full create → start → end round trip via curl
+      against a running server in both mock mode and live mode (real Daily API, test rooms deleted
+      after) — this caught a real bug live: Daily's REST API rejects an `exp` that isn't strictly in
+      the future ("exp was '...', which is in the past rather than in the future"), so a bare `now`
+      patch failed with a 400. Fixed by asking for `now + 1` second instead (still "immediately" to a
+      human — Daily's own `eject_at_room_exp` enforcement and this page's own 1-second-granularity
+      countdown already mean nobody perceives the difference); re-verified with both the full app and
+      a standalone script hitting the live Daily API directly, both green. `npm run build` also
+      succeeded once, cleanly, before a since-reverted local verification workaround (redirecting the
+      build output to work around this session's near-zero sandbox disk space) confused a later lint
+      pass by pointing it at generated build output instead of source — not a real code issue, and the
+      workaround was never part of the committed change. No real multi-tab vote-broadcast test was
+      possible in this sandbox (still no working headless browser) — that part is verified by code
+      review and the same defensive try/catch pattern already used elsewhere in this file for
+      daily-js-related code, consistent with how every other daily-js feature in this app has been
+      verified to date. Deployed: not yet — see STATUS.md/ASKS.md for why (no GitHub push credentials
+      present in this session, so this landed as a local commit only; deploy is next).
 - [x] Rotating slogan/subtitle on the home page. *(Andreas, 2026-07-21, interactive: first asked for a
       slogan brainstorm, then a review pass to cut the unfunny ones — see `SLOGANS.md` — then "lets
       deploy all the slogans, have them land at random for users.")* `src/lib/slogans.ts` holds the 35

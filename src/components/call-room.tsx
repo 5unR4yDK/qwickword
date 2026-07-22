@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CallCountdown from "@/components/call-countdown";
-import CallMedia from "@/components/call-media";
+import CallMedia, { type VoteTally } from "@/components/call-media";
 import { formatDuration } from "@/lib/duration";
 
 type Props = {
@@ -89,6 +89,20 @@ type Props = {
  * `GET /api/rooms/[room]/status` every few seconds to pick up a start
  * triggered from a *different* tab — its own daily-js participant count is
  * only visible to tabs that are actually in the call.
+ *
+ * "Vote to end early" (ROADMAP.md, built 2026-07-22, nightly): the mirror
+ * image of "Start now" — once `started`, an "End for everyone" button lets
+ * anyone toggle their own vote; CallMedia reports back a live
+ * `{votesToEnd, participantCount}` tally (daily-js app-message broadcasts
+ * between tabs, no server involved — see call-media.tsx). The moment that
+ * tally crosses a strict majority (`votesToEnd * 2 > participantCount` —
+ * "over 50%," per Andreas's own phrasing, which is why exactly 2 of 2 is
+ * required for two participants, not 1 of 2), this component calls
+ * `POST /api/rooms/[room]/end` itself, exactly once (guarded the same way
+ * `triggerStart` guards against double-firing). That endpoint sets the
+ * room's real `exp` to right now, so the existing `isOver` swap below (built
+ * for the original timer running out) handles the rest — ending a call
+ * early reuses the exact same hard-end mechanism, just triggered sooner.
  */
 export default function CallRoom({
   room,
@@ -147,6 +161,69 @@ export default function CallRoom({
       if (count >= 2) void triggerStart();
     },
     [triggerStart]
+  );
+
+  // "Vote to end early" — see the doc comment above for the full mechanism.
+  // myVoteToEnd is this tab's own vote, lifted up here (rather than living
+  // inside CallMedia) so it survives CallMedia's own re-renders and so this
+  // component can decide, in one place, when the live tally crosses the
+  // threshold. voteTally is CallMedia's report of what it currently knows
+  // from daily-js — not persisted, recomputed fresh every time it changes.
+  const [myVoteToEnd, setMyVoteToEnd] = useState(false);
+  const [voteTally, setVoteTally] = useState<VoteTally>({
+    votesToEnd: 0,
+    participantCount: 0,
+  });
+  const [endError, setEndError] = useState<string | null>(null);
+  const endingRef = useRef(false);
+
+  const triggerEnd = useCallback(async () => {
+    // Guarded internally (same shape as triggerStart above) rather than by
+    // the caller, so every call site — the majority check below, and mock
+    // mode's direct "End call" button — shares one source of truth for
+    // "is it valid to end this call right now." Ending only makes sense once
+    // the countdown has actually started; there's nothing to cut short
+    // before that.
+    if (endingRef.current || !startedRef.current) return;
+    endingRef.current = true;
+    setEndError(null);
+    try {
+      const response = await fetch(`/api/rooms/${room}/end`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.error === "string" ? data.error : "Couldn't end the call."
+        );
+      }
+      setCurrentExp(data.exp);
+      // Deliberately not resetting endingRef here: once the call has
+      // actually been ended, there's nothing left to retry — the isOver
+      // swap below takes over from the next tick of the countdown effect.
+    } catch (err) {
+      setEndError(err instanceof Error ? err.message : "Couldn't end the call.");
+      // Allow a retry (e.g. a transient network blip) rather than
+      // permanently wedging this tab's ability to end the call.
+      endingRef.current = false;
+    }
+  }, [room]);
+
+  // Receives CallMedia's live tally and, in the same callback (not a
+  // separate effect watching voteTally — calling triggerEnd synchronously
+  // from an effect body trips react-hooks/set-state-in-effect, since
+  // triggerEnd itself sets state), fires the actual end the moment it
+  // crosses a strict majority. Mirrors handleParticipantCountChange above,
+  // which does the same "check the incoming value, call the trigger
+  // directly" thing for starting rather than ending.
+  const handleVoteTallyChange = useCallback(
+    (tally: VoteTally) => {
+      setVoteTally(tally);
+      if (tally.participantCount > 0 && tally.votesToEnd * 2 > tally.participantCount) {
+        void triggerEnd();
+      }
+    },
+    [triggerEnd]
   );
 
   // Ticks the displayed remaining time off `currentExp`, which only changes
@@ -235,7 +312,9 @@ export default function CallRoom({
             room={room}
             mockMode={mockMode}
             joinUrl={joinUrl}
+            myVoteToEnd={myVoteToEnd}
             onParticipantCountChange={handleParticipantCountChange}
+            onVoteTallyChange={handleVoteTallyChange}
           />
 
           {!started && durationSeconds && (
@@ -252,6 +331,53 @@ export default function CallRoom({
           {startError && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {startError}
+            </p>
+          )}
+
+          {started && (
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  // Mock mode has no real daily-js call to tally votes over
+                  // (same limitation documented on CallMedia's
+                  // onParticipantCountChange) — there's no one else who
+                  // could be voting, so a click here just ends the (mock)
+                  // call directly rather than toggling a vote that can never
+                  // reach a real tally.
+                  if (mockMode) {
+                    void triggerEnd();
+                    return;
+                  }
+                  setMyVoteToEnd((prev) => !prev);
+                }}
+                className={`rounded-full border px-5 py-2 text-sm font-medium transition-colors ${
+                  myVoteToEnd
+                    ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
+                    : "border-black/[.15] bg-transparent text-black hover:bg-black/[.04] dark:border-white/[.2] dark:text-zinc-50 dark:hover:bg-white/[.08]"
+                }`}
+              >
+                {mockMode
+                  ? "End call"
+                  : myVoteToEnd
+                    ? "Cancel end vote"
+                    : "End for everyone"}
+              </button>
+              {!mockMode && voteTally.participantCount > 1 && (
+                <p
+                  role="status"
+                  className="text-xs text-zinc-500 dark:text-zinc-400"
+                >
+                  {voteTally.votesToEnd} of {voteTally.participantCount} want to
+                  end early
+                </p>
+              )}
+            </div>
+          )}
+
+          {endError && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {endError}
             </p>
           )}
         </>

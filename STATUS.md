@@ -10,6 +10,19 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **Vote to end early (Phase 1, built 2026-07-22, nightly; not yet deployed):** once a call has
+  `started`, an "End for everyone" toggle plus a live "N of M want to end early" count let
+  participants cut a call short — the instant a strict majority (>50%) has voted, the room's `exp` is
+  set to right now (well, `now + 1s` — see below) and the existing hard-end screen takes over, same
+  mechanism as the timer running out naturally. New `POST /api/rooms/[room]/end`
+  (`src/lib/daily-rooms.ts`'s `endRoomNow`); the vote tally itself is never persisted anywhere — it
+  lives in daily-js `sendAppMessage` broadcasts between connected tabs
+  (`src/components/call-media.tsx`), pruned against who's actually still in the room. Caught and fixed
+  a real bug while verifying against the live Daily API: `exp` must be strictly in the future, so a
+  bare `now` got rejected with a 400 — fixed by asking for `now + 1` second instead. **Not deployed
+  yet** — this session had no GitHub push credentials available (`secrets.local.txt` with
+  `QWICKWORD_GITHUB_PAT` wasn't present in this run's environment), so the change is a local commit
+  only for now; see ASKS.md/the run-history entry below for full detail and what unblocks the deploy.
 - **Large decorative "Q" watermark (Phase 1, done 2026-07-21, interactive, deployed to
   production):** Andreas sketched a big Q-sized shape over a screenshot of the create-flow card and
   asked for a large serif Q as part of the design, "same font type as Times New Roman or similar
@@ -1389,3 +1402,65 @@ throwaway scratch dir, not touching the mount).
   (still no working headless browser in this sandbox). Deployed via the Vercel CLI (same
   `secrets.blackstart.local.txt` `VERCEL_TOKEN` line), pushed to GitHub, mount's `.git` re-synced,
   `git status --porcelain` confirmed clean. ROADMAP.md's "Countdown polish" item marked `[x]`.
+- 2026-07-22 (nightly): Read STATUS.md/ROADMAP.md/BUILD_PLAN.md/ASKS.md per the standing run
+  instructions; no open ASKS.md blockers to act on. Found the mount's working tree already had an
+  uncommitted, unlogged diff touching `src/components/create-link-form.tsx` and `src/lib/duration.ts`
+  (a manual-minutes-field redesign of the duration picker, well-commented, reads like real interactive
+  work — "instead of the selector, a manual field. Max 30m" — but with no matching STATUS.md entry and
+  no ROADMAP.md item marked for it) plus a stray `.git/index.lock` left over from some earlier
+  interrupted process. Left both alone rather than guessing at intent: didn't commit, revert, or build
+  on top of unverified work that wasn't mine and wasn't logged. **This still needs a look**: someone
+  (a future run, or Andreas) should check `git diff` in the working folder before doing anything else
+  git-related there, and either finish/verify/commit that duration-field change or intentionally
+  discard it. The `index.lock` file blocks any git *write* directly on the mount (matches this file's
+  existing "Platform note" above) — read-only git commands still work fine against it, which is how
+  this was even discovered.
+  Picked the first unchecked, non-gated ROADMAP.md item — "Vote to end early" — and built it. See the
+  ROADMAP.md entry (now `[x]`) for full detail; summary: `src/lib/daily-rooms.ts` gained `endRoomNow`,
+  a new `POST /api/rooms/[room]/end` route, and `src/components/call-media.tsx` /
+  `src/components/call-room.tsx` gained the vote-broadcast/tally/threshold/UI machinery. Reused the
+  exact "Daily/daily-js state is the only source of truth, no new datastore" principle the
+  anchor-countdown-to-first-join feature already established, per this item's own notes.
+  **Sandbox disk space was a real, load-bearing problem tonight**, worth a permanent note for future
+  runs: this session's local sandbox disk (`/`, ~9.6G) started essentially full (shared with other
+  sessions' leftover files under `/tmp`, mostly owned by `nobody`/other UIDs and therefore not
+  something this session could clean up) — `npm install` inside this folder's usual `mnt/` path failed
+  outright with `ENOSPC`. Worked around it by moving the whole scratch build (`npm install`, lint,
+  `tsc --noEmit`, `next build`, `next start` + curl verification, and the actual git commit) into
+  `/tmp/qwickword` on the sandbox's own disk rather than the FUSE mount (consistent with this file's
+  existing platform note), and by pointing `npm install`'s cache at `/dev/shm` (tmpfs, a separate
+  device from `/`) rather than the default `~/.npm` cache, which is what let the install actually
+  finish. Even so, disk hovered at single-digit megabytes free for most of the session; a `next build`
+  succeeded once cleanly (confirmed the new route registers correctly:
+  `ƒ /api/rooms/[room]/end` in the route table) before a since-abandoned attempt to redirect *that*
+  build's output to `/dev/shm` via a temporary `distDir` override (to protect the last few MB of disk)
+  landed the output inside the project directory instead of tmpfs and briefly confused a lint run by
+  pointing it at generated build artifacts instead of source — caught immediately (the lint output was
+  full of `require()`/`@ts-ignore` warnings from `next`'s own generated JS, an obvious tell), the
+  `next.config.ts` override was reverted before anything was committed, and a plain `eslint src` (as
+  opposed to `eslint .`) confirmed the actual source was always clean throughout. Never touched
+  `next.config.ts`, `tsconfig.json`, or any other tracked file as a lasting result of this — those
+  diffs were reverted (`git checkout --`) before staging anything.
+  **Verification, given the above:** `npm run lint` (`eslint src`) and `tsc --noEmit` both clean. One
+  full `next build` succeeded, confirming the app compiles and the new route registers. Full
+  create → start → end round trip via curl against a real running server, in both mock mode and live
+  mode against the real Daily API (test room created, started, ended, and cleaned up) — this is what
+  caught a genuine bug: Daily's REST API rejects a PATCH whose `exp` isn't strictly in the future
+  (`"exp was '...', which is in the past rather than in the future"`), so the first version's bare
+  `now` failed with a 400 on the *second* attempt to end a call (the very first end succeeded by
+  chance, before the clock ticked over during the request). Fixed by asking for `now + 1` second
+  instead; re-verified two ways — the full app's `/end` route, and a small standalone Node script
+  hitting the live Daily API directly with the exact same `now + 1` value — both green, plus the delete
+  cleanup afterward confirmed. No real multi-tab vote-broadcast test was possible (still no working
+  headless browser in this sandbox) — that part (the `sendAppMessage` broadcast/tally logic in
+  `call-media.tsx`) is verified by code review and the same defensive try/catch pattern already used
+  throughout this file for daily-js-related code, same standard this app has held to for every
+  daily-js feature so far.
+  **Committed locally, not deployed.** This session had no GitHub push credentials — `secrets.local.txt`
+  (which a previous session used to read a `QWICKWORD_GITHUB_PAT` line, per the 2026-07-21 entry above)
+  wasn't present anywhere in this session's accessible filesystem, and neither was
+  `secrets.blackstart.local.txt` (used for the separate Vercel deploy token). Committed the change in a
+  scratch git clone under `/tmp/qwickword` (per this file's standing platform note) and copied the
+  finished `.git` back onto the mount; did not attempt to push to GitHub or deploy to Vercel without
+  the tokens to do so safely. See ASKS.md for what unblocks this next.
+  ROADMAP.md's "Vote to end early" item marked `[x]`.
