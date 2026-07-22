@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  CUSTOM_DURATION_MINUTES_OPTIONS,
   DURATION_PRESETS_SECONDS,
   formatDuration,
+  MAX_DURATION_MINUTES,
+  MIN_DURATION_MINUTES,
 } from "@/lib/duration";
 
 type CreateRoomResponse = {
@@ -29,23 +30,28 @@ type CreateState =
     };
 
 /**
- * The core create-link flow. Redesigned 2026-07-21 per Andreas (interactive)
- * to cut a click: rather than pick a duration, then press a separate
- * "Create" button, every duration control below — each preset button, and
- * the custom 1–60-minute dropdown — creates the room immediately on
- * click/select. There is no more idle "durationSeconds" selection state;
- * a click/select *is* the create action.
- *
- * On success the link is copied to the clipboard automatically (Andreas:
- * "the URL should automatically be copied... after you click that button"),
- * confirmed with a small auto-dismissing toast rather than a silent copy —
- * the manual "Copy link" button stays too, since clipboard writes can
- * silently fail in some browsers/contexts and the visible link is the
- * fallback. A "Join the meeting now" button was also added so a creator who
- * wants to jump straight in doesn't have to leave this page and paste their
- * own link back in.
+ * The core create-link flow. Two ways to set a duration, side by side
+ * (2026-07-22, Andreas, interactive: "Reinstate the buttons, so you can
+ * still click a duration and get taken straight to the confirmation with
+ * link added to clipboard... 1, 2, 5, 10, 15, 20 minutes... keep the manual
+ * entry as well and the max of 30 minutes"):
+ *  1. Preset buttons (DURATION_PRESETS_SECONDS, src/lib/duration.ts) —
+ *     clicking one creates the room immediately, no separate "Create" step.
+ *     This is the original one-click behaviour from 2026-07-21 ("the URL
+ *     should automatically be copied... after you click that button"),
+ *     reinstated here.
+ *  2. A manual minutes field (added later that same night, when the preset
+ *     buttons/dropdown were briefly swapped out for it entirely — this
+ *     merges the two rather than picking one) for any whole-minute value the
+ *     presets don't cover, submitted via its own "Create" button or Enter.
+ *     Clamped to the shared MIN_/MAX_DURATION_MINUTES bounds so it can never
+ *     submit a value the API route's own bounds check would reject.
+ * Both paths funnel into the same `handleCreate`, so the success screen
+ * below (auto-copy, "Join the meeting now," etc.) behaves identically either
+ * way.
  */
 export default function CreateLinkForm() {
+  const [minutesInput, setMinutesInput] = useState<string>("");
   const [state, setState] = useState<CreateState>({ status: "idle" });
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -56,6 +62,17 @@ export default function CreateLinkForm() {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
   }, []);
+
+  // Whole minutes only, within the shared bounds. An empty, non-integer, or
+  // out-of-range value is invalid — the Create button stays disabled and a
+  // short hint explains the range, rather than firing a request the server
+  // would just reject.
+  const parsedMinutes = Number(minutesInput);
+  const isValidDuration =
+    minutesInput.trim() !== "" &&
+    Number.isInteger(parsedMinutes) &&
+    parsedMinutes >= MIN_DURATION_MINUTES &&
+    parsedMinutes <= MAX_DURATION_MINUTES;
 
   async function handleCreate(durationSeconds: number) {
     setState({ status: "loading" });
@@ -131,6 +148,11 @@ export default function CreateLinkForm() {
     }
   }
 
+  function handleSubmit() {
+    if (!isValidDuration || state.status === "loading") return;
+    handleCreate(parsedMinutes * 60);
+  }
+
   async function handleCopy(link: string) {
     try {
       await navigator.clipboard.writeText(link);
@@ -204,55 +226,76 @@ export default function CreateLinkForm() {
   const isLoading = state.status === "loading";
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
+    <form
+      className="flex w-full flex-col items-center gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleSubmit();
+      }}
+    >
       <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-        Click to have a quick word:
+        How long is your quick word?
       </p>
       <div
         role="group"
-        aria-label="Have a quick word — pick a length to create and copy the link instantly"
-        className="flex flex-wrap justify-center gap-2"
+        aria-label="Quick durations"
+        className="flex flex-wrap items-center justify-center gap-2"
       >
         {DURATION_PRESETS_SECONDS.map((seconds) => (
           <button
             key={seconds}
             type="button"
-            onClick={() => handleCreate(seconds)}
             disabled={isLoading}
-            className="rounded-full border border-black/[.08] px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-black/[.2] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-white/[.3]"
+            onClick={() => handleCreate(seconds)}
+            className="flex h-11 min-w-14 items-center justify-center rounded-full border border-black/[.08] bg-zinc-50 px-4 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-white/[.4]"
           >
             {formatDuration(seconds)}
           </button>
         ))}
-        <select
-          aria-label="Custom length, in minutes"
-          disabled={isLoading}
-          defaultValue=""
-          onChange={(event) => {
-            const minutes = Number(event.target.value);
-            if (minutes > 0) handleCreate(minutes * 60);
-            event.currentTarget.value = "";
-          }}
-          className="rounded-full border border-black/[.08] bg-transparent px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-black/[.2] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-white/[.3]"
-        >
-          <option value="" disabled>
-            Custom…
-          </option>
-          {CUSTOM_DURATION_MINUTES_OPTIONS.map((minutes) => (
-            <option key={minutes} value={minutes}>
-              {minutes} min
-            </option>
-          ))}
-        </select>
       </div>
-      {isLoading && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Creating…</p>
-      )}
+      <p className="text-xs text-zinc-400 dark:text-zinc-500">
+        or pick a custom length
+      </p>
+      <label
+        htmlFor="duration-minutes"
+        className="sr-only"
+      >
+        Custom call length in minutes
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id="duration-minutes"
+          type="number"
+          inputMode="numeric"
+          min={MIN_DURATION_MINUTES}
+          max={MAX_DURATION_MINUTES}
+          step={1}
+          value={minutesInput}
+          onChange={(event) => setMinutesInput(event.target.value)}
+          disabled={isLoading}
+          aria-label="Call length in minutes"
+          aria-describedby="duration-hint"
+          aria-invalid={!isValidDuration}
+          className="w-24 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-center text-lg font-medium tabular-nums text-zinc-900 outline-none focus:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/[.4] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <span className="text-base text-zinc-600 dark:text-zinc-400">min</span>
+      </div>
+      <p id="duration-hint" className="text-xs text-zinc-400 dark:text-zinc-500">
+        {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole minutes
+        only.
+      </p>
+      <button
+        type="submit"
+        disabled={isLoading || !isValidDuration}
+        className="flex h-12 w-full items-center justify-center rounded-full bg-foreground px-5 text-base font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-[#ccc]"
+      >
+        {isLoading ? "Creating…" : "Create Qwickword"}
+      </button>
       {state.status === "error" && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {state.message}
         </p>
       )}
-    </div>
+    </form>
   );
 }
