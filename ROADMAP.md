@@ -431,6 +431,36 @@ Goal: something you'd actually send to a colleague without wincing.
 - [ ] Privacy-friendly, cookie-light analytics (e.g. self-host Plausible-style events) capturing the
       core funnel: link_created → link_opened → call_started → call_completed → cta_clicked.
       *Done when:* those five events fire and are queryable.
+- [ ] **Our own "Leave call" button, outside the Daily iframe, instead of relying only on Daily
+      Prebuilt's own in-frame Leave button.** *(Added 2026-07-22, Andreas, interactive: "Instead of
+      relying on the daily app to provide us the exit button to leave a meeting can we instead have
+      our own button that sits outside of the frame... in such a way that we are in control and we
+      understand when a meeting has been ended because at the moment it seems like when we end a
+      meeting the main page that contains the frame is not informed that the meeting has ended and so
+      the countdown just keeps going.")* Same day, earlier: this exact symptom (countdown/"Waiting to
+      start" UI stuck after a real leave) was fixed with a server-side presence backstop (Daily's own
+      `GET /rooms/:name/presence`, polled from `/api/rooms/[room]/status` — see STATUS.md and
+      `src/components/call-room.tsx`) plus a retry around `DailyIframe.wrap()`, because every existing
+      signal depended on that one wrap() bridge working. This item is a complementary, more direct fix
+      for the specific case of *leaving on purpose*: right now the only Leave control a participant
+      sees lives inside Daily Prebuilt's own iframe UI, so our page has to *find out* the call ended —
+      via an event (`left-meeting`) or a poll — rather than *knowing* it, because our own code didn't
+      initiate the leave.
+      **The fix:** render our own "Leave call" button in `src/components/call-room.tsx` (or
+      `call-media.tsx`), positioned outside/below the iframe in our own page chrome, that calls the
+      wrapped call object's `daily-js` `.leave()` method directly. Because this component would be the
+      one *initiating* the leave, it can set `hasLeft` the moment that `.leave()` call resolves —
+      no dependency on an event firing back from the iframe at all for this path. This doesn't replace
+      the event listener/backstop poll/presence check already in place (Daily Prebuilt's own in-frame
+      Leave button still exists and still needs those, unless/until the call-object-mode rebuild below
+      replaces Prebuilt entirely — that rebuild's `/test` prototype already has exactly this pattern,
+      see `src/components/call-v2/call-controls.tsx`'s `handleLeave`) — it's a second, more reliable
+      path for the common case of a participant clicking "Leave" on purpose, on top of the fallbacks
+      that already cover every other way a call can end for a tab.
+      *Done when:* clicking Qwickword's own Leave button ends the call for that tab and shows the
+      "You've left this call" screen immediately, verified via code review and (once this sandbox has a
+      working way to test it) an actual click-through, not just relying on the presence-poll backstop
+      to eventually catch it within its ~20s window.
 - [ ] Rebuild the call UI on Daily's call-object mode (full custom UI, `@daily-co/daily-react`),
       replacing today's Daily Prebuilt iframe embed, styled to look and feel like Google Meet:
       full-bleed video, a small floating control pill instead of a full-width bar, self-view as a
