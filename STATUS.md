@@ -42,6 +42,30 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **v2 call UI prototype built and deployed under /test (2026-07-22, interactive, deployed to
+  production):** Andreas: "Can we build this in parallel to the existing quick word just under a folder
+  like '/test' Just to see what it looks like before we start overriding the current view." Built the
+  spec's first several steps as a real, working preview — live on `https://qwickword.com/test`,
+  completely separate from the production `/[room]` flow (different route tree, own components under
+  `src/components/call-v2/`), so nothing here can affect a real call. New dependencies:
+  `@daily-co/daily-react` (its state peer dep is `jotai`, not `recoil` — the npm page's sample text was
+  stale; confirmed the actual peerDependencies via `npm info`) and `lucide-react` for control icons.
+  Built: a custom prejoin screen (camera preview via `startCamera()`, device pickers, mic/camera
+  toggles), full-bleed video with self-view as a corner PIP, a floating bottom control pill
+  (mic/camera/leave), and the countdown + "Qwickword" as a translucent overlay on the video — reusing
+  `formatRemaining` (newly exported from `call-countdown.tsx`) so the countdown math itself stays
+  identical to production. `/test` rooms are real Daily rooms via the same `POST /api/rooms`/`start`
+  routes production uses (real hard expiry, real auto-start-on-second-join), so this is a genuine
+  preview of the call, not a static mockup — the trade-off is `/test` rooms also land as real rows in
+  the Neon stats table (low volume, accepted as harmless test data rather than building a skip-stats
+  flag for a throwaway route). Deliberately reduced scope vs. production, per the spec's suggested build
+  order: no "End for everyone" vote, no leave-detection backstop poll, no clock-skew resync poll yet —
+  those port over in a later pass once the visual direction is confirmed. Verified
+  `eslint`/`tsc --noEmit`/`next build` clean; live-smoke-tested `/test` (200, renders), a real room
+  create via `POST /api/rooms`, and `/test/[room]` with that room's real `exp`/`d` (200, renders). Not
+  yet live-tested with a real second participant/two browsers (same sandbox limitation noted throughout
+  this file) — next step is Andreas trying it live and giving a read on the visual direction before any
+  more of the spec gets built out or the production route gets touched.
 - **Call UI rebuild spec written, not yet built (2026-07-22, interactive, docs only — no deploy):**
   Andreas asked whether the call window could be maximized further and Daily Prebuilt's own banners
   shrunk or overlaid with our branding. Researched Daily's actual customization tiers (color theming +
