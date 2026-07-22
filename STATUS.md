@@ -42,6 +42,17 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   `/tmp` scratch copy, since this sandbox's `node_modules/.bin` symlinks are broken over the mount).
   Live-smoke-tested: home page 200s, and a real `POST /api/rooms` with the 1-minute preset's payload
   against `https://qwickword.com` created a room successfully. Live on `https://qwickword.com`.
+- **Call window overflow bug, same-day follow-up (2026-07-22, interactive, deployed to production):**
+  the desktop-wide call window from earlier the same day introduced a real regression — Andreas: "making
+  the window larger introduced a new UI bug. we get a window that doesnt fit the browser." Screenshot
+  showed the pre-join card pushed far down an oversized empty box, forcing a page scroll. Root cause:
+  that fix drove the box's *width* from the browser window (`w-full`) and let *height* follow the 16:9
+  ratio (`sm:aspect-video`) — on a wide monitor that produces a box taller than the viewport (e.g. a
+  2500px-wide window → a ~1400px-tall box). Fixed in `src/components/call-media.tsx` by flipping which
+  dimension drives the ratio: height is now fixed at `70vh` (fits the viewport by construction), width
+  follows 16:9 from that, capped at `sm:max-w-full` so it still shrinks on narrow windows. Verified
+  `eslint` / `tsc --noEmit` / `next build` clean, home page live-smoke-tested 200 on
+  `https://qwickword.com` post-deploy.
 - **Live bug fixes + "leave the call" fix + bigger call window (2026-07-22, interactive, deployed to
   production):** Andreas used the app live after the vote-to-end-early build and reported three real
   bugs plus two feature requests in quick succession:
