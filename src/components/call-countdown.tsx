@@ -4,9 +4,12 @@ import { useEffect, useRef } from "react";
 
 /**
  * Formats a whole number of milliseconds as "M:SS", floored to whole seconds.
- * Not exported — only used inside this file.
+ * Exported (2026-07-22) so the call-v2 preview's overlay
+ * (src/components/call-v2/call-overlay.tsx) can reuse the exact same
+ * formatting instead of duplicating it — the countdown MATH isn't changing
+ * for the rebuild, only where/how it's rendered (see CALL_UI_REBUILD_SPEC.md).
  */
-function formatRemaining(ms: number): string {
+export function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
