@@ -26,6 +26,31 @@ export default function HomeContent({ basePath = "" }: { basePath?: string }) {
 
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
+      {/* Ambient background glow, spreading out from the Q (2026-07-22,
+          Andreas, interactive: "a little bit more sort of a purple hue dark
+          deep purple a deep marine blue mix hue that sort of spreads out
+          from the main letter Q in the middle... instead of isolated just
+          to the square in the middle"). A prior attempt at a background glow
+          (2026-07-21, fourth pass) was rejected for looking like a "weird
+          square" — that version was a single radial gradient sized closer to
+          the viewport, so its falloff edge was still visible as a boundary.
+          This version avoids that the same way real ambient light does:
+          two oversized (90vmax/70vmax — well past any screen edge at normal
+          zoom), heavily blurred, low-opacity circles, each fading smoothly
+          to fully transparent well before its own edge, so there's no
+          boundary left to read as a shape. Two overlapping colours per
+          Andreas's ask — violet/indigo for the purple half, a deep
+          teal/marine blue (Tailwind's cyan-950/sky-900 range) for the other
+          — offset slightly from each other so they blend into one soft wash
+          rather than a flat single-colour glow. `mix-blend-screen` lets the
+          two colours actually combine where they overlap instead of one
+          flatly occluding the other. Sits below the Q glyph and the card in
+          DOM order, so both still read clearly on top of it. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 h-[90vmax] w-[90vmax] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.30)_0%,rgba(99,102,241,0.10)_35%,transparent_68%)] blur-3xl mix-blend-screen dark:bg-[radial-gradient(circle,rgba(129,140,248,0.28)_0%,rgba(129,140,248,0.10)_35%,transparent_68%)]" />
+        <div className="absolute top-1/2 left-1/2 h-[75vmax] w-[75vmax] translate-x-[6%] translate-y-[8%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(8,51,68,0.42)_0%,rgba(8,51,68,0.14)_40%,transparent_70%)] blur-3xl mix-blend-screen dark:bg-[radial-gradient(circle,rgba(14,116,144,0.32)_0%,rgba(14,116,144,0.12)_40%,transparent_70%)]" />
+      </div>
+
       {/* Large decorative "Q" watermark behind the card. Andreas asked for a
           big Q, serif "same font type as Times New Roman or similar, maybe
           more unique" — Playfair Display (loaded in src/app/layout.tsx),
@@ -34,19 +59,13 @@ export default function HomeContent({ basePath = "" }: { basePath?: string }) {
           flow of the real content sitting above it (z-10). Bumped opacity and
           added an indigo tint (2026-07-21, second pass) after Andreas said
           the first version was "hardly visible" and asked for something a
-          little more inspiring — originally paired with a soft radial
-          background glow, which Andreas then said made the page look like it
-          had a "weird" square in it (2026-07-21, fourth pass) — that
-          background gradient is gone, the page is back to a flat
-          bg-zinc-50/black, and the Q + glass card below now carry the
-          "inspiring" feel on their own. Blurred the glyph itself
-          (2026-07-21, third pass): the part of the Q sitting behind the
-          glass card was already soft (thanks to the card's own
-          backdrop-blur), but the tail poking out below the card rendered
-          crisp against the plain background, so it read as a stray sharp
-          shape rather than part of the same glow. A uniform blur filter on
-          the whole span fixes that mismatch everywhere, not just under the
-          card. */}
+          little more inspiring. Blurred the glyph itself (2026-07-21, third
+          pass): the part of the Q sitting behind the glass card was already
+          soft (thanks to the card's own backdrop-blur), but the tail poking
+          out below the card rendered crisp against the plain background, so
+          it read as a stray sharp shape rather than part of the same glow. A
+          uniform blur filter on the whole span fixes that mismatch
+          everywhere, not just under the card. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(17rem,44vw,32rem)] leading-none font-[family-name:var(--font-playfair-display)] text-indigo-500/[0.22] blur-md dark:text-indigo-300/[0.26]"
