@@ -75,17 +75,29 @@ export default function HomeContent({ basePath = "" }: { basePath?: string }) {
         </div>
 
         <CreateLinkForm basePath={basePath} />
-      </main>
 
-      {/* Discreet — deliberately low-contrast and unlabeled beyond a single
-          lowercase word, not a real nav item. Andreas: "a very discreet
-          little button somewhere" that links to the manifesto page. */}
-      <Link
-        href="/manifesto"
-        className="fixed bottom-4 right-4 text-xs text-zinc-300 transition-colors hover:text-zinc-500 dark:text-zinc-800 dark:hover:text-zinc-500"
-      >
-        manifesto
-      </Link>
+        {/* Still discreet — muted, unlabeled beyond a single lowercase word,
+            not styled as a real nav item — but moved into the main content
+            flow itself (2026-07-22, Andreas, interactive: "I want to keep
+            the manifesto link a discreet but it should be easier to spot...
+            maybe it doesn't have to be at bottom right maybe it can be
+            something more visible but still muted"). The old placement — a
+            fixed corner of the whole viewport, `text-zinc-300` (nearly
+            invisible against the light background) — meant actually finding
+            it required knowing to look in the corner first. Living here,
+            underneath the create-link form, it's inside the one card
+            everyone's eyes are already on, so it gets seen without needing
+            to be loud: still small, still muted, just no longer requiring a
+            treasure hunt. Contrast nudged up a notch from the old
+            zinc-300/zinc-800 (readable now, not just guessable) while
+            staying clearly secondary to everything above it. */}
+        <Link
+          href="/manifesto"
+          className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400"
+        >
+          manifesto
+        </Link>
+      </main>
     </div>
   );
 }
