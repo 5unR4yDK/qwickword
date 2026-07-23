@@ -64,7 +64,21 @@ export default function CallControls({
 
   return (
     <div
-      className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
+      // Mobile-first sizing (2026-07-23, nightly, responsive-layout pass):
+      // with all five buttons visible at once (mic/camera/share/Start
+      // now/leave — the pre-start state), the old fixed h-11/gap-3/px-4
+      // sizing measured out to ~350px wide, which overflows a 320-360px-wide
+      // phone viewport (iPhone SE, many budget Android phones). Shrunk to
+      // h-10/gap-2/px-3 by default and only grows to the original h-11/
+      // gap-3/px-4 from the `sm` breakpoint up, where there's room to spare
+      // — same mobile-shrinks-first pattern already used elsewhere in this
+      // file's siblings (call-video-grid.tsx's PIP tile, call-overlay.tsx's
+      // countdown). `max-w-[calc(100vw-1.5rem)]` + `overflow-x-auto` is a
+      // belt-and-suspenders fallback: even if this estimate is off on some
+      // narrower/zoomed device, the pill scrolls internally rather than
+      // ever pushing the page itself into horizontal scroll or clipping a
+      // button off-screen.
+      className="absolute left-1/2 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 overflow-x-auto rounded-full bg-black/70 px-3 py-3 backdrop-blur sm:gap-3 sm:px-4"
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
     >
       {/* Explicit safe-area padding so the control pill clears the
@@ -74,7 +88,7 @@ export default function CallControls({
         onClick={toggleMic}
         aria-pressed={!audioTrack.isOff}
         aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
-        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
           audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -85,7 +99,7 @@ export default function CallControls({
         onClick={toggleCamera}
         aria-pressed={!videoTrack.isOff}
         aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
-        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
           videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -96,7 +110,7 @@ export default function CallControls({
         onClick={toggleScreenShare}
         aria-pressed={isSharingScreen}
         aria-label={isSharingScreen ? "Stop sharing your screen" : "Share your screen"}
-        className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors ${
+        className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
           isSharingScreen ? "bg-blue-600 hover:bg-blue-700" : "bg-white/15 hover:bg-white/25"
         }`}
       >
@@ -109,19 +123,20 @@ export default function CallControls({
           there... of equal height and same coloring format"). Used to be a
           separate floating white pill top-right, disconnected from the rest
           of the call's controls — now it's just another member of the same
-          bar, same h-11 height as every icon button beside it. Kept the
-          white fill (rather than the neutral bg-white/15 the toggle buttons
-          use) since Start is a one-time primary action, not a toggle — same
-          "white = the primary action" language this app already uses for
-          Join/Copy/Create elsewhere. Only rendered before the countdown has
-          actually started; once `started` is true there's nothing left to
-          start. */}
+          bar, same height as every icon button beside it (h-10/sm:h-11,
+          shrunk in lockstep with them 2026-07-23 for the narrow-phone fix
+          above). Kept the white fill (rather than the neutral bg-white/15
+          the toggle buttons use) since Start is a one-time primary action,
+          not a toggle — same "white = the primary action" language this app
+          already uses for Join/Copy/Create elsewhere. Only rendered before
+          the countdown has actually started; once `started` is true there's
+          nothing left to start. */}
       {!started && (
         <button
           type="button"
           onClick={onStart}
           disabled={starting}
-          className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-3 text-xs font-medium whitespace-nowrap text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4 sm:text-sm"
         >
           {starting ? "Starting…" : "Start now"}
         </button>
@@ -130,7 +145,7 @@ export default function CallControls({
         type="button"
         onClick={handleLeave}
         aria-label="Leave call"
-        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
+        className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white transition-colors sm:h-11 sm:w-11 hover:bg-red-700"
       >
         <PhoneOff size={18} />
       </button>
