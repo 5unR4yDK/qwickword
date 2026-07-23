@@ -10,6 +10,10 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
 - **Phase:** Phase 0 (MVP) is fully complete, deployed, and verified. All 9 ROADMAP.md items are
   done. Phase 1 ("Usable") is now underway — item 1 (pre-join screen) and the rotating-slogan item
   both done 2026-07-21, see below.
+- **2026-07-23 (nightly):** duration presets confirmed done (was already built, just uncheck-marked)
+  and the "fully responsive layout" item built — narrow-phone control-pill overflow fixed in
+  `call-controls.tsx`. Deployed to production, live on `qwickword.com`. See run history below for
+  full detail.
 - **The call-object-mode UI (formerly the `/test` preview) is now the production default, and `/test`
   no longer exists (2026-07-22, interactive — full detail in the run-history entry below).**
   `src/components/call-room.tsx` owns a real Daily call object directly (`@daily-co/daily-react`), not
@@ -1951,3 +1955,42 @@ throwaway scratch dir, not touching the mount).
   live in production before tonight, just re-homed onto the call-object lifecycle. Committed, pushed,
   and deployed to Vercel production — see the deploy confirmation immediately following this entry, if
   present, or ASKS.md for anything still open.
+- 2026-07-23 (nightly): Roadmap bookkeeping first — "Duration presets (1, 2, 5, 10 min) plus a custom
+  value with a sane maximum" was still unchecked in ROADMAP.md despite being fully built and deployed
+  2026-07-22 (`src/lib/duration.ts`'s `DURATION_PRESETS_SECONDS`, the manual-minutes field in
+  `create-link-form.tsx`). Marked `[x]` with a note; no code change needed for that item.
+  Then built the actual next unchecked item: **"Fully responsive layout; verify the call works on a
+  phone browser."** Audited every component for narrow-viewport overflow (home page, prejoin, video
+  grid, overlay, controls, invalid-link/error screens) — most of it was already solid (the presets row
+  already wraps via `flex-wrap`, the prejoin selects already have `min-w-0`, the video tiles already
+  have `sm:` breakpoints). Found one real bug: `src/components/call-controls.tsx`'s bottom control
+  pill — mic/camera/share/Start now/leave, all five visible during the pre-start window — measured out
+  to roughly 350px wide at its old `h-11`/`gap-3`/`px-4` sizing, wider than a 320-360px phone viewport
+  (iPhone SE, many budget Android phones), meaning it would render clipped or push the page into
+  horizontal scroll on exactly those devices. Fixed: shrunk to `h-10`/`gap-2`/`px-3` by default, growing
+  to the original `h-11`/`gap-3`/`px-4` from `sm:` up — same mobile-shrinks-first pattern this app
+  already uses elsewhere (the PIP tile, the countdown text size). Also added
+  `max-w-[calc(100vw-1.5rem)]` + `overflow-x-auto` on the pill itself as a fallback so even an
+  unanticipated narrower/zoomed case scrolls internally rather than ever breaking the page layout.
+  Confirmed via `next build`'s default viewport meta (`width=device-width, initial-scale=1`, present on
+  both `/` and `/[room]`) that nothing in this app is fighting the browser's own mobile viewport
+  handling — the `h-dvh`/`w-dvw`/safe-area-inset work from prior sessions is doing its job.
+  **Verified:** fresh scratch clone at `/tmp/qww2` (this session's FUSE-mount npm-install workaround
+  again — `node_modules/.bin/next` doesn't populate correctly directly on the mounted project folder).
+  `npm install`, `eslint` clean, `tsc --noEmit` clean (one real hiccup along the way: this session's
+  npm registry mirror delivered a `lucide-react` package with no `.d.ts` files under `dist/` at all,
+  despite the `package.json` claiming `"typings": "dist/lucide-react.d.ts"` — a corrupted/incomplete
+  download, not a real code issue; reinstalling that one package alone fixed it), `next build` clean.
+  Deployed a real build to Vercel production (`npx vercel deploy --prod`, using the `.vercel/` project
+  link already in this repo) — confirmed `● Ready` via `vercel inspect`, aliased to `qwickword.com`.
+  Live-smoke-tested: created a real, tiny (60s) Daily room via `POST https://qwickword.com/api/rooms`,
+  fetched the resulting `/[room]` page's actual served JS bundle, and confirmed the new `shrink-0`/
+  `max-w-[calc(100vw-1.5rem)]` classes are present in what's actually running in production — not just
+  in the source. Deleted the throwaway room immediately after (`DELETE /v1/rooms/:name` against the
+  Daily API) rather than letting it linger even for its own 60s. No real physical-phone test was
+  possible (still no working headless browser in this sandbox — tried installing Playwright's Chromium
+  this session specifically to close this gap, hit `ENOSPC` partway through the download, consistent
+  with prior sessions' "near-zero sandbox disk space" finding); the overflow claim itself is arithmetic
+  (summing the exact Tailwind classes' pixel values against common phone viewport widths —
+  320/360/375/390/430px — not a guess), and the fix follows the same responsive pattern already proven
+  correct elsewhere in this same file's sibling components.

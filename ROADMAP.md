@@ -311,7 +311,19 @@ Goal: something you'd actually send to a colleague without wincing.
       DOM trace) — verified by code review and the same defensive try/catch pattern used elsewhere in
       this app for anything audio/daily-js related, not by an actual browser test (still no working
       headless browser in this sandbox).
-- [ ] Fully responsive layout; verify the call works on a phone browser.
+- [x] Fully responsive layout; verify the call works on a phone browser. *(Built 2026-07-23, nightly.
+      Audited every component for narrow-viewport overflow; found and fixed one real bug —
+      `src/components/call-controls.tsx`'s bottom control pill (mic/camera/share/Start now/leave, all
+      five visible pre-start) measured ~350px wide at its old sizing, wider than a 320-360px phone
+      viewport. Shrunk to `h-10`/`gap-2`/`px-3` by default, `sm:` up to the original `h-11`/`gap-3`/
+      `px-4`, plus a `max-w-[calc(100vw-1.5rem)]`/`overflow-x-auto` fallback. Verified: `npm install`/
+      `eslint`/`tsc --noEmit`/`next build` all clean in a fresh scratch clone; confirmed Next's default
+      `width=device-width` viewport meta is present on both `/` and `/[room]`; deployed to Vercel
+      production and confirmed the fix is in the actual served JS bundle (created and immediately
+      deleted a real throwaway Daily room to check). No real physical-phone test — still no working
+      headless browser in this sandbox (Playwright's Chromium install hit `ENOSPC` this session); the
+      overflow claim is arithmetic against common phone viewport widths (320-430px), not a guess. See
+      STATUS.md for full detail.)*
 - [~] **Basic brand pass, including the rename to "Qwickword."** *(Andreas, 2026-07-21, interactive:
       "We're changing the name to Qwickword.com." He already owns the `qwickword.com` domain.)*
       **Text rename done 2026-07-21, later the same day (interactive — "lets just run the renaming now
