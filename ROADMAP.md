@@ -280,7 +280,14 @@ Goal: something you'd actually send to a colleague without wincing.
       server and the live production site got distinct slogans back nearly every time — genuine
       per-request randomness, not a frozen build-time value. Deployed same session; live on
       `https://qwickword.com`. `SLOGANS.md` stays the editable source list going forward.
-- [ ] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum.
+- [x] Duration presets (1, 2, 5, 10 min) plus a custom value with a sane maximum. *(Marked done
+      2026-07-23, nightly run — this was already fully built during the 2026-07-22 interactive
+      session and just never checked off here: `src/lib/duration.ts`'s `DURATION_PRESETS_SECONDS`
+      holds `[60, 120, 300, 600, 900, 1200]` (1/2/5/10/15/20 min), one-click creation on click; the
+      manual-minutes field in `create-link-form.tsx` covers any custom whole-minute value, clamped to
+      `MIN_DURATION_MINUTES`(1)/`MAX_DURATION_MINUTES`(30) — the 30-minute cap is deliberate per
+      Andreas ("Beyond 30 minutes would be a later premium feature"), doubling as the future free-tier
+      ceiling. No code change needed tonight, just closing the bookkeeping gap.)*
 - [x] Countdown polish: large shared timer, colour shift and a subtle cue at T-30s and T-10s.
       *(Note added 2026-07-21, Andreas, interactive: wants a friendly, non-onerous audio cue in the
       last seconds, not just visual — a very soft/low-volume tick starting around T-10s, becoming a
