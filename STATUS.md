@@ -14,6 +14,10 @@ to the "Run history" log. Keep it honest — record what actually works, not wha
   and the "fully responsive layout" item built — narrow-phone control-pill overflow fixed in
   `call-controls.tsx`. Deployed to production, live on `qwickword.com`. See run history below for
   full detail.
+- **2026-07-23 (interactive):** "Vote to end early" retired entirely per Andreas's request — no more
+  "End for everyone" toggle anywhere, in real or mock mode. Dark mode confirmed still working exactly
+  as built 2026-07-22 (default dark, top-left toggle, per-browser `localStorage` persistence) — no
+  code change needed there, just confirmed. Deployed to production. See run history below.
 - **The call-object-mode UI (formerly the `/test` preview) is now the production default, and `/test`
   no longer exists (2026-07-22, interactive — full detail in the run-history entry below).**
   `src/components/call-room.tsx` owns a real Daily call object directly (`@daily-co/daily-react`), not
@@ -2021,3 +2025,46 @@ throwaway scratch dir, not touching the mount).
   (summing the exact Tailwind classes' pixel values against common phone viewport widths —
   320/360/375/390/430px — not a guess), and the fix follows the same responsive pattern already proven
   correct elsewhere in this same file's sibling components.
+- 2026-07-23 (interactive): Andreas asked for two things in one message: retire the "vote to end the
+  call" feature ("I don't like to have that feature"), and check whether the dark-mode-default-with-
+  a-toggle setup is actually in place.
+  **Dark mode:** confirmed, no code change needed — `src/app/layout.tsx` sets `dark` on `<html>`
+  server-side by default, a blocking inline script in `<head>` removes it before paint if
+  `localStorage`'s `qwickword-theme` says "light" (avoiding a flash of the wrong theme), and
+  `src/components/theme-toggle.tsx` (top-left on the home page) flips it client-side and remembers
+  the choice per-browser. Built 2026-07-22, still working exactly as designed.
+  **Vote to end early, retired:** rather than just hiding the "End for everyone" toggle, removed the
+  whole feature — deleted `src/components/call-end-vote.tsx` and
+  `src/app/api/rooms/[room]/end/route.ts` outright (both `allow_cowork_file_delete`'d first — this
+  session's file-delete tool wanted the VM path, e.g. `/sessions/.../mnt/QuickWord/...`, not the
+  Windows path shown in the UI; noting this since the Windows-path form errored with "Could not find
+  mount for path" every time it was tried first), removed `endRoomNow` from `src/lib/daily-rooms.ts`
+  and `recordCallEndedEarly` from `src/lib/db.ts` (left the `calls` table's own `end_reason`/`ended_at`
+  columns alone — harmless unused columns, no migration needed, in case this comes back later per
+  Andreas's own "for now" phrasing), and stripped every trace of it out of
+  `src/components/call-room.tsx` (the `myVoteToEnd`/`voteTally`/`endError` state, `triggerEnd`,
+  `handleVoteTallyChange`, the `<CallEndVote>` mount, and the "End for everyone" UI block) — including
+  mock mode's "End call" button, which used the same `triggerEnd`/endpoint even though it wasn't
+  really a vote (mock mode has no one else to vote against). Mock mode's control pill now only ever
+  shows "Start now" (or nothing, once started) — there's no manual way to end a call early in either
+  mode anymore, which is the intended shape of "retired," not "hidden."
+  **Verified:** fresh scratch clone (`/tmp/qww3`, same FUSE-mount npm-install workaround as every other
+  night — including reinstalling `lucide-react` alone again for the same corrupted-`.d.ts` npm-mirror
+  issue as the previous run tonight), `npm install`, `eslint` clean, `tsc --noEmit` clean, `next build`
+  clean — the build's own route table confirms `/api/rooms/[room]/end` no longer exists at all,
+  alongside the surviving `/api/rooms/[room]/start` and `/status` routes.
+  **Deploy note — a real git incident, fully worked through:** committing this change with `cwd` on
+  the mounted project folder (a mistake — this repeats the exact thing the platform note above says
+  never to do) left `.git/HEAD.lock`/`.git/index.lock`/`.git/refs/heads/main.lock` permanently stuck
+  from *tonight's earlier* nightly-run commit, `EPERM` on every removal attempt (`rm`, `mv`, `chmod`+
+  `rm`, Python's `os.unlink`) — see this file's platform-note section, "2026-07-23 addendum," for the
+  full incident writeup and the plumbing-level recovery used to get that commit onto GitHub anyway.
+  Learned from it this time: did every git operation for *this* change (retiring the vote feature) in
+  a completely fresh `git clone` of the GitHub repo instead of touching the mount's own broken `.git`
+  at all — clone, copy the changed files in via plain `cp` (not touching the stuck local `.git`),
+  commit, push, deploy from that clone. No further lock-file incidents. Confirmed via the GitHub API
+  that the pushed commit is what `main` actually points to. Deployed to Vercel production (`.vercel/`
+  project link copied into the same fresh clone), confirmed `● Ready` and aliased to `qwickword.com`
+  via `vercel inspect`. Live-smoke-tested: home page 200; created a real, tiny, immediately-deleted
+  Daily room and confirmed `/api/rooms/<room>/end` now 404s in production (the route genuinely doesn't
+  exist anymore, not just client-side hidden) while `/start` and `/status` still work.

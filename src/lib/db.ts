@@ -80,30 +80,8 @@ export async function recordCallStarted(roomName: string): Promise<void> {
   }
 }
 
-/**
- * Records that a room's call ended earlier than its full requested duration
- * (currently: only the "vote to end early" path — see
- * POST /api/rooms/[room]/end). A call that simply runs out its full
- * duration naturally is never explicitly recorded as "ended" here — there is
- * no server-side hook for that (Daily's own `eject_at_room_exp` enforcement
- * needs no server involvement) — so for those calls `ended_at`/`end_reason`
- * stay null, and "how long did the call actually run" for stats purposes is
- * `duration_seconds` (if it ran full length) or `ended_at - started_at` (if
- * it ended early). `COALESCE` again makes repeated/concurrent calls for the
- * same room (the same race `endRoomNow` itself is built to tolerate) safe.
- */
-export async function recordCallEndedEarly(roomName: string): Promise<void> {
-  const p = getPool();
-  if (!p) return;
-  try {
-    await p.query(
-      `UPDATE calls
-       SET ended_at = COALESCE(ended_at, now()),
-           end_reason = COALESCE(end_reason, 'vote_early')
-       WHERE room_name = $1`,
-      [roomName]
-    );
-  } catch (err) {
-    console.error("[Qwickword] Failed to record call-ended-early stats:", err);
-  }
-}
+// recordCallEndedEarly (the "vote to end early" stats hook) was removed
+// 2026-07-23 alongside the rest of that feature — see ROADMAP.md. The
+// `end_reason`/`ended_at` columns stay in the `calls` table (harmless, no
+// migration needed) in case the feature comes back later; nothing writes to
+// them right now.

@@ -227,7 +227,18 @@ Goal: something you'd actually send to a colleague without wincing.
         headless browser — see STATUS.md), so the join-triggered auto-start path is verified by code
         review and the shared `triggerStart` path (identical to the manual-button path once called) —
         not by an actual two-person call.
-- [x] **Vote to end early.** *(Added 2026-07-21, Andreas, interactive: "add to roadmap an option for
+- [x] **Vote to end early.** ***Retired 2026-07-23, interactive*** *— Andreas: "can we retire the vote
+      to end the call feature for now I don't like to have that feature." Removed entirely rather than
+      just hidden: `src/components/call-end-vote.tsx`, the `POST /api/rooms/[room]/end` route,
+      `daily-rooms.ts`'s `endRoomNow`, and `db.ts`'s `recordCallEndedEarly` are all deleted;
+      `call-room.tsx`/`call-controls.tsx` no longer reference any of it, including mock mode's "End
+      call" button (which used the same endpoint). The `calls` table's `end_reason`/`ended_at` columns
+      are left alone (harmless, no migration needed) in case this comes back later — the "for now"
+      phrasing suggests it might. Verified `eslint`/`tsc --noEmit`/`next build` clean in a scratch
+      clone; the build's route table confirms `/api/rooms/[room]/end` no longer exists. Deployed to
+      production. The original build notes below are kept as history, not deleted, per this file's own
+      convention of preserving dated "done" annotations.*
+      *(Added 2026-07-21, Andreas, interactive: "add to roadmap an option for
       meeting participants to vote for meeting to end, if over 50% vote for it to end it ends
       immediately".)* **Built 2026-07-22 (nightly):** the mirror image of "Start now" above, built
       exactly the way this item's own notes anticipated. `src/lib/daily-rooms.ts` gained

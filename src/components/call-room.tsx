@@ -1,8 +1,8 @@
 "use client";
 
 // The call page's live, ticking core: the call-object lifecycle, the
-// prejoin/in-call/left state machine, the countdown/auto-start/vote-to-end
-// mechanics, and the hard swap to a "Time's up" screen once the shared `exp`
+// prejoin/in-call/left state machine, the countdown/auto-start mechanics,
+// and the hard swap to a "Time's up" screen once the shared `exp`
 // passes. Promoted to production 2026-07-22 (Andreas, interactive: "the test
 // setup as now being the default setup... I think we have done good work on
 // the test setup and it should be the standard") — this file used to wrap a
@@ -21,9 +21,15 @@
 //  - Clock-skew resync poll, plus the presence-based leave/empty-room
 //    backstop (Daily's own /rooms/:name/presence, independent of any single
 //    tab's own daily-js state).
-//  - Vote-to-end-early (now in call-end-vote.tsx, using useDaily() instead of
-//    wrapping an iframe, but the same app-message broadcast/tally mechanism).
 //  - mockMode's no-API-key fallback (no real Daily call to create at all).
+//
+// "Vote to end early" (the "End for everyone" toggle, call-end-vote.tsx,
+// POST /api/rooms/[room]/end) was retired 2026-07-23 — Andreas: "can we
+// retire the vote to end the call feature for now I don't like to have that
+// feature." Removed entirely rather than just hidden: call-end-vote.tsx,
+// the /api/rooms/[room]/end route, daily-rooms.ts's endRoomNow, and
+// db.ts's recordCallEndedEarly are all gone. It's in git history (see the
+// 2026-07-21/22 ROADMAP.md entries) if it comes back later.
 //
 // "The start now button... should feature down next to the toggle buttons
 // for microphone and camera and sharing and ending call... equal height and
@@ -39,7 +45,6 @@ import CallPrejoin from "@/components/call-prejoin";
 import CallVideoGrid from "@/components/call-video-grid";
 import CallControls from "@/components/call-controls";
 import CallOverlay from "@/components/call-overlay";
-import CallEndVote, { type VoteTally } from "@/components/call-end-vote";
 
 type Props = {
   room: string;
@@ -152,7 +157,6 @@ export default function CallRoom({
     startedRef.current = started;
   }, [started]);
   const startingRef = useRef(false);
-  const endingRef = useRef(false);
 
   // Call-object mode: create the call object directly, no <iframe> to wrap.
   // The setCallObject call is deferred via a zero-delay setTimeout so this
@@ -202,46 +206,6 @@ export default function CallRoom({
   const handleSecondParticipant = useCallback(() => {
     void triggerStart();
   }, [triggerStart]);
-
-  // "Vote to end early" tally, lifted up here (rather than living inside
-  // CallEndVote) so it survives that component's own re-renders and so this
-  // component can decide, in one place, when the live tally crosses a
-  // majority. See call-end-vote.tsx for the broadcast/tally mechanism.
-  const [myVoteToEnd, setMyVoteToEnd] = useState(false);
-  const [voteTally, setVoteTally] = useState<VoteTally>({
-    votesToEnd: 0,
-    participantCount: 0,
-  });
-  const [endError, setEndError] = useState<string | null>(null);
-
-  const triggerEnd = useCallback(async () => {
-    if (endingRef.current || !startedRef.current) return;
-    endingRef.current = true;
-    setEndError(null);
-    try {
-      const response = await fetch(`/api/rooms/${room}/end`, { method: "POST" });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(typeof data?.error === "string" ? data.error : "Couldn't end the call.");
-      }
-      setCurrentExp(data.exp);
-      // Deliberately not resetting endingRef here: once the call has
-      // actually been ended, there's nothing left to retry.
-    } catch (err) {
-      setEndError(err instanceof Error ? err.message : "Couldn't end the call.");
-      endingRef.current = false;
-    }
-  }, [room]);
-
-  const handleVoteTallyChange = useCallback(
-    (tally: VoteTally) => {
-      setVoteTally(tally);
-      if (tally.participantCount > 0 && tally.votesToEnd * 2 > tally.participantCount) {
-        void triggerEnd();
-      }
-    },
-    [triggerEnd]
-  );
 
   // Ticks the displayed remaining time off `currentExp` — see the
   // pre-promotion version of this file for why both an immediate zero-delay
@@ -326,7 +290,7 @@ export default function CallRoom({
   if (mockMode) {
     // No API key configured — there's no real Daily call to create, so this
     // renders a simplified stand-in that still exercises the countdown/
-    // start/end mechanics (all server-route-driven, not dependent on a real
+    // start mechanics (all server-route-driven, not dependent on a real
     // daily-js connection) without any camera/mic/video UI.
     return (
       <div className="relative h-full w-full bg-black">
@@ -339,43 +303,28 @@ export default function CallRoom({
             <p className="text-sm text-white/60">Room: {room}</p>
           </div>
         )}
-        {!isOver && (
+        {!isOver && !started && durationSeconds && (
           <div
             className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
           >
-            {!started && durationSeconds && (
-              <button
-                type="button"
-                onClick={() => void triggerStart()}
-                disabled={starting}
-                className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {starting ? "Starting…" : "Start now"}
-              </button>
-            )}
-            {started && (
-              // Mock mode has no real daily-js call to tally votes over —
-              // there's no one else who could be voting, so this ends the
-              // (mock) call directly rather than toggling a vote that could
-              // never reach a real tally.
-              <button
-                type="button"
-                onClick={() => void triggerEnd()}
-                className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-rose-600 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-              >
-                End call
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => void triggerStart()}
+              disabled={starting}
+              className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {starting ? "Starting…" : "Start now"}
+            </button>
           </div>
         )}
-        {(startError || endError) && (
+        {startError && (
           <p
             role="alert"
             className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
           >
-            {startError || endError}
+            {startError}
           </p>
         )}
       </div>
@@ -414,7 +363,6 @@ export default function CallRoom({
       {phase === "in-call" && (
         <>
           <AutoStartWatcher onSecondParticipant={handleSecondParticipant} />
-          <CallEndVote myVoteToEnd={myVoteToEnd} onVoteTallyChange={handleVoteTallyChange} />
           <CallVideoGrid />
           <CallOverlay remainingMs={remainingMs} started={started} />
           <CallControls
@@ -424,39 +372,13 @@ export default function CallRoom({
             onStart={() => void triggerStart()}
           />
 
-          {started && (
-            // "End for everyone" — the mirror of Start now, now that Start
-            // now itself has moved down into the control pill. Placed
-            // top-right, offset below MainTile's own unpin icon (same
-            // corner, top-4) so the two never overlap on the rare occasion
-            // both are visible at once (pinned + started).
-            <div className="absolute top-16 right-4 z-10 flex flex-col items-end gap-1">
-              <button
-                type="button"
-                onClick={() => setMyVoteToEnd((prev) => !prev)}
-                className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-medium backdrop-blur transition-colors ${
-                  myVoteToEnd
-                    ? "border-transparent bg-rose-600 text-white hover:bg-rose-700"
-                    : "border-white/20 bg-black/50 text-white hover:bg-black/70"
-                }`}
-              >
-                {myVoteToEnd ? "Cancel end vote" : "End for everyone"}
-              </button>
-              {voteTally.participantCount > 1 && (
-                <p role="status" className="text-xs text-white/70">
-                  {voteTally.votesToEnd} of {voteTally.participantCount} want to end early
-                </p>
-              )}
-            </div>
-          )}
-
-          {(startError || endError) && (
+          {startError && (
             <p
               role="alert"
               className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
               style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
             >
-              {startError || endError}
+              {startError}
             </p>
           )}
         </>
