@@ -2068,3 +2068,62 @@ throwaway scratch dir, not touching the mount).
   via `vercel inspect`. Live-smoke-tested: home page 200; created a real, tiny, immediately-deleted
   Daily room and confirmed `/api/rooms/<room>/end` now 404s in production (the route genuinely doesn't
   exist anymore, not just client-side hidden) while `/start` and `/status` still work.
+
+## 2026-07-24 (nightly)
+
+- Built the next unchecked, non-gated roadmap item: the home-page settings menu for pre-setting
+  camera/mic and the countdown tick sound before joining a call (roadmap item added 2026-07-21,
+  "add to roadmap... ability to set sound and video there so you dont do it while the clock is
+  ticking"). Full detail is in ROADMAP.md's own entry for this item (now `[x]`) — short version
+  here: new `src/lib/call-preferences.ts` (localStorage prefs, no accounts) and
+  `src/components/settings-menu.tsx` (gear icon, top-right, mirrors theme-toggle.tsx's top-left
+  placement), wired into `src/components/call-prejoin.tsx` (applies the stored camera/mic once per
+  device list, selects are now controlled off each device's own `selected` flag) and
+  `src/components/call-overlay.tsx` (T-10s tick now checks the stored sound preference, default on).
+  `src/components/home-content.tsx` mounts the new menu alongside the existing theme toggle.
+- **Scope note on the item's own "sound" ambiguity:** resolved it as the T-10s/T-5s countdown tick's
+  on/off state — the only audio cue this app has. There's no separate output/speaker-device concept
+  anywhere in this call UI (no `<audio>` device picker exists today), so "which speaker to use" isn't
+  an applicable second reading here.
+- **Stale premise caught before building on it:** this item's own note assumed the call embed was
+  still "a plain `<iframe src=...>` with no `daily-js` call object," flagging device pass-through as
+  an open investigation. That was true when the item was written (2026-07-21) but not anymore — the
+  very next day's call-UI rebuild (2026-07-22, see ROADMAP.md/STATUS.md) had already moved the whole
+  call to `daily-js` call-object mode with a custom prejoin screen that already does in-the-moment
+  camera/mic selection via `@daily-co/daily-react`'s `useDevices()`. Checked the actual current state
+  of `call-prejoin.tsx` before writing any code rather than trusting the roadmap note's now-outdated
+  premise — this made the real remaining work narrower (wire a stored preference into an
+  already-working picker) than the item's own text implied.
+- **Verified the `useDevices()` shape against Daily's live docs before relying on it**, per this
+  project's standing habit — a web search surfaced `cams`/`selectCam()`/`selectMic()` as the API,
+  which does NOT match what the code already in this repo (and now this change) uses
+  (`cameras`/`microphones`/`setCamera`/`setMicrophone`). Fetched
+  `https://docs.daily.co/reference/daily-react/use-devices` directly rather than trust the search
+  snippet: confirmed `cameras`/`microphones`/`setCamera`/`setMicrophone` (plus `currentCam`/
+  `currentMic`, and each device entry's own `selected` boolean, used here to make the prejoin
+  `<select>`s controlled) is the real, current API — matches what was already working in production.
+  The search result's `cams`/`selectCam()` naming appears to belong to a different library version
+  than the one actually installed (`@daily-co/daily-react` `^0.26.0`, per package.json).
+- **Verified:** fresh clone (`/tmp/qww_verify`, straight from GitHub — same reasoning as every prior
+  night that's hit this: the mounted project folder's own `node_modules`/npm-install path is
+  unreliable, and 2026-07-23's git-lock incident specifically taught working from a clean clone
+  instead of the mount's own `.git`), `npm install` clean (396 packages, no `lucide-react` `.d.ts`
+  corruption this time), `npx eslint .` clean (one real catch along the way — `settings-menu.tsx`'s
+  first draft called `setCameraId`/`setMicId`/`setSoundEnabled` synchronously inside a `useEffect`
+  body, tripping `react-hooks/set-state-in-effect`; fixed with the same zero-delay-`setTimeout`
+  deferral pattern already used by `theme-toggle.tsx` and `call-room.tsx`'s countdown tick), `tsc
+  --noEmit` clean, `next build` clean (route table unchanged — this is a client-side-only feature,
+  no new routes). Ran the actual production build locally (`next start`) and confirmed via `curl` that
+  the home page serves the new `aria-label="Call settings"` gear button. Did not do a full manual
+  click-through of the device pickers themselves in this sandbox (no real camera/mic hardware, and no
+  working headless browser here either — the same "near-zero sandbox disk space blocks installing a
+  real browser" limitation logged on 2026-07-23) — the confidence here comes from the build/typecheck
+  passing against `@daily-co/daily-react`'s real, doc-verified `useDevices()` shape, plus the
+  established `localStorage`-preference pattern (dark mode) already proven correct in production, not
+  from an actual mouse click in a real browser. Worth a real-device smoke test next time Andreas is
+  looking at the site himself.
+- Committed and pushed from the same fresh clone (established habit since 2026-07-23's git-lock
+  incident — the mounted project folder's local `.git` still lags behind `origin/main` by that
+  incident's commits, confirmed again tonight via a diff-against-clone check before touching anything;
+  this run only ever wrote to the fresh clone, never to the mount's own stale `.git`). Deployed to
+  Vercel production and confirmed `● Ready`, aliased to `qwickword.com`.

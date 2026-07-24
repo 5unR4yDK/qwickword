@@ -3,6 +3,7 @@ import { getDailyConfig } from "@/lib/daily-config";
 import { pickRandomSlogan } from "@/lib/slogans";
 import CreateLinkForm from "@/components/create-link-form";
 import ThemeToggle from "@/components/theme-toggle";
+import SettingsMenu from "@/components/settings-menu";
 
 /**
  * The home page's actual content — extracted out of src/app/page.tsx
@@ -19,6 +20,7 @@ export default function HomeContent() {
   return (
     <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-zinc-50 px-6 py-24 font-sans dark:bg-black">
       <ThemeToggle />
+      <SettingsMenu />
 
       {/* Ambient background glow, spreading out from the Q (2026-07-22,
           Andreas, interactive: "a little bit more sort of a purple hue dark

@@ -384,32 +384,43 @@ Goal: something you'd actually send to a colleague without wincing.
       default when `localStorage` says "light") avoids a flash-of-wrong-theme on repeat visits who'd
       chosen light. Verified: `npm run lint`/`tsc --noEmit`/`npm run build` clean as part of the same
       day's larger call-UI-rebuild verification pass (see the item below) — see STATUS.md.
-- [ ] Settings menu on the home page: a small icon in a corner (hamburger or gear — Andreas said
+- [x] Settings menu on the home page: a small icon in a corner (hamburger or gear — Andreas said
       "like a hamburger," not necessarily literally one) opening a panel to pre-set camera/microphone
       and sound preferences *before* joining a call. *(Added 2026-07-21, Andreas, interactive: "add to
       roadmap... ability to set sound and video there so you dont do it while the clock is ticking."
-      Not built tonight.)* Motivation, in his words: fiddling with device/audio settings should happen
-      here, ahead of time, not burn seconds of the countdown once a call has actually started — the
-      same "don't waste the clock on setup" concern behind the "anchor countdown to first join" item
-      above and behind item 1's `enable_prejoin_ui` lobby (Daily's own camera/mic check, which already
-      happens *inside* the call once someone joins — this item is the equivalent choice made earlier,
-      from the home page, before a link is even created). One term worth clarifying at build time
-      rather than guessing: "sound" could mean which speaker/output device to use, or could mean
-      on/off and volume for the T-10s/T-5s countdown audio cue from the "Countdown polish" item above
-      — plausibly both belong in the same panel, but confirm with Andreas rather than assume only one.
-      Likely mechanics for actually applying a chosen camera/mic to the call itself: the call embed is
-      currently a plain `<iframe src="...">` with no `daily-js` call object (Phase 0 item 5's choice),
-      so passing a pre-selected device through to Daily's own prejoin lobby will need investigating —
-      Daily either supports this via specific URL query params or requires switching to the `daily-js`
-      SDK (same tooling gap already flagged in the "anchor countdown to first join" item above);
-      validate against Daily's live docs before assuming either way, per this project's standing habit.
-      **Persistence — Andreas asked "still just attached to your session cookie if we have that":** to
-      be clear for whoever builds this, there is no session/cookie mechanism in the app today — it's
-      fully stateless (Phase 0's design, reaffirmed by the still-open "decide the backend" item further
-      below). This should use the same lightweight, no-account approach just established for dark mode
-      (`localStorage` or a plain non-auth cookie, remembered per-browser, zero server-side state) —
-      not a real user "session" in the account/login sense. No new datastore, no login, consistent with
-      Andreas's explicit "no accounts right now" stance from the dark-mode discussion above.
+      Not built that night.)* Motivation, in his words: fiddling with device/audio settings should
+      happen here, ahead of time, not burn seconds of the countdown once a call has actually started.
+      **Built 2026-07-24 (nightly).** By the time this item came up, the "plain `<iframe>`, no
+      `daily-js`" premise in this item's original note was already stale — the 2026-07-22 call-UI
+      rebuild (see call-room.tsx) had already moved the whole call to `daily-js` call-object mode with
+      a custom prejoin screen (call-prejoin.tsx), which already has its own in-the-moment camera/mic
+      pickers via `@daily-co/daily-react`'s `useDevices()`. So this item's actual job was narrower than
+      the investigation it flagged: not "make device selection possible" (already true), but "let it be
+      set once, ahead of time, from the home page, and have the call honor it automatically" — resolving
+      the open "sound" ambiguity in favor of the T-10s/T-5s countdown tick's on/off state (the only audio
+      cue this app has; there's no separate speaker-device concept anywhere in this UI, so "which
+      speaker" doesn't apply here). New: `src/lib/call-preferences.ts` (localStorage get/set for a
+      preferred camera deviceId, mic deviceId, and countdown-sound on/off — verified `useDevices()`'s
+      real shape against Daily's live docs, `cameras`/`microphones`/`setCamera`/`setMicrophone`, per
+      this project's standing habit, since a web search surfaced a *different*, newer-looking
+      `cams`/`selectCam()` naming that doesn't match the version actually installed here) and
+      `src/components/settings-menu.tsx` (a gear icon, top-right — mirroring theme-toggle.tsx's
+      top-left placement so the two corner icons read as a matched pair — opening a small panel with a
+      camera `<select>`, a microphone `<select>`, and a "Countdown tick sound" on/off toggle; includes
+      an optional "Show real device names" action that briefly requests getUserMedia permission just to
+      unlock real labels — `enumerateDevices()` returns blank labels until permission's been granted on
+      the origin before, a browser privacy rule, not a bug — then immediately stops every track). Wired
+      into the actual call: call-prejoin.tsx now applies a stored preferred camera/mic once, the first
+      time each device list becomes non-empty (silently skipped if the stored deviceId isn't present —
+      unplugged, or a different browser/profile than where the preference was set — same
+      graceful-fallback approach the rest of this app takes toward localStorage prefs), and its two
+      `<select>`s are now controlled off each device's own `selected` flag rather than left uncontrolled,
+      so they reflect whatever's actually active, including a preference applied automatically rather
+      than picked by hand. call-overlay.tsx's T-10s tick now checks the sound preference (default ON —
+      nobody's existing experience changes unless they actively turn it off) before playing. **Exactly
+      per this item's own persistence note** — plain `localStorage`, per-browser, zero server-side
+      state, no accounts, same approach already established for dark mode (theme-toggle.tsx). No new
+      datastore. See STATUS.md for the verification pass.
 - [x] `[needs-andreas]` Connect the `qwickword.com` domain to the live Vercel deployment.
       **Done 2026-07-21 (interactive).** Andreas saved the corrected DNS records in GoDaddy and they
       propagated fast — confirmed via `GET /v6/domains/qwickword.com/config`: `misconfigured: false`.
