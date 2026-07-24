@@ -14,8 +14,6 @@
   sit unopened without wasting the call's own time.
 - When the timer reaches zero, the call ends for everyone — there is no
   extend button and no way to rejoin the same link afterward.
-- Participants can also vote to end the call early, before the timer runs
-  out.
 
 ## Who it's for
 
