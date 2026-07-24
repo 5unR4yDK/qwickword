@@ -19,6 +19,7 @@ import {
   useLocalSessionId,
   useVideoTrack,
 } from "@daily-co/daily-react";
+import { getPreferredCameraId, getPreferredMicId } from "@/lib/call-preferences";
 
 export default function CallPrejoin({
   joinUrl,
@@ -58,6 +59,40 @@ export default function CallPrejoin({
       cancelled = true;
     };
   }, [daily, joinUrl]);
+
+  // Applies whatever camera/mic was chosen ahead of time in the home page's
+  // settings menu (src/components/settings-menu.tsx / src/lib/
+  // call-preferences.ts) — the whole point being that this happens
+  // automatically here, once, rather than requiring a manual pick while the
+  // countdown is already running. Runs once per device list becoming
+  // non-empty; if the stored deviceId isn't actually present (unplugged,
+  // different browser/profile than the one the preference was set in), it's
+  // silently skipped and startCamera's own system-default choice stands —
+  // same graceful-fallback approach the rest of this app takes toward
+  // localStorage preferences (e.g. theme-toggle.tsx).
+  const appliedCameraPrefRef = useRef(false);
+  useEffect(() => {
+    if (appliedCameraPrefRef.current || cameras.length === 0) return;
+    appliedCameraPrefRef.current = true;
+    const preferredId = getPreferredCameraId();
+    if (!preferredId) return;
+    const match = cameras.find((cam) => cam.device.deviceId === preferredId);
+    if (match && !match.selected) {
+      setCamera(preferredId);
+    }
+  }, [cameras, setCamera]);
+
+  const appliedMicPrefRef = useRef(false);
+  useEffect(() => {
+    if (appliedMicPrefRef.current || microphones.length === 0) return;
+    appliedMicPrefRef.current = true;
+    const preferredId = getPreferredMicId();
+    if (!preferredId) return;
+    const match = microphones.find((mic) => mic.device.deviceId === preferredId);
+    if (match && !match.selected) {
+      setMicrophone(preferredId);
+    }
+  }, [microphones, setMicrophone]);
 
   // DailyVideo (daily-react's component) needs a real DailyProvider-managed
   // participant to render, which the local participant technically isn't
@@ -170,6 +205,12 @@ export default function CallPrejoin({
             {cameras.length > 0 && (
               <select
                 aria-label="Camera"
+                // Controlled off the `selected` flag rather than left
+                // uncontrolled, so this reflects whichever device actually
+                // ended up active — including a settings-menu preference
+                // applied automatically above, not just a manual pick made
+                // right here.
+                value={cameras.find((cam) => cam.selected)?.device.deviceId ?? ""}
                 onChange={(event) => setCamera(event.target.value)}
                 className="min-w-0 flex-1 cursor-pointer rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
               >
@@ -183,6 +224,7 @@ export default function CallPrejoin({
             {microphones.length > 0 && (
               <select
                 aria-label="Microphone"
+                value={microphones.find((mic) => mic.selected)?.device.deviceId ?? ""}
                 onChange={(event) => setMicrophone(event.target.value)}
                 className="min-w-0 flex-1 cursor-pointer rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
               >

@@ -9,6 +9,7 @@
 // used it once the old Daily-Prebuilt call flow it belonged to was retired).
 
 import { useEffect, useRef } from "react";
+import { getCountdownSoundEnabled } from "@/lib/call-preferences";
 
 /** Formats a whole number of milliseconds as "M:SS", floored to whole seconds. */
 export function formatRemaining(ms: number): string {
@@ -72,6 +73,10 @@ export default function CallOverlay({
     if (!started || isOver || remainingSeconds > 10 || remainingSeconds < 1) return;
     if (lastTickSecondRef.current === remainingSeconds) return;
     lastTickSecondRef.current = remainingSeconds;
+    // Settings-menu preference (src/components/settings-menu.tsx / src/lib/
+    // call-preferences.ts) — "Countdown tick sound" toggle. Defaults to on,
+    // so this is a no-op for anyone who hasn't touched the setting.
+    if (!getCountdownSoundEnabled()) return;
 
     try {
       if (!audioContextRef.current) {
