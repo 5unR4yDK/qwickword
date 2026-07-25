@@ -28,8 +28,11 @@ kit the maintainer commissioned (2026-07-25).
 
 ## What's wired up already
 
-- `src/app/icon.png`, `apple-icon.png`, `favicon.ico` — generated from
-  `icon-196.png` / `icon-180.png` above.
+- `src/app/icon.png`, `apple-icon.png`, `favicon.ico` — generated from a
+  separate, later favicon (cyan rounded square, black lowercase "q"), not
+  from `icon-196.png` / `icon-180.png` above. Those two files are kept here
+  as the earlier cursive-wordmark icon variant, superseded for the actual
+  favicon but left in place in case they're useful elsewhere.
 - `src/app/opengraph-image.png` — a 1200x630 composition of
   `wordmark-color-on-dark.png` centered on the `#292929` background, used for
   link previews (Slack, iMessage, Twitter/X, etc.) via Next.js's
@@ -42,4 +45,5 @@ serif Playfair Display "Q" watermark) predates this kit and is a different
 direction — cursive and bouncy versus elegant and moody. Rolling this
 brand's look into the homepage itself, whether that means the watermark, the
 accent color, or both, is a deliberate design call rather than an automatic
-follow-on from adding the favicon and social card.
+follow-on from adding the favicon and social card. See `ASKS.md` for the
+options.
