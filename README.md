@@ -1,6 +1,5 @@
 # Qwickword
 
-
 **Live at [qwickword.com](https://qwickword.com)**
 
 A meeting tool where you set the maximum call length in advance and it **cannot be extended**.
