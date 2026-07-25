@@ -1,6 +1,19 @@
 {
   "name": "qwickword",
   "version": "0.1.0",
+  "description": "A video call tool where the max length is set before you join and cannot be extended — server-enforced by Daily.co, not just a client-side clock.",
+  "homepage": "https://qwickword.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/5unR4yDK/qwickword.git"
+  },
+  "keywords": [
+    "video-call",
+    "webrtc",
+    "daily-co",
+    "nextjs",
+    "meeting-timer"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",

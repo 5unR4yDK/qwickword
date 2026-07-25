@@ -1,11 +1,16 @@
 # Qwickword
 
+[![CI](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml/badge.svg)](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml)
+
+**Live at [qwickword.com](https://qwickword.com)**
+
 A meeting tool where you set the maximum call length in advance and it **cannot be extended**.
 When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
 clock. If you need more time, you schedule another Qwickword.
 
-See `BUILD_PLAN.md` for the full design, `ROADMAP.md` for what's built vs. planned, and
-`STATUS.md` for a detailed log of what's been verified so far.
+`BUILD_PLAN.md` and `ROADMAP.md` cover the design and what's built vs. planned. `STATUS.md` is an
+internal build log (large, verbose, not written for outside readers) — worth a look only if you
+want the blow-by-blow of every decision.
 
 ## Stack
 
@@ -25,7 +30,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Live mode vs. mock mode
 
 Real Daily video requires two environment variables in `.env.local` (not committed — see
-`.gitignore`):
+`.gitignore`; a template is in `.env.example`):
 
 ```
 DAILY_API_KEY=your-daily-api-key
@@ -38,6 +43,10 @@ nothing crashes. The home page shows a small "Mock mode" banner whenever that's 
 obvious when testing locally without credentials; in live mode (real credentials configured, as on
 the deployed site) no banner is shown — visitors don't need to see the video provider's internal
 domain. This means the app is fully runnable and testable without any credentials.
+
+A third variable, `DATABASE_URL`, is entirely optional — it points at a Postgres database
+(this project uses Neon) that records call-creation stats. Unset, every write is a silent no-op
+(see `src/lib/db.ts`); nothing about running or testing the app depends on it.
 
 ### Other scripts
 

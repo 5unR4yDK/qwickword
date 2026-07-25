@@ -27,6 +27,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*
+# ...except the checked-in template (placeholder values only, no secrets)
+!.env.example
 
 # Vercel CLI project link (contains org/project IDs, not secrets, but local-only)
 .vercel
