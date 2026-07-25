@@ -34,7 +34,7 @@
 // rather than ever cutting part of the picture off.
 
 import { useCallback, useRef, useState } from "react";
-import { Pin, PinOff, User } from "lucide-react";
+import { Pin, PinOff } from "lucide-react";
 import {
   DailyVideo,
   useLocalSessionId,
@@ -42,6 +42,7 @@ import {
   useScreenShare,
   useVideoTrack,
 } from "@daily-co/daily-react";
+import { dicebearAvatarUrl } from "@/lib/avatar";
 
 type Offset = { x: number; y: number };
 
@@ -54,15 +55,22 @@ const ZERO_OFFSET: Offset = { x: 0, y: 0 };
  * off rather than the video having failed — the same convention other call
  * apps use. Deliberately the same "frame, not a flat fill" idea as the
  * `fit="contain"` change above — the bordered box IS the outline of where
- * the video would render if the camera were on.
+ * the video would render if the camera were on. The circle inside shows a
+ * DiceBear identicon seeded on this participant's own Daily session ID
+ * (src/lib/avatar.ts) instead of a generic person icon, so someone with
+ * their camera off reads as "this specific person" rather than "someone,
+ * unknown."
  */
-function MainAvatarFallback() {
+function MainAvatarFallback({ sessionId }: { sessionId: string }) {
   return (
     <div className="flex h-full w-full items-center justify-center bg-black p-6 sm:p-10">
       <div className="flex aspect-video max-h-full max-w-full flex-1 items-center justify-center rounded-2xl border border-white/15 bg-zinc-900">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
-          <User size={24} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={dicebearAvatarUrl(sessionId)}
+          alt=""
+          className="h-14 w-14 rounded-full bg-zinc-700"
+        />
       </div>
     </div>
   );
@@ -74,14 +82,19 @@ function MainAvatarFallback() {
  * screen-share camera strip below), which already reads as "the outline of
  * where the video would be" at that size — a second nested bordered box
  * inside an already-small tile would just look cramped, so this stays a
- * simple flat fill.
+ * simple flat fill, with the same seeded DiceBear avatar as the main tile's
+ * fallback (same sessionId, same identicon — one consistent avatar per
+ * person regardless of which tile they're shown in).
  */
-function SmallAvatarFallback() {
+function SmallAvatarFallback({ sessionId }: { sessionId: string }) {
   return (
     <div className="flex h-full w-full items-center justify-center bg-zinc-800">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
-        <User size={18} />
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={dicebearAvatarUrl(sessionId)}
+        alt=""
+        className="h-10 w-10 rounded-full bg-zinc-700"
+      />
     </div>
   );
 }
@@ -108,7 +121,7 @@ function MainTile({
   return (
     <div className="absolute inset-0 bg-black">
       {showAvatar ? (
-        <MainAvatarFallback />
+        <MainAvatarFallback sessionId={sessionId} />
       ) : (
         <DailyVideo
           automirror
@@ -208,7 +221,7 @@ function PipTile({
       className="absolute right-6 bottom-24 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.5)] active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
     >
       {track.isOff ? (
-        <SmallAvatarFallback />
+        <SmallAvatarFallback sessionId={sessionId} />
       ) : (
         <DailyVideo
           automirror
