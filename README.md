@@ -1,6 +1,5 @@
 # Qwickword
 
-[![CI](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml/badge.svg)](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml)
 
 **Live at [qwickword.com](https://qwickword.com)**
 
