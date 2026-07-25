@@ -194,11 +194,22 @@ export default async function RoomPage({ params, searchParams }: Props) {
     started = status.started;
   } catch (err) {
     if (err instanceof DailyRoomError && err.status === 404) {
+      // A room Daily doesn't know but the database does was real once —
+      // it's over (expired, ended, or abandoned before it started), not
+      // mistyped. Only a name with no record anywhere gets the
+      // "doesn't exist" framing.
+      const wasReal = durationSeconds !== null;
       return (
         <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
           <InvalidLinkScreen
-            heading="This Qwickword doesn't exist"
-            message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
+            heading={
+              wasReal ? "This Qwickword is over" : "This Qwickword doesn't exist"
+            }
+            message={
+              wasReal
+                ? "The call ended or the link expired — every Qwickword is single-use. Ask for a fresh link, or create one yourself."
+                : "The room can't be found — the link may have been mistyped, or it's already gone."
+            }
           />
         </div>
       );

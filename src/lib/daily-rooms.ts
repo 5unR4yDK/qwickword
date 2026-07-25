@@ -57,21 +57,24 @@
 //     database for one boolean.
 const PRE_START_BUFFER_SECONDS = 24 * 60 * 60; // 24 hours
 
-// How far below PRE_START_BUFFER_SECONDS the remaining time has to be before
-// we call the countdown "started." Real countdowns are at most
-// MAX_DURATION_SECONDS (30 minutes) away, so anything meaningfully less than
-// the 24h buffer is unambiguously a real countdown, not the pre-start buffer
-// — this margin just absorbs request latency/clock skew, not actual
-// ambiguity between the two.
-const STARTED_DETECTION_MARGIN_SECONDS = 5 * 60;
+// Clock-skew/latency margin on top of MAX_DURATION_SECONDS when deciding
+// whether an `exp` reflects a real countdown.
+const STARTED_DETECTION_MARGIN_SECONDS = 60;
 
 /**
  * True if `exp` (the room's current live expiry, in Unix seconds) reflects a
  * real, started countdown rather than the generous pre-start buffer set at
- * creation. See the design note above `PRE_START_BUFFER_SECONDS`.
+ * creation. Anchored to MAX_DURATION_SECONDS: a real countdown never has
+ * more than 30 minutes remaining, while the pre-start buffer has close to
+ * 24 hours. Deliberately NOT phrased as "meaningfully below the buffer" —
+ * the remaining buffer shrinks as people wait, so that framing falsely
+ * reports "started" (with a ~24-hour countdown on screen) once someone has
+ * been waiting longer than the detection margin.
  */
 export function isCountdownStarted(exp: number, nowSeconds: number): boolean {
-  return exp - nowSeconds < PRE_START_BUFFER_SECONDS - STARTED_DETECTION_MARGIN_SECONDS;
+  return (
+    exp - nowSeconds <= MAX_DURATION_SECONDS + STARTED_DETECTION_MARGIN_SECONDS
+  );
 }
 
 import { getDailyConfig } from "./daily-config";
@@ -436,4 +439,25 @@ export async function checkDailyRoomExists(name: string): Promise<boolean> {
   } catch {
     return true;
   }
+}
+
+/**
+ * Deletes a room from Daily entirely. Used to retire an abandoned,
+ * never-started room (its only waiting participant left) so a later visitor
+ * gets the "ended" screen instead of a dead waiting room. A 404 counts as
+ * success — the room being gone is the goal. Live mode only; mock rooms
+ * aren't persisted anywhere to delete.
+ */
+export async function deleteRoom(name: string): Promise<boolean> {
+  const { apiKey, mockMode } = getDailyConfig();
+  if (mockMode) return true;
+
+  const response = await fetch(
+    `${DAILY_API_BASE}/rooms/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    }
+  );
+  return response.ok || response.status === 404;
 }

@@ -1,8 +1,10 @@
 "use client";
 
-// Custom prejoin screen (camera preview, device pickers, mic/camera toggle,
-// Join button). Replaces Daily Prebuilt's own hosted lobby, alongside the
-// rest of the call-object-mode UI — see src/components/call-room.tsx.
+// Custom prejoin screen: a self-view mirror with mic/camera toggles, device
+// pickers, and one Join button, next to an invitation that states the deal —
+// how long the call is and that it ends by itself. Replaces Daily Prebuilt's
+// own hosted lobby, alongside the rest of the call-object-mode UI — see
+// src/components/call-room.tsx.
 //
 // Built per Daily's own "Add a prejoin UI" pattern: startCamera({ url })
 // starts local media and previews it WITHOUT joining the room yet; join()
@@ -10,7 +12,13 @@
 // startCamera already set up.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import {
+  ChevronDown,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import {
   useAudioTrack,
   useDaily,
@@ -22,9 +30,12 @@ import { getPreferredCameraId, getPreferredMicId } from "@/lib/call-preferences"
 
 export default function CallPrejoin({
   joinUrl,
+  durationSeconds,
   onJoined,
 }: {
   joinUrl: string;
+  /** The call's intended length; omitted for legacy links that don't carry it. */
+  durationSeconds?: number;
   onJoined: () => void;
 }) {
   const daily = useDaily();
@@ -66,9 +77,7 @@ export default function CallPrejoin({
   // countdown is already running. Runs once per device list becoming
   // non-empty; if the stored deviceId isn't actually present (unplugged,
   // different browser/profile than the one the preference was set in), it's
-  // silently skipped and startCamera's own system-default choice stands —
-  // same graceful-fallback approach the rest of this app takes toward
-  // localStorage preferences (e.g. theme-toggle.tsx).
+  // silently skipped and startCamera's own system-default choice stands.
   const appliedCameraPrefRef = useRef(false);
   useEffect(() => {
     if (appliedCameraPrefRef.current || cameras.length === 0) return;
@@ -126,21 +135,21 @@ export default function CallPrejoin({
     }
   }, [daily, joining, onJoined]);
 
+  const minutes = durationSeconds ? Math.round(durationSeconds / 60) : null;
+
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black px-4 py-8">
-      {/* Single width-controlling wrapper around the video, the device
-          pickers, and the Join button, so everything stays centered and the
-          same width. Every child below is `w-full` and relies on THIS
-          element for its
-          max-width/centering, rather than each declaring its own max-w-xl
-          separately — that duplication was the actual bug: any small
-          difference between the video's and the selects' own width/margin
-          classes would show up as visible misalignment. One source of truth
-          for the width fixes that by construction. */}
-      <div className="flex w-full max-w-xl flex-col items-center gap-4">
-        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-zinc-900">
+    <div className="absolute inset-0 overflow-y-auto bg-black">
+      {/* Ambient glow behind the invitation column — background layer only. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed top-1/2 left-1/2 h-[1100px] w-[1100px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(61,254,241,0.10)_0%,rgba(61,254,241,0.03)_38%,transparent_70%)] blur-[64px] mix-blend-screen lg:left-[72%]"
+      />
+
+      <div className="relative flex min-h-full flex-col items-center justify-center gap-8 px-6 py-10 lg:flex-row lg:gap-11 lg:px-14">
+        {/* The mirror. */}
+        <div className="relative aspect-[49/33] w-full max-w-[490px] shrink-0 overflow-hidden rounded-[22px] border border-white/10 bg-[#0a0a0a] lg:h-[330px] lg:w-[490px]">
           {videoTrack.isOff || !videoTrack.persistentTrack ? (
-            <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
+            <div className="flex h-full w-full items-center justify-center font-mono text-xs tracking-[0.2em] text-zinc-600 uppercase">
               {starting ? "Starting camera…" : "Camera is off"}
             </div>
           ) : (
@@ -153,15 +162,15 @@ export default function CallPrejoin({
             />
           )}
 
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/60 px-4 py-2 backdrop-blur">
+          <div className="absolute bottom-4 left-4 flex items-center gap-2">
             <button
               type="button"
               onClick={toggleMic}
               disabled={starting}
               aria-pressed={!audioTrack.isOff}
               aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
-              className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+              className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white backdrop-blur-[8px] transition-colors duration-150 hover:bg-[rgba(61,254,241,0.9)] hover:text-[#062B28] disabled:cursor-not-allowed disabled:opacity-40 ${
+                audioTrack.isOff ? "bg-red-600/80" : "bg-black/65"
               }`}
             >
               {audioTrack.isOff ? <MicOff size={18} /> : <Mic size={18} />}
@@ -172,8 +181,8 @@ export default function CallPrejoin({
               disabled={starting}
               aria-pressed={!videoTrack.isOff}
               aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
-              className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+              className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white backdrop-blur-[8px] transition-colors duration-150 hover:bg-[rgba(61,254,241,0.9)] hover:text-[#062B28] disabled:cursor-not-allowed disabled:opacity-40 ${
+                videoTrack.isOff ? "bg-red-600/80" : "bg-black/65"
               }`}
             >
               {videoTrack.isOff ? <VideoOff size={18} /> : <Video size={18} />}
@@ -181,74 +190,123 @@ export default function CallPrejoin({
           </div>
         </div>
 
-        {(cameras.length > 0 || microphones.length > 0) && (
-          <div className="flex w-full flex-col gap-2 sm:flex-row">
-            {/* min-w-0 alongside flex-1 on both selects, so the device
-                pickers stay aligned with the video and Join button instead
-                of sticking out past the shared width. Root cause: flex
-                items default to `min-width: auto`,
-                which for a <select> means its OWN content sets a floor on
-                how far it can shrink — "Default - Microphone Array
-                (Realtek(R) Audio)" is long enough that the microphone
-                select refused to shrink down to its fair 50% share, so the
-                row's actual rendered width came from content size, not
-                flex-1's intended equal split, and stopped matching the
-                video/Join button's width above and below it. `min-w-0`
-                overrides that floor back to zero, letting flex-1 do what it
-                was already supposed to: split the row exactly in half,
-                summing to the same full width as everything else in this
-                shared max-w-xl column. */}
-            {cameras.length > 0 && (
-              <select
-                aria-label="Camera"
-                // Controlled off the `selected` flag rather than left
-                // uncontrolled, so this reflects whichever device actually
-                // ended up active — including a settings-menu preference
-                // applied automatically above, not just a manual pick made
-                // right here.
-                value={cameras.find((cam) => cam.selected)?.device.deviceId ?? ""}
-                onChange={(event) => setCamera(event.target.value)}
-                className="min-w-0 flex-1 cursor-pointer rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
-              >
-                {cameras.map((cam) => (
-                  <option key={cam.device.deviceId} value={cam.device.deviceId}>
-                    {cam.device.label || "Camera"}
-                  </option>
-                ))}
-              </select>
-            )}
-            {microphones.length > 0 && (
-              <select
-                aria-label="Microphone"
-                value={microphones.find((mic) => mic.selected)?.device.deviceId ?? ""}
-                onChange={(event) => setMicrophone(event.target.value)}
-                className="min-w-0 flex-1 cursor-pointer rounded-full border border-white/15 bg-zinc-900 px-4 py-2 text-sm text-zinc-100"
-              >
-                {microphones.map((mic) => (
-                  <option key={mic.device.deviceId} value={mic.device.deviceId}>
-                    {mic.device.label || "Microphone"}
-                  </option>
-                ))}
-              </select>
-            )}
+        {/* The invitation. */}
+        <div className="flex w-full max-w-[440px] flex-col gap-[26px]">
+          <div className="flex flex-col gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/wordmark-only.svg"
+              alt="qwickword.com"
+              className="h-auto w-[230px] opacity-80"
+            />
+            <h1 className="text-[26px] leading-[34px] font-medium text-[#FAFAFA]">
+              {minutes ? (
+                <>
+                  You&apos;re joining a{" "}
+                  <span className="text-[#3DFEF1]">{minutes} minute</span>{" "}
+                  Qwickword.
+                </>
+              ) : (
+                <>You&apos;re joining a Qwickword.</>
+              )}
+            </h1>
+            <p className="text-[15px] leading-[23px] text-[#8A8A8F]">
+              It ends by itself when the timer runs out — no extending, no
+              rejoining. Nothing counts down until the second person is here.
+            </p>
           </div>
-        )}
 
-        {error && (
-          <p role="alert" className="text-sm text-red-400">
-            {error}
-          </p>
-        )}
+          {(cameras.length > 0 || microphones.length > 0) && (
+            <div className="flex flex-col gap-2">
+              {cameras.length > 0 && (
+                <DeviceRow
+                  icon={<Video size={14} aria-hidden="true" />}
+                  label="Camera"
+                  value={cameras.find((cam) => cam.selected)?.device.deviceId ?? ""}
+                  onChange={setCamera}
+                  options={cameras.map((cam) => ({
+                    id: cam.device.deviceId,
+                    label: cam.device.label || "Camera",
+                  }))}
+                />
+              )}
+              {microphones.length > 0 && (
+                <DeviceRow
+                  icon={<Mic size={14} aria-hidden="true" />}
+                  label="Microphone"
+                  value={
+                    microphones.find((mic) => mic.selected)?.device.deviceId ?? ""
+                  }
+                  onChange={setMicrophone}
+                  options={microphones.map((mic) => ({
+                    id: mic.device.deviceId,
+                    label: mic.device.label || "Microphone",
+                  }))}
+                />
+              )}
+            </div>
+          )}
 
-        <button
-          type="button"
-          onClick={() => void handleJoin()}
-          disabled={starting || joining}
-          className="flex h-12 w-full cursor-pointer items-center justify-center rounded-full bg-white px-6 text-base font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {joining ? "Joining…" : "Join"}
-        </button>
+          {error && (
+            <p role="alert" className="text-sm text-red-400">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void handleJoin()}
+            disabled={starting || joining}
+            className="flex h-14 w-full cursor-pointer items-center justify-center rounded-full bg-[#3DFEF1] text-base font-semibold text-[#062B28] transition-colors duration-150 hover:enabled:bg-[#7FFFF5] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {joining ? "Joining…" : "Join the Qwickword"}
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A 44px device-picker row: leading icon, the device name (truncated —
+ * real device strings are long), trailing chevron. The interactive element
+ * is a native <select> stretched invisibly across the whole row, so it
+ * stays keyboard- and screen-reader-operable while the visible layer is
+ * fully styled.
+ */
+function DeviceRow({
+  icon,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onChange: (deviceId: string) => void;
+  options: { id: string; label: string }[];
+}) {
+  const selected = options.find((option) => option.id === value);
+  return (
+    <div className="relative flex h-11 items-center gap-2 rounded-[10px] border border-white/[0.145] bg-white/[0.03] px-3.5 transition-colors duration-150 hover:border-[rgba(61,254,241,0.5)]">
+      <span className="shrink-0 text-[#71717A]">{icon}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-[#D4D4D8]">
+        {selected?.label ?? label}
+      </span>
+      <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-[#71717A]" />
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

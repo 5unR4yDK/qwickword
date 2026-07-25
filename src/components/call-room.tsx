@@ -80,17 +80,18 @@ function AutoStartWatcher({ onSecondParticipant }: { onSecondParticipant: () => 
   return null;
 }
 
-function LeftScreen() {
+function LeftScreen({ preStart }: { preStart: boolean }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
       <p className="text-lg font-medium">You&apos;ve left this call.</p>
       <p className="max-w-sm text-sm text-white/60">
-        It may still be running for anyone else still in it — there&apos;s no
-        way back into this one.
+        {preStart
+          ? "The call never started, so this link is done — anyone opening it now will see that it's over."
+          : "It may still be running for anyone else still in it — there's no way back into this one."}
       </p>
       <Link
         href="/"
-        className="mt-2 cursor-pointer rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200"
+        className="mt-2 cursor-pointer rounded-full bg-[#3DFEF1] px-5 py-2 text-sm font-semibold text-[#062B28] transition-colors hover:bg-[#7FFFF5]"
       >
         Create a new one
       </Link>
@@ -281,8 +282,23 @@ export default function CallRoom({
 
   const isOver = remainingMs <= 0;
 
+  // Leaving before the countdown ever started abandons the room: if this
+  // was the only person waiting, the server retires (deletes) it so a later
+  // visitor sees the "ended" screen instead of a waiting room nobody is
+  // coming back to. Fire-and-forget — the server double-checks the started
+  // state and presence itself, so a stale/failed call here just means the
+  // room quietly rots out via its 24h buffer instead.
+  const handleLeave = useCallback(() => {
+    if (!startedRef.current && !mockMode) {
+      void fetch(`/api/rooms/${room}/abandon`, { method: "POST" }).catch(
+        () => {}
+      );
+    }
+    setLeftCall(true);
+  }, [mockMode, room]);
+
   if (leftCall) {
-    return <LeftScreen />;
+    return <LeftScreen preStart={!started} />;
   }
 
   if (mockMode) {
@@ -360,7 +376,11 @@ export default function CallRoom({
     <DailyProvider callObject={callObject}>
       <DailyAudio />
       {phase === "prejoin" && (
-        <CallPrejoin joinUrl={joinUrl} onJoined={() => setPhase("in-call")} />
+        <CallPrejoin
+          joinUrl={joinUrl}
+          durationSeconds={durationSeconds ?? undefined}
+          onJoined={() => setPhase("in-call")}
+        />
       )}
       {phase === "in-call" && (
         <>
@@ -372,7 +392,7 @@ export default function CallRoom({
             durationSeconds={durationSeconds ?? undefined}
           />
           <CallControls
-            onLeave={() => setLeftCall(true)}
+            onLeave={handleLeave}
             started={started}
             starting={starting}
             onStart={() => void triggerStart()}
