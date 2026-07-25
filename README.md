@@ -10,6 +10,19 @@ A meeting tool where you set the maximum call length in advance and it **cannot 
 When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
 clock. If you need more time, you schedule another Qwickword.
 
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/home.jpg" alt="Home page: pick a call length, get a link" /><br /><sub>Pick a length, get a link — no signup.</sub></td>
+<td width="50%"><img src="docs/screenshots/link-created.jpg" alt="Link created screen showing a shareable qwickword.com link" /><br /><sub>A clean, memorable link — nothing to configure after creation.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/prejoin.jpg" alt="Pre-join screen with camera/mic check and the call's time limit" /><br /><sub>The pre-join screen states the deal up front: how long, and that it ends by itself.</sub></td>
+<td width="50%"><img src="docs/screenshots/about.jpg" alt="About page explaining what Qwickword is" /><br /><sub>The /about page, for anyone who wants the plain-English version.</sub></td>
+</tr>
+</table>
+
 ## Stack
 
 Next.js (App Router, TypeScript, Tailwind) for the app; [Daily.co](https://daily.co) for video,
