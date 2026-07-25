@@ -53,8 +53,9 @@ export default function AboutPage() {
             and send it to whoever you&apos;re meeting. The countdown starts
             when the second person joins — not when the link is created — so
             a link can sit unopened without wasting the call&apos;s own time.
-            Once the timer runs out, the room is gone. If you need more time,
-            you make another Qwickword.
+            Once the timer runs out, the room is gone. Qwickword is built for
+            conversations that fit inside the cap — if yours needs longer
+            than that, a regular call is the better tool for it.
           </p>
           <p>
             There are no accounts, nothing to download, and nothing to
