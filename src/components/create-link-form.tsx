@@ -70,6 +70,13 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     Number.isInteger(parsedMinutes) &&
     parsedMinutes >= MIN_DURATION_MINUTES &&
     parsedMinutes <= MAX_DURATION_MINUTES;
+  // Only the over-the-max case gets a warning — typing "0" or leaving it
+  // blank isn't wrong yet, it's just incomplete. Absolutely positioned (see
+  // below) so it never pushes the pills around when it appears/disappears.
+  const isOverMax =
+    customValue.trim() !== "" &&
+    Number.isFinite(parsedMinutes) &&
+    parsedMinutes > MAX_DURATION_MINUTES;
 
   const isLoading = state.status === "loading";
 
@@ -296,8 +303,20 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
           {customOpen ? (
             /* The dashed pill, morphed in place into the inline field —
                box-border keeps it exactly 44px tall including its border,
-               flush with the presets beside it. */
-            <div className="box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]">
+               flush with the presets beside it. relative + the absolutely
+               positioned warning below is deliberate: the warning must not
+               participate in layout, or its appearance/disappearance while
+               typing shifts the whole picker row up and down. */
+            <div className="relative box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]">
+              {isOverMax && (
+                <p
+                  id="custom-duration-warning"
+                  role="alert"
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-medium whitespace-nowrap text-red-400/80 dark:text-red-400/70"
+                >
+                  Max {MAX_DURATION_MINUTES} min
+                </p>
+              )}
               <label htmlFor="custom-minutes" className="sr-only">
                 Custom call length in minutes
               </label>
@@ -321,7 +340,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                   }
                 }}
                 disabled={isLoading}
-                aria-describedby="custom-hint"
+                aria-describedby={isOverMax ? "custom-duration-warning" : undefined}
                 aria-invalid={customValue.trim() !== "" && !isValidDuration}
                 className="w-10 bg-transparent text-[15px] font-medium text-teal-700 tabular-nums caret-teal-600 outline-none dark:text-[#3DFEF1] dark:caret-[#3DFEF1] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
@@ -349,13 +368,6 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
             </button>
           )}
         </div>
-
-        {customOpen && (
-          <p id="custom-hint" className="text-xs text-zinc-500 dark:text-[#52525B]">
-            {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole minutes
-            only. Enter creates the link.
-          </p>
-        )}
 
         {state.status === "error" && (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">

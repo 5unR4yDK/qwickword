@@ -39,6 +39,7 @@ export default function SettingsMenu() {
   const [labelsHidden, setLabelsHidden] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Loads stored preferences and the current device list once the panel
   // first opens — not on every render, and not before the user asks for it,
@@ -90,7 +91,17 @@ export default function SettingsMenu() {
   useEffect(() => {
     if (!open) return;
     function handlePointerDown(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // The toggle button itself is deliberately excluded here: it's outside
+      // panelRef, so without this check, clicking it again while open would
+      // close the panel on this mousedown handler and then immediately
+      // reopen it on the button's own click-triggered toggle a moment later
+      // (mousedown fires before click) — net effect, the panel never closed.
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        !buttonRef.current?.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -142,6 +153,7 @@ export default function SettingsMenu() {
   return (
     <div className="absolute top-4 right-4 z-20">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Call settings"
