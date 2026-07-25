@@ -1,8 +1,7 @@
 # Qwickword brand assets
 
-Source files the maintainer provided 2026-07-25 (originally `brandassets.zip` in the
-repo root — extracted and organized here; the zip itself was removed once
-these were in place).
+Source files for the wordmark and icon, organized from the original brand
+kit the maintainer commissioned (2026-07-25).
 
 ## Palette (sampled from the source files)
 
@@ -25,9 +24,9 @@ these were in place).
   mark at standard favicon/touch-icon sizes (browser favicon, Apple touch
   icon, Android/Chrome icon).
 - `social-card-square.png` — 1000x1000 wordmark + tagline on the dark
-  background; sized for Twitter's "summary" card format.
+  background, sized for Twitter's "summary" card format.
 
-## What's already wired up (2026-07-25)
+## What's wired up already
 
 - `src/app/icon.png`, `apple-icon.png`, `favicon.ico` — generated from
   `icon-196.png` / `icon-180.png` above.
@@ -36,14 +35,12 @@ these were in place).
   link previews (Slack, iMessage, Twitter/X, etc.) via Next.js's
   file-convention metadata.
 
-## What's NOT done yet -- an open decision, not an oversight
+## Homepage redesign: still open
 
-The homepage's actual visual identity (the indigo/violet ambient glow, the
-serif Playfair Display "Q" watermark, the current color scheme) predates this
-brand kit and was built through several rounds of the maintainer's own direction --
-see `src/components/home-content.tsx`'s comments for that history. This new
-kit's style (cursive/bouncy wordmark, cyan accent) is a different direction,
-not a strict superset of the current look. Rolling it into the homepage
-itself (replacing the watermark, the accent color, or both) is a deliberate
-design decision, not something to auto-apply -- see ASKS.md and the
-2026-07-25 chat log for the options laid out.
+The homepage's current visual identity (the indigo/violet ambient glow, the
+serif Playfair Display "Q" watermark) predates this kit and is a different
+direction — cursive and bouncy versus elegant and moody. Rolling this
+brand's look into the homepage itself, whether that means the watermark, the
+accent color, or both, is a deliberate design call rather than an automatic
+follow-on from adding the favicon and social card. See `ASKS.md` for the
+options.

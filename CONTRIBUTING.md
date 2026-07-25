@@ -1,8 +1,8 @@
 # Contributing to Qwickword
 
-This is a small, independent side project, not a company — and contributions
-are genuinely welcome, not just tolerated. If you think the idea is cool and
-want to help make it better, that's exactly the spirit it was built in.
+This is a small, independent side project, not a company, and contributions
+are genuinely welcome. If you think the idea is cool and want to help make
+it better, that's exactly the spirit it was built in.
 
 ## What's a good fit
 
@@ -14,12 +14,11 @@ want to help make it better, that's exactly the spirit it was built in.
 
 ## What to expect
 
-The day-to-day maintenance loop right now leans on autonomous monitoring
-for SEO/discoverability upkeep (see `MONITORING.md`) rather than a packed
-feature roadmap, and it's maintained by one person in their spare time — so
-response times won't be enterprise-fast. That doesn't mean contributions
-aren't wanted; it means a little patience helps.
+The day-to-day maintenance loop right now leans on autonomous monitoring for
+SEO/discoverability upkeep (see `MONITORING.md`), not a packed feature
+roadmap, and it's maintained by one person in their spare time. Replies
+happen on a spare-time schedule.
 
 ## License
 
-MIT (see `LICENSE`) — fork it, learn from it, build on it.
+Licensed MIT (see `LICENSE`). Fork it and build on it.
