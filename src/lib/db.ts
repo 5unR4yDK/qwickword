@@ -1,18 +1,22 @@
-// Optional Postgres-backed call-stats store — how many calls have been made
-// and how many minutes used, for basic usage tracking. Backed by Neon,
-// provisioned via the Vercel Marketplace integration — `DATABASE_URL` is set
-// automatically in every Vercel environment once that integration is
+// Postgres store backing two things: call stats (how many calls, how many
+// minutes) and the duration lookup that keeps shared links clean. Backed by
+// Neon, provisioned via the Vercel Marketplace integration — `DATABASE_URL`
+// is set automatically in every Vercel environment once that integration is
 // connected to this project.
 //
-// This is deliberately NOT part of the app's core state model. Everything
-// else in this codebase (see daily-rooms.ts) is built around "no datastore —
-// Daily's own room `exp` is the single source of truth," and that stays
-// true: a database outage here can never break creating, starting, or
-// ending a call. Every function below is a fire-and-forget write, wrapped in
-// try/catch, that only ever *records* what already happened via the real
-// (Daily-backed) flow. `DATABASE_URL` being unset (e.g. local dev without a
-// linked Neon database) is treated the same as a write failure: silently
-// skip, don't throw.
+// Daily's own room `exp` stays the single source of truth for the actual
+// hard end — a database outage can never extend or break a running call.
+// The one thing the database now carries as real state is each room's
+// *intended* duration, so a shared link can be just the slug
+// (qwickword.com/quiet-otter) with no query params. That dependency
+// degrades gracefully rather than hard-failing: if the write fails at
+// creation time, the created link falls back to carrying the duration in
+// its query string, exactly like the older links (see POST /api/rooms).
+// `DATABASE_URL` being unset (e.g. local dev without a linked Neon
+// database) is treated the same as a write failure.
+//
+// One row per created call; a slug that gets reused later simply inserts a
+// new row, and lookups take the most recent row for the name.
 import { Pool } from "pg";
 
 let pool: Pool | null = null;
@@ -35,25 +39,54 @@ function getPool(): Pool | null {
 /**
  * Records that a room was created, with the duration the caller requested.
  * Called from POST /api/rooms right after `createHardExpiryRoom` succeeds.
- * `ON CONFLICT DO NOTHING` makes this safe to call more than once for the
- * same room name (shouldn't happen — Daily's own room names are unique per
- * create call — but costs nothing to guard against).
+ * Returns whether the write actually landed — the route uses that to decide
+ * whether the link it hands back can be clean (slug only) or needs the
+ * query-string fallback.
  */
 export async function recordCallCreated(
   roomName: string,
   durationSeconds: number
-): Promise<void> {
+): Promise<boolean> {
   const p = getPool();
-  if (!p) return;
+  if (!p) return false;
   try {
     await p.query(
-      `INSERT INTO calls (room_name, duration_seconds)
-       VALUES ($1, $2)
-       ON CONFLICT (room_name) DO NOTHING`,
+      `INSERT INTO calls (room_name, duration_seconds) VALUES ($1, $2)`,
       [roomName, durationSeconds]
     );
+    return true;
   } catch (err) {
     console.error("[Qwickword] Failed to record call-created stats:", err);
+    return false;
+  }
+}
+
+/**
+ * The intended duration of the most recent call created under this room
+ * name, or null if there's no row (or the database is unreachable). This is
+ * what lets a clean, param-less link (qwickword.com/quiet-otter) recover the
+ * call length server-side.
+ */
+export async function getRecordedDurationSeconds(
+  roomName: string
+): Promise<number | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query(
+      `SELECT duration_seconds FROM calls
+       WHERE room_name = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [roomName]
+    );
+    const value = result.rows[0]?.duration_seconds;
+    return typeof value === "number" && Number.isInteger(value) && value > 0
+      ? value
+      : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to look up recorded duration:", err);
+    return null;
   }
 }
 
@@ -69,8 +102,14 @@ export async function recordCallStarted(roomName: string): Promise<void> {
   const p = getPool();
   if (!p) return;
   try {
+    // Scoped to the latest row for the name — with per-call rows, an old
+    // call that once used the same (reused) slug must not be touched.
     await p.query(
-      `UPDATE calls SET started_at = COALESCE(started_at, now()) WHERE room_name = $1`,
+      `UPDATE calls SET started_at = COALESCE(started_at, now())
+       WHERE id = (
+         SELECT id FROM calls WHERE room_name = $1
+         ORDER BY created_at DESC LIMIT 1
+       )`,
       [roomName]
     );
   } catch (err) {

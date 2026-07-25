@@ -1,19 +1,14 @@
 import Link from "next/link";
 
 // Friendly replacement for a crash or a half-working page when a link is
-// dead or malformed (Phase 0 item 7, "Invalid/expired-link handling"). Two
-// callers in src/app/[room]/page.tsx use this with different copy: a
-// syntactically broken link (bad room name or missing/garbled `exp`, caught
-// without ever calling Daily) and a syntactically fine link whose room no
-// longer exists on Daily (caught by checkDailyRoomExists in
-// src/lib/daily-rooms.ts, live mode only).
+// dead or malformed. src/app/[room]/page.tsx uses this with different copy
+// per failure: a syntactically broken link (caught without ever calling
+// Daily), a room Daily doesn't know (mistyped or already gone), and a
+// transient failure loading a clean link's details.
 //
-// Restyled full-bleed black 2026-07-22 alongside the rest of the call page,
-// when it dropped its old light-card PageShell wrapper for the call-object-
-// mode UI's own full-viewport black design (see src/app/[room]/page.tsx) —
-// matches CallRoom's own "ended"/"left" screens (src/components/call-room.tsx)
-// so a dead link looks the same however it died, rather than looking like a
-// leftover from the old light-themed page shell.
+// Full-bleed black, matching CallRoom's own "ended"/"left" screens
+// (src/components/call-room.tsx) so a dead link looks the same however it
+// died.
 export default function InvalidLinkScreen({
   heading,
   message,

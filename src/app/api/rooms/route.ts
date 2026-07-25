@@ -38,14 +38,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const room = await createHardExpiryRoom(durationSeconds);
-    // Stats logging (see src/lib/db.ts) — fire-and-forget, never blocks or
-    // fails the actual room creation. Skipped for mock rooms: they're not
-    // real calls, and mock room names aren't unique/stable enough to be
-    // meaningful stats rows.
-    if (!room.mockMode) {
-      void recordCallCreated(room.name, room.durationSeconds);
-    }
-    return NextResponse.json(room, { status: 200 });
+    // The database row is what lets the shared link be clean (slug only, no
+    // query params) — the call page recovers the duration from it. Awaited,
+    // because the response's `clean` flag depends on whether the write
+    // landed: if it didn't (database down, DATABASE_URL unset), the client
+    // falls back to a link that carries exp/d in the query string, which
+    // works with no database at all. Mock rooms always use the fallback —
+    // they aren't persisted anywhere a later request could look them up.
+    const recorded = room.mockMode
+      ? false
+      : await recordCallCreated(room.name, room.durationSeconds);
+    return NextResponse.json({ ...room, clean: recorded }, { status: 200 });
   } catch (err) {
     if (err instanceof DailyRoomError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

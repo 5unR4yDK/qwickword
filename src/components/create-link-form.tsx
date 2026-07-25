@@ -16,6 +16,12 @@ type CreateRoomResponse = {
   exp: number;
   durationSeconds: number;
   mockMode: boolean;
+  /**
+   * Whether the server recorded this room's duration, making the clean
+   * (slug-only) link resolvable — see POST /api/rooms. False means the link
+   * must carry `exp`/`d` in its query string to work.
+   */
+  clean: boolean;
 };
 
 type CreateState =
@@ -107,14 +113,17 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     }
 
     const room = data as CreateRoomResponse;
-    // `exp` and `d` (durationSeconds) ride along in the query string so the
-    // call page needs no server-side lookup for a first render. `exp` here
-    // is the room's *pre-start* buffer, not the real call length — the
-    // countdown starts when the second person joins.
-    const roomPath = `/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
+    // The shared link is clean — just the slug — whenever the server
+    // confirmed it recorded the duration (the call page recovers everything
+    // else from Daily + that record). If it couldn't (`clean: false`:
+    // database hiccup, or mock mode), `exp`/`d` ride along in the query
+    // string instead, which needs no lookup at all. `exp` here is the
+    // room's *pre-start* buffer, not the real call length — the countdown
+    // starts when the second person joins.
+    const roomPath = room.clean
+      ? `/${room.name}`
+      : `/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
     const link = `${window.location.origin}${roomPath}`;
-    // What the link card shows: the readable core of the URL, not the
-    // query-string plumbing. Copying still copies the full working link.
     const displayLink = `${window.location.host}/${room.name}`;
 
     setState({

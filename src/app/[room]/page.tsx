@@ -3,64 +3,49 @@ import { getDailyConfig } from "@/lib/daily-config";
 import { remainingMsUntil } from "@/lib/time";
 import {
   DailyRoomError,
-  checkDailyRoomExists,
   getRoomStatus,
   isPlausibleRoomName,
 } from "@/lib/daily-rooms";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import { getRecordedDurationSeconds } from "@/lib/db";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
 /**
- * Call page: joins the Daily room named by the `[room]` segment and shows a
- * countdown synced to the `exp` query param.
+ * Call page: joins the Daily room named by the `[room]` segment.
  *
- * Deliberately stateless (no database — there's no need for one here): the
- * link created by CreateLinkForm already carries `exp` (the room's Unix
- * expiry timestamp) as a query param, so this page needs no server-side
- * lookup to know the countdown target for a well-formed link. Both parties
- * opening the same link see the same `exp`, hence the same countdown.
+ * A shared link is normally clean — just qwickword.com/<slug> — and this
+ * page resolves everything else server-side: the room's live `exp` from
+ * Daily (`getRoomStatus`), and the intended call length from the database
+ * row written at creation (`getRecordedDurationSeconds`). Query params are
+ * the fallback layer, not the primary path: a link that carries `exp`/`d`
+ * (older links, mock-mode links, or a creation where the database write
+ * failed) works with no lookup at all, exactly as before, and params take
+ * precedence when present.
  *
  * The "hard-end experience" lives mostly in CallRoom
  * (src/components/call-room.tsx): once `exp` has passed, CallRoom shows a
  * plain "ended" screen with no rejoin/extend control anywhere, in place of
  * the call area.
  *
- * Invalid/expired-link handling is this page's own job, gating entry to
- * CallRoom with two checks, cheapest first:
- *  1. Syntax: is `room` a plausible room name, and is `exp` a real number?
- *     No network call — this catches a mistyped/truncated/mangled link
- *     immediately. (A link whose `exp` has already passed but is otherwise
- *     well-formed is NOT caught here — that's a normal, working link that
- *     has simply ended; CallRoom already renders the right "ended" screen
- *     for it, reusing that work rather than duplicating it here.)
- *  2. Existence (live mode only, and only when the link claims to still be
- *     within its window — see the `initialRemainingMs > 0` guard below):
- *     does this room still exist on Daily? Mock mode has nothing to check
- *     this against (mock rooms are never persisted anywhere — see
- *     checkDailyRoomExists's doc comment in src/lib/daily-rooms.ts), so a
- *     syntactically valid mock link is trusted as-is; its own `exp` is still
- *     enforced by CallRoom once it passes, same as any other link.
- * Skipping the existence check once the link already claims to be expired
- * avoids an unnecessary Daily API call for a case CallRoom already handles
- * correctly from the `exp` math alone, with no regression risk to that
- * already-verified "ended" behaviour.
+ * Invalid-link handling is this page's own job: a garbage room name is
+ * rejected on syntax alone (no network call), and a room Daily doesn't know
+ * (mistyped slug, or already expired and cleaned up) gets its own screen
+ * from the 404 on the live status fetch.
  *
- * The countdown is anchored to first join, not link creation: a link also
- * carries `d` (the intended durationSeconds). The `exp` in a freshly-created
- * link is a generous pre-start buffer, not the
- * real call length (see src/lib/daily-rooms.ts) — this page's job is to
- * re-fetch the room's *live* `exp` from Daily (via `getRoomStatus`) rather
- * than trusting the link's own `exp`, since that's the only way two tabs
- * opening the same link at very different times agree on the same real
- * countdown once it's started. CallRoom (src/components/call-room.tsx) is
- * what actually starts it (a manual "Start now" button, or a second
- * participant joining) and owns the waiting-vs-counting-down UI.
+ * The countdown is anchored to first join, not link creation: a fresh
+ * room's `exp` is a generous pre-start buffer, not the real call length
+ * (see src/lib/daily-rooms.ts). Fetching the live `exp` is also the only
+ * way two tabs opening the same link at very different times agree on the
+ * same real countdown once it's started. CallRoom is what actually starts
+ * it (a manual "Start now" button, or a second participant joining) and
+ * owns the waiting-vs-counting-down UI.
  *
- * Backward compatible with links minted before this feature (`d` missing):
- * those links' `exp` was already the real, already-ticking countdown at
- * creation time — this page treats a missing `d` as "already started," so an
- * older link keeps behaving exactly as it always did.
+ * Backward compatible with links minted before durations existed at all
+ * (no `d`, no database row): those links' `exp` was already the real,
+ * ticking countdown at creation, and the live status fetch reads exactly
+ * that state back (`started: true`), so they keep behaving as they always
+ * did.
  *
  * Full-bleed black wrapper, no header/footer chrome — the call UI fills the
  * viewport rather than sitting inside a light "Qwickword" header + call card
@@ -103,15 +88,18 @@ function parseDurationParam(raw: string | string[] | undefined): number | null {
  * flow, so a shared card never leaks a participant or a topic, only the
  * length and the promise that it ends.
  *
- * The duration comes from the link's `d` query param (this app is
- * stateless — no server-side room record to look up). A link with no valid
- * `d` (a pre-this-feature link, a stripped query string, or a mistyped one)
- * falls back to a generic title/description. The OG images and metadataBase
- * are inherited from the root layout.
+ * The duration comes from the link's `d` query param when present, or the
+ * database row written at creation for a clean param-less link. A link with
+ * neither (a pre-duration-era link, or a database miss) falls back to a
+ * generic title/description. The OG images and metadataBase are inherited
+ * from the root layout.
  */
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const { room } = await params;
   const { d: rawDuration } = await searchParams;
-  const durationSeconds = parseDurationParam(rawDuration);
+  const durationSeconds =
+    parseDurationParam(rawDuration) ??
+    (isPlausibleRoomName(room) ? await getRecordedDurationSeconds(room) : null);
 
   if (!durationSeconds) {
     const description =
@@ -144,17 +132,13 @@ export default async function RoomPage({ params, searchParams }: Props) {
   const expParam = Array.isArray(rawExp) ? rawExp[0] : rawExp;
   const linkExp = expParam ? Number(expParam) : NaN;
   const hasValidLinkExp = Number.isFinite(linkExp) && linkExp > 0;
-  const hasValidRoomName = isPlausibleRoomName(room);
 
-  const durationSeconds = parseDurationParam(rawDuration);
-  const hasValidDuration = durationSeconds !== null;
-
-  if (!hasValidRoomName || !hasValidLinkExp) {
+  if (!isPlausibleRoomName(room)) {
     return (
       <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
         <InvalidLinkScreen
           heading="This link isn't valid"
-          message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
+          message="It doesn't look like a Qwickword link — it may have been copied incorrectly or cut off."
         />
       </div>
     );
@@ -162,64 +146,99 @@ export default async function RoomPage({ params, searchParams }: Props) {
 
   const { mockMode, domain } = getDailyConfig();
 
-  let exp = linkExp;
-  // Legacy default: a link with no `d` was minted before this feature, so
-  // its `exp` was already the real, already-ticking countdown — treat it as
-  // started so old links keep behaving exactly as they always did.
-  let started = true;
+  if (mockMode) {
+    // Mock rooms are never persisted anywhere, so a mock link must carry its
+    // own `exp`/`d` — there is nothing to look up. Mock links always do
+    // (POST /api/rooms marks them `clean: false`).
+    if (!hasValidLinkExp) {
+      return (
+        <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+          <InvalidLinkScreen
+            heading="This link isn't valid"
+            message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
+          />
+        </div>
+      );
+    }
+    const mockDuration = parseDurationParam(rawDuration);
+    return (
+      <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+        <CallRoom
+          room={room}
+          exp={linkExp}
+          durationSeconds={mockDuration}
+          // A mock link with a duration waits for the client-side start
+          // trigger; one without is a legacy-style already-ticking link.
+          initialStarted={mockDuration === null}
+          initialRemainingMs={remainingMsUntil(linkExp)}
+          mockMode={mockMode}
+          joinUrl={null}
+        />
+      </div>
+    );
+  }
 
-  if (hasValidDuration) {
-    if (mockMode) {
-      // Mock mode has no persisted room to poll — CallRoom's own client-side
-      // "Start now"/join-detected trigger takes over from here.
-      started = false;
-    } else {
-      try {
-        const status = await getRoomStatus(room, linkExp);
-        exp = status.exp;
-        started = status.started;
-      } catch (err) {
-        if (err instanceof DailyRoomError && err.status === 404) {
-          return (
-            <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
-              <InvalidLinkScreen
-                heading="This Qwickword doesn't exist"
-                message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
-              />
-            </div>
-          );
-        }
-        // Unexpected error (network blip, Daily hiccup) — fall back to the
-        // waiting state with the link's own buffer `exp` rather than crashing
-        // the page or guessing a countdown target. CallRoom's own status
-        // polling gets another chance to fetch the real state once mounted.
-        console.error(
-          "[Qwickword] Failed to fetch live room status, falling back to waiting state:",
-          err
-        );
-        started = false;
-      }
+  // Live mode. The duration: query param first (older/fallback links), then
+  // the database row written at creation (the normal, clean-link path).
+  let durationSeconds = parseDurationParam(rawDuration);
+  if (durationSeconds === null) {
+    durationSeconds = await getRecordedDurationSeconds(room);
+  }
+
+  // The room's live state, straight from Daily — also the existence check.
+  let exp: number;
+  let started: boolean;
+  try {
+    const status = await getRoomStatus(room, hasValidLinkExp ? linkExp : 0);
+    exp = status.exp;
+    started = status.started;
+  } catch (err) {
+    if (err instanceof DailyRoomError && err.status === 404) {
+      return (
+        <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+          <InvalidLinkScreen
+            heading="This Qwickword doesn't exist"
+            message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
+          />
+        </div>
+      );
     }
-  } else {
-    // Legacy link path (no `d`): keep the original existence-check behavior.
-    const legacyRemainingMs = remainingMsUntil(exp);
-    if (!mockMode && legacyRemainingMs > 0) {
-      const exists = await checkDailyRoomExists(room);
-      if (!exists) {
-        return (
-          <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
-            <InvalidLinkScreen
-              heading="This Qwickword doesn't exist"
-              message="The room can't be found on our video provider — it may have been mistyped, or it's already gone."
-            />
-          </div>
-        );
-      }
+    // Transient failure (network blip, Daily hiccup). A link carrying its
+    // own `exp` can still render the waiting state from that; a clean link
+    // has nothing to render a countdown against, so ask for a reload rather
+    // than guessing.
+    console.error("[Qwickword] Failed to fetch live room status:", err);
+    if (!hasValidLinkExp) {
+      return (
+        <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+          <InvalidLinkScreen
+            heading="Couldn't load this Qwickword"
+            message="Something went wrong fetching the call's details. Reload the page to try again."
+          />
+        </div>
+      );
     }
+    exp = linkExp;
+    started = durationSeconds === null;
+  }
+
+  // A clean link whose database row is missing (it was written at creation,
+  // so this means a later database problem) can't start a countdown — the
+  // start call needs the intended length. If the room is already ticking
+  // the duration is only cosmetic (progress rail), so let it through.
+  if (durationSeconds === null && !started) {
+    return (
+      <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+        <InvalidLinkScreen
+          heading="Couldn't load this Qwickword"
+          message="Something went wrong fetching the call's details. Reload the page to try again."
+        />
+      </div>
+    );
   }
 
   const initialRemainingMs = remainingMsUntil(exp);
-  const joinUrl = mockMode ? null : `https://${domain}/${room}`;
+  const joinUrl = `https://${domain}/${room}`;
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
