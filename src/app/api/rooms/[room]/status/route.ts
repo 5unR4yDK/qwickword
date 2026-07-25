@@ -19,10 +19,9 @@ import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
  * as a query param) is only used in mock mode, where there's no real room to
  * check — see getRoomStatus's doc comment.
  *
- * Extended 2026-07-22 (the maintainer, interactive, live production bug report):
- * "I joined the call from my mobile phone... the timer didn't start... this
- * is the second time I've seen it... what is the way that we can enforce
- * this so it always happens?" — the client-side auto-start
+ * Extended to cover a real failure mode seen in production: the countdown
+ * occasionally not auto-starting when a second participant joined from
+ * mobile. The client-side auto-start
  * (call-media.tsx's daily-js `participant-joined` listener, plus its own 2s
  * backstop poll of the SAME wrapped call object) turned out not to be
  * enough: both paths depend on that one browser tab's `DailyIframe.wrap()`

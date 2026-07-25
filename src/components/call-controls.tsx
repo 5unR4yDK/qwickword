@@ -1,9 +1,8 @@
 "use client";
 
-// Floating bottom control bar — CALL_UI_REBUILD_SPEC.md, section 2 and 3b. A
-// small centered pill of icon buttons over the video, matching Meet's
-// placement/weight. Promoted to production 2026-07-22 alongside the rest of
-// the call-object-mode UI — see src/components/call-room.tsx.
+// Floating bottom control bar. A small centered pill of icon buttons over
+// the video, matching Meet's placement/weight, alongside the rest of the
+// call-object-mode UI — see src/components/call-room.tsx.
 
 import { useCallback } from "react";
 import { Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Video, VideoOff } from "lucide-react";
@@ -116,16 +115,11 @@ export default function CallControls({
       >
         {isSharingScreen ? <MonitorX size={18} /> : <MonitorUp size={18} />}
       </button>
-      {/* "Start now," folded into this same pill (2026-07-22, the maintainer,
-          interactive: "the start now button... should feature down next to
-          the toggle buttons for microphone and camera and sharing and
-          ending call... an equally colored, equally formatted button down
-          there... of equal height and same coloring format"). Used to be a
-          separate floating white pill top-right, disconnected from the rest
-          of the call's controls — now it's just another member of the same
-          bar, same height as every icon button beside it (h-10/sm:h-11,
-          shrunk in lockstep with them 2026-07-23 for the narrow-phone fix
-          above). Kept the white fill (rather than the neutral bg-white/15
+      {/* "Start now" lives in this same pill, alongside the other controls,
+          rather than as a separate floating button disconnected from the
+          rest of the call's controls — same height as every icon button
+          beside it (h-10/sm:h-11). Kept the white fill (rather than the
+          neutral bg-white/15
           the toggle buttons use) since Start is a one-time primary action,
           not a toggle — same "white = the primary action" language this app
           already uses for Join/Copy/Create elsewhere. Only rendered before

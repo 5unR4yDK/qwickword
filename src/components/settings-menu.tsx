@@ -3,11 +3,9 @@
 // Home-page settings menu — a gear icon opening a small panel to pre-set
 // camera/microphone and the countdown tick sound *before* creating or
 // opening a call, so nobody has to fiddle with device pickers while the
-// clock is already running. *(Roadmap: "add to roadmap... ability to set
-// sound and video there so you dont do it while the clock is ticking,"
-// 2026-07-21, the maintainer, interactive. "Sound" here means the T-10s countdown
-// tick's on/off state — see call-overlay.tsx — since that's the only audio
-// cue this app has; the camera/mic choice is the "video" half.)*
+// clock is already running. "Sound" here means the T-10s countdown tick's
+// on/off state — see call-overlay.tsx — since that's the only audio cue
+// this app has; the camera/mic choice is the "video" half.
 //
 // Choices are stored via src/lib/call-preferences.ts (localStorage, no
 // accounts) and picked up automatically by call-prejoin.tsx (device

@@ -1,9 +1,8 @@
 import type { MetadataRoute } from "next";
 
-// Explicit allow-all robots.txt (2026-07-22, the maintainer, interactive: "SEO
-// optimization... AI search optimization so AIs will find it"). With no
-// robots.txt at all, crawlers already default to "allowed" — but an
-// explicit file removes any ambiguity for both traditional search crawlers
+// Explicit allow-all robots.txt. With no robots.txt at all, crawlers already
+// default to "allowed" — but an explicit file removes any ambiguity for
+// both traditional search crawlers
 // and AI crawlers (GPTBot, ClaudeBot, Google-Extended, PerplexityBot, and
 // similar all read the same generic robots.txt convention), and points them
 // at the sitemap. See src/app/sitemap.ts and public/llms.txt for the rest

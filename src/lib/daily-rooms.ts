@@ -4,15 +4,14 @@
 // rest of the app (link generator, call page) can be built and tested without a
 // live key.
 //
-// Property names below (`exp`, `eject_at_room_exp`, `eject_after_elapsed`) were
-// validated on 2026-07-15 against the live Daily REST API reference
+// Property names below (`exp`, `eject_at_room_exp`, `eject_after_elapsed`) are
+// validated against the live Daily REST API reference
 // (https://docs.daily.co/reference/rest-api/rooms/create-room and
-// https://docs.daily.co/reference/rest-api/rooms/config). They match what
-// BUILD_PLAN.md already specified — no correction needed there.
+// https://docs.daily.co/reference/rest-api/rooms/config).
 //
-// `enable_prejoin_ui` (added 2026-07-21, ROADMAP.md Phase 1 item 1 — "Pre-join
-// screen: name entry + camera/mic check before connecting") was validated the
-// same way against https://docs.daily.co/reference/rest-api/rooms/config:
+// `enable_prejoin_ui` gives every room a pre-join screen — camera/mic check
+// before connecting — validated the same way against
+// https://docs.daily.co/reference/rest-api/rooms/config:
 // "Determines whether participants enter a waiting room with a camera, mic,
 // and browser check before joining a call." That IS Daily Prebuilt's own
 // lobby screen — confirmed via docs.daily.co/guides/products/prebuilt/
@@ -28,16 +27,15 @@
 // `exp` like any other time spent on the page (consistent with "the timer
 // hits zero and it ends" — dawdling in the lobby is not a loophole).
 //
-// Hard-expiry design (per STATUS.md, locked): `exp = now + duration`,
+// Hard-expiry design: `exp = now + duration`,
 // `eject_at_room_exp: true` (ejects anyone still in the room at `exp`), and
 // `eject_after_elapsed = duration` as a per-participant backstop (ejects a
 // participant `duration` seconds after *they* joined, even if that's before the
 // room-level `exp` — e.g. a latecomer). Both are enforced server-side by Daily,
 // so there is no client-side "extend" bypass.
 //
-// "Anchor the countdown to first join, not link creation" (ROADMAP.md, built
-// 2026-07-21, interactive): the real countdown no longer begins the instant
-// `POST /api/rooms` is called. Instead:
+// The countdown is anchored to first join, not link creation: the real
+// countdown does not begin the instant `POST /api/rooms` is called. Instead:
 //  1. `createHardExpiryRoom` sets the room's *initial* `exp` to a generous
 //     `PRE_START_BUFFER_SECONDS` (24h) buffer, not `now + durationSeconds` —
 //     this is purely "how long the link can sit unopened before it rots,"
@@ -55,8 +53,8 @@
 //     a race resetting the clock.
 //  3. There is still no datastore. "Started or not" is derived entirely from
 //     the room's own live `exp` versus `PRE_START_BUFFER_SECONDS` — Daily's
-//     room object stays the single source of truth, exactly as ROADMAP.md
-//     specified, rather than adding a database for one boolean.
+//     room object stays the single source of truth, rather than adding a
+//     database for one boolean.
 const PRE_START_BUFFER_SECONDS = 24 * 60 * 60; // 24 hours
 
 // How far below PRE_START_BUFFER_SECONDS the remaining time has to be before
@@ -329,12 +327,10 @@ export async function getRoomStatus(
 
 /**
  * How many people Daily itself currently reports as present in this room,
- * straight from its own server-side connection state — added 2026-07-22
- * (the maintainer, interactive, live bug report: "I joined the call from my mobile
- * phone... the timer didn't start... what is the way that we can enforce
- * this so it always happens" — and separately, the countdown/"waiting to
- * start" UI staying stuck even after Daily's own iframe showed "You've left
- * the call").
+ * straight from its own server-side connection state. This exists because of
+ * two related bugs: the countdown failing to start for a participant joining
+ * from mobile, and the countdown/"waiting to start" UI staying stuck even
+ * after Daily's own iframe showed the call had been left.
  *
  * Both bugs share a root cause: the app's *only* signal for "who's actually
  * in the call" used to be each browser tab's own daily-js event listeners

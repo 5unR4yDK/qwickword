@@ -13,23 +13,19 @@ export const MAX_DURATION_SECONDS = 30 * 60; // 30 minutes
  * for the manual minutes input on the home page (see
  * src/components/create-link-form.tsx). Kept in lockstep with
  * MIN_/MAX_DURATION_SECONDS so the client field and the API route's own bounds
- * check can never disagree. The 30-minute cap is deliberate — the maintainer:
- * "Beyond 30 minutes would be a later premium feature I'd say" — so this is
- * also the natural free-tier ceiling to gate a future Pro plan behind
- * (REVENUE.md), not just a UI nicety.
+ * check can never disagree. The 30-minute cap is a deliberate free-tier
+ * ceiling — short enough to keep calls quick, with room to gate a longer or
+ * premium tier behind it later.
  */
 export const MIN_DURATION_MINUTES = MIN_DURATION_SECONDS / 60; // 1
 export const MAX_DURATION_MINUTES = MAX_DURATION_SECONDS / 60; // 30
 
 /**
- * One-click preset buttons on the home page (2026-07-22, the maintainer,
- * interactive: "Reinstate the buttons... 1, 2, 5, 10, 15, 20 minutes... keep
- * the manual entry as well"). Clicking one of these creates the room
- * immediately — no separate "Create" step — same one-click behaviour
- * originally built 2026-07-21 and reinstated here alongside the manual
- * minutes field (src/components/create-link-form.tsx) added later that
- * night, rather than the two competing with each other. All presets stay
- * within the MAX_DURATION_MINUTES cap above.
+ * One-click preset buttons on the home page. Clicking one of these creates
+ * the room immediately — no separate "Create" step — alongside the manual
+ * minutes field (src/components/create-link-form.tsx) for anyone who wants
+ * a duration outside the presets, rather than the two competing with each
+ * other. All presets stay within the MAX_DURATION_MINUTES cap above.
  */
 export const DURATION_PRESETS_SECONDS = [60, 120, 300, 600, 900, 1200] as const;
 

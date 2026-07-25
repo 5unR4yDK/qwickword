@@ -1,8 +1,5 @@
 // Rotating tagline shown under the "Qwickword" wordmark on the home page.
-// The full working list, review notes, and what got cut/why live in
-// SLOGANS.md — this file is just the deploy-ready array the maintainer approved
-// ("deploy all the slogans, have them land at random") after the second
-// review pass on 2026-07-21.
+// One is picked at random per page load.
 //
 // `pickRandomSlogan()` is a plain named function rather than an inline
 // `Math.random()` call in a Server Component's render body, for the same

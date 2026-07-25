@@ -1,12 +1,9 @@
 "use client";
 
-// Minimal top overlay for meeting identity/branding — CALL_UI_REBUILD_SPEC.md,
-// section 2 and 3b. "Qwickword" + the live countdown as a translucent overlay
-// ON the video. Promoted to production 2026-07-22 alongside the rest of the
-// call-object-mode UI — see src/components/call-room.tsx. This absorbs both
-// the countdown math AND the T-10s audio tick that used to live in the old
-// src/components/call-countdown.tsx (deleted the same day — nothing else
-// used it once the old Daily-Prebuilt call flow it belonged to was retired).
+// Minimal top overlay for meeting identity/branding. "Qwickword" + the live
+// countdown as a translucent overlay ON the video, alongside the rest of
+// the call-object-mode UI — see src/components/call-room.tsx. This owns
+// both the countdown math and the T-10s audio tick.
 
 import { useEffect, useRef } from "react";
 import { getCountdownSoundEnabled } from "@/lib/call-preferences";
@@ -59,10 +56,9 @@ export default function CallOverlay({
   const remainingSeconds = Math.ceil(remainingMs / 1000);
   const isFinalCountdown = started && !isOver && remainingSeconds <= 10;
 
-  // T-10s audio tick (ported from the old call-countdown.tsx, per the maintainer's
-  // original spec: "a very soft/low-volume tick starting around T-10s,
-  // becoming a little more audible from T-5s down to zero... gentle and
-  // friendly, not an alarm"). Only runs once `started` — the pre-start
+  // T-10s audio tick: soft, low-volume, starting around T-10s and becoming
+  // a little more audible down to zero — gentle and friendly, not an alarm.
+  // Only runs once `started` — the pre-start
   // buffer's own huge `remainingSeconds` would otherwise sit way outside the
   // 1–10 window this checks anyway, but gating on `started` explicitly
   // keeps that self-evident rather than incidental.
@@ -118,12 +114,10 @@ export default function CallOverlay({
           <p
             role="timer"
             aria-live="polite"
-            // Bigger on desktop (2026-07-22, the maintainer, interactive: "on
-            // desktop it's OK for the counter... to be slightly bigger...
-            // it's a little bit nondistinct now, hard to see... it should
-            // be more central given how important it is"). Kept the mobile
-            // size (text-2xl) as-is — phone screens are tighter and the
-            // existing size already reads fine there — and only grows it
+            // Bigger on desktop — the countdown is the most important thing
+            // on screen and deserves to read clearly, not blend in. Kept the
+            // mobile size (text-2xl) as-is — phone screens are tighter and
+            // the existing size already reads fine there — and only grows it
             // from the `sm` breakpoint up, where there's room to spare.
             className={`text-2xl font-semibold tabular-nums sm:text-4xl ${
               isFinalCountdown ? "text-rose-300" : "text-white"

@@ -43,31 +43,22 @@ type CreateState =
  * below (auto-copy, "Join the meeting now," etc.) behaves identically either
  * way.
  *
- * Collapsed by default (2026-07-22, the maintainer, interactive: "the whole custom
- * link section and the button that says Create Quick Word is providing a
- * lot of bulk and actually it takes away from the simplicity of the front
- * page... only when you click the custom link does the entire box set
- * expand down and let you put in the minutes and introduces you to the
- * create button"). The manual-minutes field, its hint text, and the "Create
- * Qwickword" button only exist to serve the custom-duration path — for
- * anyone just clicking a preset (the common case), all three were dead
- * weight sitting on the page for no reason. Now they're hidden behind a
- * single discreet toggle, styled exactly like the old always-visible
- * "or pick a custom length" caption used to be (the maintainer: "it should be in
- * the same text as you have now for the text that says or pick a custom
- * link so it's discrete it's not imposing"), just relabelled to the single
- * word "custom" and made clickable. Clicking it expands the same fields that
- * used to always be there — nothing about the custom-duration mechanism
- * itself changed, only whether it's visible before someone asks for it.
+ * Collapsed by default: the manual-minutes field, its hint text, and the
+ * "Create Qwickword" button only exist to serve the custom-duration path —
+ * for anyone just clicking a preset (the common case), all three are dead
+ * weight sitting on the page for no reason. They're hidden behind a single
+ * discreet "custom" toggle, styled like a plain caption rather than a real
+ * button so it doesn't compete with the presets. Clicking it expands the
+ * same fields that would otherwise always be there — nothing about the
+ * custom-duration mechanism itself changes, only whether it's visible
+ * before someone asks for it.
  */
 export default function CreateLinkForm() {
-  // Deliberately blank, not pre-filled (2026-07-22, the maintainer, interactive:
-  // "we already have two minutes as an option [the preset button] and I
-  // don't want that field to be pre filled" — correcting the previous
-  // attempt at this same complaint, which pre-filled "2" here specifically
-  // to dodge the disabled-button colour issue below. The real fix for that
-  // is on the button itself, not this field — see the Create button's
-  // className.
+  // Deliberately blank, not pre-filled — the presets already cover the
+  // common durations, so pre-filling this field would just be redundant
+  // with them. The disabled-button colour issue this might tempt someone to
+  // work around by pre-filling a value is fixed on the button itself
+  // instead — see the Create button's className.
   const [minutesInput, setMinutesInput] = useState<string>("");
   const [state, setState] = useState<CreateState>({ status: "idle" });
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -196,17 +187,15 @@ export default function CreateLinkForm() {
   if (state.status === "success") {
     return (
       <div className="flex w-full flex-col items-center gap-4 text-center">
-        {/* In-flow, not `fixed` (was fixed to the viewport top, which
-            overlapped the page's own "Qwickword" heading above this card —
-            the maintainer flagged this 2026-07-21). Sitting in the normal layout
-            right above the "ready" line keeps it near the action without
-            ever covering unrelated content, regardless of viewport size.
+        {/* In-flow, not `fixed` — a fixed position at the viewport top would
+            overlap the page's own "Qwickword" heading above this card.
+            Sitting in the normal layout right above the "ready" line keeps
+            it near the action without ever covering unrelated content,
+            regardless of viewport size.
 
-            Always rendered now, faded in/out via opacity rather than
-            mounted/unmounted (2026-07-22, the maintainer: "the green clipboard
-            message pushes down the content because when it disappears it
-            makes the content reorient back up"). Conditionally rendering it
-            reserved no space while hidden, so the rest of the success screen
+            Always rendered, faded in/out via opacity rather than
+            mounted/unmounted. Conditionally rendering it reserved no space
+            while hidden, so the rest of the success screen
             visibly jumped up the instant the toast's 2.5s timer unmounted
             it. Keeping the element always in the DOM (just invisible)
             reserves its height permanently, so nothing below it ever
@@ -257,9 +246,8 @@ export default function CreateLinkForm() {
             setCopied(false);
             setShowCopiedToast(false);
             // Back to the simple, presets-only view — not left expanded
-            // from whatever this tab did last time (2026-07-22, the maintainer,
-            // interactive — see this file's top comment on why collapsed is
-            // the default state to return to).
+            // from whatever this tab did last time (see this file's top
+            // comment on why collapsed is the default state to return to).
             setShowCustom(false);
             setMinutesInput("");
           }}
@@ -295,49 +283,35 @@ export default function CreateLinkForm() {
             type="button"
             disabled={isLoading}
             onClick={() => handleCreate(seconds)}
-            // 2026-07-22, the maintainer, interactive, three fixes in one:
-            // (1) "in the white style that you had before... a little bit
-            // more contrast" — bg-zinc-50 on this page's own bg-zinc-50
-            // background had essentially zero contrast; a genuinely white
-            // fill (bg-white) reads clearly against it, same idea as the
-            // solid black/white buttons elsewhere on this page.
-            // (2) "my cursor just stays an arrow... it has to turn into a
-            // button presser" — Tailwind v4 no longer defaults `<button>`
-            // to `cursor: pointer` the way earlier versions did (a
-            // deliberate upstream change to match native browser
-            // behaviour), so every custom button in this app needs the
-            // utility explicitly now — added here and swept across every
-            // other button below.
-            // (3) "an equal size button for each of the minutes settings...
-            // all be the same size... as long as the text is perfectly
-            // centered in the middle it's OK" — replaced the old
-            // content-driven `min-w-14` (which let "1 min" and "20 min"
-            // render at different widths) with a fixed `w-20`, same for
-            // every preset regardless of label length; flex
-            // items-center/justify-center keeps the (already-uniform
-            // text-sm) label centered inside it either way.
+            // A genuinely white fill (bg-white), not bg-zinc-50, since this
+            // page's own background is bg-zinc-50 and would otherwise read
+            // as almost no contrast — same idea as the solid black/white
+            // buttons elsewhere on this page. `cursor-pointer` is explicit
+            // because Tailwind v4 no longer defaults `<button>` to
+            // `cursor: pointer` the way earlier versions did (a deliberate
+            // upstream change to match native browser behaviour), so every
+            // custom button in this app needs the utility set explicitly —
+            // added here and swept across every other button below. Fixed
+            // `w-20` (rather than a content-driven `min-w-14`) keeps every
+            // preset the same size regardless of label length ("1 min" vs.
+            // "20 min"); flex items-center/justify-center keeps the
+            // (already-uniform text-sm) label centered inside it either way.
             //
-            // Corrected 2026-07-22, same day (the maintainer, interactive: "I told
-            // you to make all the buttons white and they are still black
-            // with white text"): the fix above only actually changed the
-            // LIGHT-mode fill (bg-white) — the dark-mode override right
-            // after it, `dark:bg-zinc-900`/`dark:text-zinc-100`, was left
-            // untouched from before this change, so dark mode kept
-            // rendering the old near-black pill with light text regardless.
-            // White means white in both modes now — dark:bg-white with
-            // dark:text-zinc-900 to match, same as the solid-color buttons
-            // already used elsewhere in dark mode on this page.
+            // White means white in both light and dark mode: dark:bg-white
+            // with dark:text-zinc-900, matching the solid-color buttons
+            // already used elsewhere in dark mode on this page, rather than
+            // the near-black pill with light text a naive dark: override
+            // would otherwise produce.
             className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white px-2 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-white dark:text-zinc-900 dark:hover:border-black/[.3]"
           >
             {formatDuration(seconds)}
           </button>
         ))}
       </div>
-      {/* Collapsed default: a single discreet toggle, same styling as the
-          old always-visible "or pick a custom length" caption (2026-07-22,
-          the maintainer, interactive — see this file's top comment). Only shown
-          while collapsed; expanding replaces it with the fields below rather
-          than leaving a now-redundant toggle sitting above them. */}
+      {/* Collapsed default: a single discreet toggle (see this file's top
+          comment for why). Only shown while collapsed; expanding replaces
+          it with the fields below rather than leaving a now-redundant
+          toggle sitting above them. */}
       {!showCustom && (
         <button
           type="button"
@@ -349,8 +323,8 @@ export default function CreateLinkForm() {
       )}
 
       {/* Smooth height reveal via the CSS grid-rows trick (0fr -> 1fr),
-          rather than a hard show/hide — the maintainer asked for the box to
-          "expand down," not just appear. `overflow-hidden` on the inner
+          rather than a hard show/hide, so the box visibly expands down
+          instead of just appearing. `overflow-hidden` on the inner
           wrapper is what makes the 0fr state actually clip to zero height;
           the fields themselves are unchanged from before this redesign,
           just no longer visible (and, via aria-hidden, no longer announced)
@@ -392,12 +366,10 @@ export default function CreateLinkForm() {
               {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole
               minutes only.
             </p>
-            {/* Deliberately no `disabled:opacity-*`/colour change here
-                (2026-07-22, the maintainer, interactive, earlier this session: "the
-                button should just be 1 color and should never change
-                color... make sure that button never changes color it just
-                stays white all the time"). The field above starts empty on
-                purpose, so this button IS actually `disabled` while invalid
+            {/* Deliberately no `disabled:opacity-*`/colour change here — this
+                button stays one color always, never dimming or shifting
+                shade. The field above starts empty on purpose, so this
+                button IS actually `disabled` while invalid
                 — that state is communicated only by
                 `disabled:cursor-not-allowed` and the hint text, not by
                 dimming the button's own colour. */}

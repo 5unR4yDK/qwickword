@@ -1,9 +1,8 @@
 "use client";
 
 // Custom prejoin screen (camera preview, device pickers, mic/camera toggle,
-// Join button) — CALL_UI_REBUILD_SPEC.md, section 3a. Replaces Daily
-// Prebuilt's own hosted lobby. Promoted to production 2026-07-22 alongside
-// the rest of the call-object-mode UI — see src/components/call-room.tsx.
+// Join button). Replaces Daily Prebuilt's own hosted lobby, alongside the
+// rest of the call-object-mode UI — see src/components/call-room.tsx.
 //
 // Built per Daily's own "Add a prejoin UI" pattern: startCamera({ url })
 // starts local media and previews it WITHOUT joining the room yet; join()
@@ -130,10 +129,9 @@ export default function CallPrejoin({
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black px-4 py-8">
       {/* Single width-controlling wrapper around the video, the device
-          pickers, and the Join button (2026-07-22, the maintainer, interactive:
-          "the settings for the video call were not properly centered under
-          the video... they should be centered and ideally the same width").
-          Every child below is `w-full` and relies on THIS element for its
+          pickers, and the Join button, so everything stays centered and the
+          same width. Every child below is `w-full` and relies on THIS
+          element for its
           max-width/centering, rather than each declaring its own max-w-xl
           separately — that duplication was the actual bug: any small
           difference between the video's and the selects' own width/margin
@@ -185,12 +183,10 @@ export default function CallPrejoin({
 
         {(cameras.length > 0 || microphones.length > 0) && (
           <div className="flex w-full flex-col gap-2 sm:flex-row">
-            {/* min-w-0 alongside flex-1 on both selects (2026-07-22,
-                the maintainer, interactive, with a screenshot: "my settings here
-                for the integrated webcam and the microphone are aligned
-                left against the join button and the image... and when they
-                are aligned left they are sticking out on the right hand
-                side"). Root cause: flex items default to `min-width: auto`,
+            {/* min-w-0 alongside flex-1 on both selects, so the device
+                pickers stay aligned with the video and Join button instead
+                of sticking out past the shared width. Root cause: flex
+                items default to `min-width: auto`,
                 which for a <select> means its OWN content sets a floor on
                 how far it can shrink — "Default - Microphone Array
                 (Realtek(R) Audio)" is long enough that the microphone

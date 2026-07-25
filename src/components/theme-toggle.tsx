@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
-// 2026-07-22, the maintainer, interactive: "introduce the toggle top left corner...
-// to dark mode so basically I'd say the default is dark mode and then...
-// someone who doesn't like dark mode can switch it off." Default-dark itself
-// is set server-side (src/app/layout.tsx's <html className="... dark ...">);
+// Top-left toggle for light/dark mode, defaulting to dark. Default-dark
+// itself is set server-side (src/app/layout.tsx's <html className="... dark ...">);
 // this component is only the switch — flips the `dark` class on <html> and
 // remembers the choice in localStorage (no accounts anywhere in this app, so
 // this is per-browser, not per-person, consistent with the rest of the app's

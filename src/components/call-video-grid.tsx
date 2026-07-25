@@ -1,32 +1,20 @@
 "use client";
 
-// The call's video surface — CALL_UI_REBUILD_SPEC.md, section 2 ("Video is
-// the entire canvas"). Full-bleed video, self-view as a small corner PIP —
-// the Google Meet convention this rebuild chases. Promoted to production
-// 2026-07-22 (the maintainer, interactive: "the test setup as now being the
-// default setup... at least as it relates to the video view, how the video
-// is viewed, that is now the standard") — this file used to live at
-// src/components/call-v2/call-video-grid.tsx as a parallel /test preview;
-// it's now simply THE call video surface, no "v2"/"test" framing left
-// anywhere in the app.
+// The call's video surface. Full-bleed video, self-view as a small corner
+// PIP — the Google Meet convention this component follows.
 //
-// Self-view pin (added after trying the first version solo): "for the self
-// view it should be possible to pin myself so that I just see myself
-// because at the moment it was impossible for me to see how big the screen
-// actually was... unless I had someone else join the call which I can't
-// when I'm just testing." Two changes:
-//  1. When nobody else is in the call, the local participant is now the
-//     MAIN tile automatically (not a tiny corner PIP next to an empty
-//     "waiting" placeholder) — solves the actual problem (judging the
-//     video's real size) without needing a second person at all.
-//  2. An explicit pin control: click the small PIP tile's pin icon to swap
+// Self-view pin: when nobody else is in the call, the local participant is
+// the MAIN tile automatically (not a tiny corner PIP next to an empty
+// "waiting" placeholder), so a solo participant can actually judge how they
+// look without needing a second person to join. On top of that:
+//  1. An explicit pin control: click the small PIP tile's pin icon to swap
 //     it into the main position; the main tile then shows an "unpin" icon
 //     to go back to automatic (remote-takes-main-if-present) layout.
-// Also: the small PIP tile is draggable (pointer events, clamped to the
-// video container's bounds) instead of fixed in a corner. And: a camera-off
-// state shows a generic avatar circle instead of plain black, so it's
-// visually clear someone's still there with their camera off, not that the
-// video failed.
+//  2. The small PIP tile is draggable (pointer events, clamped to the video
+//     container's bounds) instead of fixed in a corner.
+//  3. A camera-off state shows a generic avatar circle instead of plain
+//     black, so it's visually clear someone's still there with their camera
+//     off, not that the video failed.
 //
 // Screen share: when either participant is sharing, the shared screen takes
 // over the main tile (Meet's own convention — screen share always gets the
@@ -35,22 +23,15 @@
 // startScreenShare/stopScreenShare) — this component only renders whatever
 // useScreenShare reports.
 //
-// Never crop a camera feed (2026-07-22, the maintainer, interactive, after a real
-// two-tab test — phone joining a desktop call): every DailyVideo used to use
-// `fit="cover"`, which fills its box by CROPPING whatever doesn't fit the
-// box's own aspect ratio. the maintainer caught the real consequence of that live:
-// "the larger I made the window... the more it seemed to zoom in on my
-// face... the smaller I made the browser window, the more was being
-// included from the phone feed." That's cover working as designed, not a
-// bug in the usual sense — a wide desktop window is a very different shape
-// from a phone's portrait camera feed, and cover crops harder the further
-// those two shapes diverge, so resizing the window changed how much got
-// cropped away. His call: "we should never be cropping the image... we'd
-// rather want to maximize the image inside of the available frame." Every
-// DailyVideo here uses `fit="contain"` instead — the full camera frame is
-// always visible, letterboxed (black bars, matching each tile's own
-// bg-black) on whichever dimension doesn't match, rather than ever cutting
-// part of the picture off.
+// Never crop a camera feed: every DailyVideo uses `fit="contain"` rather
+// than `fit="cover"`. `cover` fills its box by cropping whatever doesn't
+// fit the box's own aspect ratio — harmless for two similarly-shaped tiles,
+// but a wide desktop window and a phone's portrait camera feed are very
+// different shapes, so resizing the window changes how much gets cropped
+// away, which reads as the video randomly zooming in and out. `contain`
+// keeps the full camera frame always visible, letterboxed (black bars,
+// matching each tile's own bg-black) on whichever dimension doesn't match,
+// rather than ever cutting part of the picture off.
 
 import { useCallback, useRef, useState } from "react";
 import { Pin, PinOff, User } from "lucide-react";
@@ -69,13 +50,11 @@ const ZERO_OFFSET: Offset = { x: 0, y: 0 };
 /**
  * Camera-off fallback for the full-bleed MAIN tile — a bordered box in the
  * video's own aspect ratio, centered on the tile's black backdrop, rather
- * than a flat fill covering the entire screen. (2026-07-22, the maintainer,
- * interactive: "when we switch off the video... everything just becomes
- * black but I think actually we should still be seeing the outline of
- * where the video field was normally... I think that's normal in other
- * applications.") Deliberately the same "frame, not a flat fill" idea as
- * the `fit="contain"` change above — the bordered box IS the outline of
- * where the video would render if the camera were on.
+ * than a flat fill covering the entire screen, so it's clear the camera is
+ * off rather than the video having failed — the same convention other call
+ * apps use. Deliberately the same "frame, not a flat fill" idea as the
+ * `fit="contain"` change above — the bordered box IS the outline of where
+ * the video would render if the camera were on.
  */
 function MainAvatarFallback() {
   return (

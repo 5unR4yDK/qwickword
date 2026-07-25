@@ -16,29 +16,28 @@ import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
 /**
- * Call page (Phase 0 item 5): joins the Daily room named by the `[room]`
- * segment and shows a countdown synced to the `exp` query param.
+ * Call page: joins the Daily room named by the `[room]` segment and shows a
+ * countdown synced to the `exp` query param.
  *
- * Deliberately stateless (no database — see BUILD_PLAN.md / ROADMAP.md
- * Phase 1's "no database until a feature needs one" decision): the link
- * created by CreateLinkForm already carries `exp` (the room's Unix expiry
- * timestamp) as a query param, so this page needs no server-side lookup to
- * know the countdown target for a well-formed link. Both parties opening
- * the same link see the same `exp`, hence the same countdown.
+ * Deliberately stateless (no database — there's no need for one here): the
+ * link created by CreateLinkForm already carries `exp` (the room's Unix
+ * expiry timestamp) as a query param, so this page needs no server-side
+ * lookup to know the countdown target for a well-formed link. Both parties
+ * opening the same link see the same `exp`, hence the same countdown.
  *
- * Phase 0 item 6 ("Hard-end experience") lives mostly in CallRoom
+ * The "hard-end experience" lives mostly in CallRoom
  * (src/components/call-room.tsx): once `exp` has passed, CallRoom shows a
  * plain "ended" screen with no rejoin/extend control anywhere, in place of
  * the call area.
  *
- * Phase 0 item 7 ("Invalid/expired-link handling") is this page's own job,
- * gating entry to CallRoom with two checks, cheapest first:
+ * Invalid/expired-link handling is this page's own job, gating entry to
+ * CallRoom with two checks, cheapest first:
  *  1. Syntax: is `room` a plausible room name, and is `exp` a real number?
  *     No network call — this catches a mistyped/truncated/mangled link
  *     immediately. (A link whose `exp` has already passed but is otherwise
  *     well-formed is NOT caught here — that's a normal, working link that
  *     has simply ended; CallRoom already renders the right "ended" screen
- *     for it, reusing item 6's work rather than duplicating it here.)
+ *     for it, reusing that work rather than duplicating it here.)
  *  2. Existence (live mode only, and only when the link claims to still be
  *     within its window — see the `initialRemainingMs > 0` guard below):
  *     does this room still exist on Daily? Mock mode has nothing to check
@@ -48,12 +47,12 @@ import InvalidLinkScreen from "@/components/invalid-link-screen";
  *     enforced by CallRoom once it passes, same as any other link.
  * Skipping the existence check once the link already claims to be expired
  * avoids an unnecessary Daily API call for a case CallRoom already handles
- * correctly from the `exp` math alone, with no regression risk to item 6's
- * already-verified behaviour for that path.
+ * correctly from the `exp` math alone, with no regression risk to that
+ * already-verified "ended" behaviour.
  *
- * "Anchor the countdown to first join, not link creation" (built 2026-07-21,
- * interactive): a link now also carries `d` (the intended durationSeconds).
- * The `exp` in a freshly-created link is a generous pre-start buffer, not the
+ * The countdown is anchored to first join, not link creation: a link also
+ * carries `d` (the intended durationSeconds). The `exp` in a freshly-created
+ * link is a generous pre-start buffer, not the
  * real call length (see src/lib/daily-rooms.ts) — this page's job is to
  * re-fetch the room's *live* `exp` from Daily (via `getRoomStatus`) rather
  * than trusting the link's own `exp`, since that's the only way two tabs
@@ -67,16 +66,13 @@ import InvalidLinkScreen from "@/components/invalid-link-screen";
  * creation time — this page treats a missing `d` as "already started," so an
  * older link keeps behaving exactly as it always did.
  *
- * Full-bleed black wrapper, no header/footer chrome (2026-07-22, the maintainer,
- * interactive: promoting the call-object-mode UI — previously /test-only —
- * to be the default production call experience, replacing this page's old
- * light "Qwickword" header + call card + footer link, since that whole
- * design assumed a Daily Prebuilt iframe sized to fit inside a card rather
- * than video filling the viewport). `fixed inset-0 h-dvh w-dvw` (rather than
- * `h-screen`/`w-screen`) is the same mobile-viewport fix already proven out
- * on the old /test route: `h-dvh` tracks the CURRENT visible height as the
- * browser chrome shows/hides, so there's never a way to scroll the countdown
- * or controls out of view.
+ * Full-bleed black wrapper, no header/footer chrome — the call UI fills the
+ * viewport rather than sitting inside a light "Qwickword" header + call card
+ * + footer layout, since video filling the frame reads better than a Daily
+ * Prebuilt iframe sized to fit inside a card. `fixed inset-0 h-dvh w-dvw`
+ * (rather than `h-screen`/`w-screen`) is a mobile-viewport fix: `h-dvh`
+ * tracks the CURRENT visible height as the browser chrome shows/hides, so
+ * there's never a way to scroll the countdown or controls out of view.
  */
 
 type Props = {
@@ -104,14 +100,13 @@ function parseDurationParam(raw: string | string[] | undefined): number | null {
 }
 
 /**
- * Link-preview metadata (added 2026-07-21, interactive): the maintainer shared a
- * link in WhatsApp and got the root layout's generic title/description back
- * — "Qwickword" / "Set a time limit, share the link..." — and asked for
- * something more inviting, tied to the actual link: "Someone wants a
- * Qwickword. Click to start your X minute meeting." No name is included
- * (confirmed with the maintainer rather than guessing) — adding a "your name" field
- * to the create flow was considered and explicitly deferred, so this stays
- * generic ("Someone") for every link, not just his own.
+ * Link-preview metadata: a per-link title/description tied to the actual
+ * call, rather than the root layout's generic "Qwickword" / "Set a time
+ * limit, share the link..." fallback, so a shared link previews as
+ * "Someone wants a Qwickword. Click to start your X minute meeting."
+ * Deliberately generic ("Someone"), not a real name — there's no "your
+ * name" field in the create flow (considered, deferred), so this stays
+ * generic for every link.
  *
  * Falls back to the root layout's original description for a link with no
  * valid `d` (a pre-this-feature link, or a mistyped one) — same content

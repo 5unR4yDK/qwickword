@@ -15,19 +15,17 @@ const geistMono = Geist_Mono({
 
 // Used only for the large decorative "Q" watermark on the home page
 // (src/app/page.tsx) — a distinctive serif with an elegant, long-tailed Q,
-// not for body text. the maintainer asked for something "same font type as Times
-// New Roman or similar, maybe more unique" — Playfair Display is a serif in
-// that family with a more sculpted, editorial letterform than Times.
+// not for body text. A more sculpted, editorial letterform than a plain
+// Times-style serif.
 const playfairDisplay = Playfair_Display({
   variable: "--font-playfair-display",
   subsets: ["latin"],
   weight: ["700"],
 });
 
-// SEO + AI-search discoverability pass (2026-07-22, the maintainer, interactive:
-// "Can you do SEO optimization of the site and also AI search optimization
-// so AIs will find it"). metadataBase turns every relative URL in this
-// file's metadata (and any page's) into an absolute one automatically —
+// SEO + AI-search discoverability metadata. metadataBase turns every
+// relative URL in this file's metadata (and any page's) into an absolute one
+// automatically —
 // required for openGraph/twitter image URLs and canonical links to resolve
 // correctly regardless of which domain/preview URL served the request.
 // keywords/openGraph/twitter cover traditional search + link-preview
@@ -81,9 +79,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      // Defaults to dark (2026-07-22, the maintainer, interactive: "the default is
-      // dark mode and then... someone who doesn't like dark mode can switch
-      // it off"). The `dark` class here is what src/app/globals.css's
+      // Defaults to dark. The `dark` class here is what src/app/globals.css's
       // `@custom-variant dark` now keys every `dark:` utility off of.
       className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} dark h-full antialiased`}
     >
@@ -107,12 +103,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         {children}
-        {/* Vercel Web Analytics (2026-07-22, the maintainer, interactive: "I would
-            like to be able to follow this in the future to see if people
-            are using the tool or at least that they're coming to the site
-            or not"). Cookieless page-view/visitor tracking — no consent
-            banner needed. Renders nothing visible; injects a small script
-            that reports to Vercel's dashboard for this project. */}
+        {/* Vercel Web Analytics — cookieless page-view/visitor tracking, no
+            consent banner needed. Renders nothing visible; injects a small
+            script that reports to Vercel's dashboard for this project. */}
         <Analytics />
       </body>
     </html>

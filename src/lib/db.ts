@@ -1,15 +1,13 @@
-// Optional Postgres-backed call-stats store (2026-07-22, the maintainer, interactive:
-// "can you help me understand how we store memory of how many calls have been
-// made and how many minutes have been done... I'd want to have that stored
-// somewhere"). Backed by Neon, provisioned via the Vercel Marketplace
-// integration — `DATABASE_URL` is set automatically in every Vercel
-// environment once that integration is connected to this project; see
-// STATUS.md for the setup story and the `calls` table schema.
+// Optional Postgres-backed call-stats store — how many calls have been made
+// and how many minutes used, for basic usage tracking. Backed by Neon,
+// provisioned via the Vercel Marketplace integration — `DATABASE_URL` is set
+// automatically in every Vercel environment once that integration is
+// connected to this project.
 //
 // This is deliberately NOT part of the app's core state model. Everything
-// else in this codebase (BUILD_PLAN.md, daily-rooms.ts) is built around "no
-// datastore — Daily's own room `exp` is the single source of truth," and that
-// stays true: a database outage here can never break creating, starting, or
+// else in this codebase (see daily-rooms.ts) is built around "no datastore —
+// Daily's own room `exp` is the single source of truth," and that stays
+// true: a database outage here can never break creating, starting, or
 // ending a call. Every function below is a fire-and-forget write, wrapped in
 // try/catch, that only ever *records* what already happened via the real
 // (Daily-backed) flow. `DATABASE_URL` being unset (e.g. local dev without a
@@ -81,7 +79,6 @@ export async function recordCallStarted(roomName: string): Promise<void> {
 }
 
 // recordCallEndedEarly (the "vote to end early" stats hook) was removed
-// 2026-07-23 alongside the rest of that feature — see ROADMAP.md. The
-// `end_reason`/`ended_at` columns stay in the `calls` table (harmless, no
-// migration needed) in case the feature comes back later; nothing writes to
-// them right now.
+// alongside the rest of that feature. The `end_reason`/`ended_at` columns
+// stay in the `calls` table (harmless, no migration needed) in case the
+// feature comes back later; nothing writes to them right now.

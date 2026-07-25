@@ -1,14 +1,13 @@
 // Pre-call device/sound preferences, chosen from the home page's settings
 // menu (src/components/settings-menu.tsx) and applied automatically once a
 // call actually starts (src/components/call-prejoin.tsx, src/components/
-// call-overlay.tsx). *(Roadmap: "Settings menu on the home page... ability
-// to set sound and video there so you dont do it while the clock is
-// ticking," 2026-07-21, the maintainer, interactive.)*
+// call-overlay.tsx). Lets people set camera/mic/sound ahead of time instead
+// of fumbling with it while the clock is already running.
 //
 // Same no-account approach already established for dark mode
 // (theme-toggle.tsx): plain localStorage, per-browser, no server-side state,
-// no new datastore. Not a real user "session" — the maintainer was explicit there
-// are no accounts anywhere in this app.
+// no new datastore. Not a real user "session" — there are no accounts
+// anywhere in this app.
 
 const CAMERA_KEY = "qwickword-preferred-camera";
 const MIC_KEY = "qwickword-preferred-mic";

@@ -4,15 +4,10 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 /**
- * App-wide error boundary (added 2026-07-21, interactive: the maintainer reported
- * "Join the meeting now" occasionally showing a browser-level crash page —
- * "This page couldn't load. Reload to try again, or go back." — instead of
- * anything from this app). There was no error boundary anywhere in the app
- * before this, at any level — any uncaught exception during render (the
- * daily-js "duplicate instance" bug fixed the same day in
- * src/components/call-media.tsx was the immediate trigger, but this file
- * guards against any future one too) had nowhere to land except the
- * browser's own generic crash UI.
+ * App-wide error boundary. Without this, any uncaught exception during
+ * render — a daily-js edge case, or anything else — had nowhere to land
+ * except the browser's own generic crash page instead of anything from
+ * this app.
  *
  * Next.js requires this file to be a Client Component and to accept exactly
  * `error` and `reset` — `reset()` re-renders the segment that crashed

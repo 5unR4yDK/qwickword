@@ -2,40 +2,28 @@
 
 // The call page's live, ticking core: the call-object lifecycle, the
 // prejoin/in-call/left state machine, the countdown/auto-start mechanics,
-// and the hard swap to a "Time's up" screen once the shared `exp`
-// passes. Promoted to production 2026-07-22 (the maintainer, interactive: "the test
-// setup as now being the default setup... I think we have done good work on
-// the test setup and it should be the standard") — this file used to wrap a
-// Daily Prebuilt <iframe> (DailyIframe.wrap(), see the old
-// src/components/call-media.tsx, deleted the same day); it now owns a
-// call-object-mode call directly (DailyIframe.createCallObject(), no
-// iframe — full custom UI via @daily-co/daily-react, see
-// CALL_UI_REBUILD_SPEC.md) with a custom prejoin screen, video grid, overlay,
-// and control bar (call-prejoin.tsx / call-video-grid.tsx / call-overlay.tsx /
-// call-controls.tsx) instead of Daily's own hosted lobby + Prebuilt chrome.
+// and the hard swap to a "Time's up" screen once the shared `exp` passes.
+// Owns a call-object-mode call directly (DailyIframe.createCallObject(), no
+// iframe) with a full custom UI via @daily-co/daily-react — custom prejoin
+// screen, video grid, overlay, and control bar (call-prejoin.tsx /
+// call-video-grid.tsx / call-overlay.tsx / call-controls.tsx) rather than
+// Daily's own hosted lobby + Prebuilt chrome.
 //
-// Everything the old iframe-based flow had earned through real production
-// bugs is carried over unchanged, just re-homed onto the call-object
-// lifecycle instead of an iframe:
+// A few things worth calling out about the call-object lifecycle:
 //  - Cross-tab waiting poll (durationSeconds-aware server-side auto-start).
 //  - Clock-skew resync poll, plus the presence-based leave/empty-room
 //    backstop (Daily's own /rooms/:name/presence, independent of any single
 //    tab's own daily-js state).
 //  - mockMode's no-API-key fallback (no real Daily call to create at all).
 //
-// "Vote to end early" (the "End for everyone" toggle, call-end-vote.tsx,
-// POST /api/rooms/[room]/end) was retired 2026-07-23 — the maintainer: "can we
-// retire the vote to end the call feature for now I don't like to have that
-// feature." Removed entirely rather than just hidden: call-end-vote.tsx,
-// the /api/rooms/[room]/end route, daily-rooms.ts's endRoomNow, and
-// db.ts's recordCallEndedEarly are all gone. It's in git history (see the
-// 2026-07-21/22 ROADMAP.md entries) if it comes back later.
+// There is deliberately no "vote to end early" / "end for everyone" control:
+// ending a call for other participants without their consent is out of
+// scope for this app.
 //
-// "The start now button... should feature down next to the toggle buttons
-// for microphone and camera and sharing and ending call... equal height and
-// same coloring format" (2026-07-22, the maintainer, interactive): Start now is no
-// longer a separate floating control — see call-controls.tsx, which now owns
-// it. This file only supplies the `started`/`starting`/`onStart` it needs.
+// Start now is not a separate floating control — see call-controls.tsx,
+// which owns it alongside microphone/camera/screen-share/end, at the same
+// height and styling. This file only supplies the
+// `started`/`starting`/`onStart` it needs.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
