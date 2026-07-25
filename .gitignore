@@ -32,3 +32,21 @@ next-env.d.ts
 
 # Vercel CLI project link (contains org/project IDs, not secrets, but local-only)
 .vercel
+
+# Internal build/planning docs (2026-07-25) — local-only from here on, not
+# part of the public repo. Still live in this folder on disk; the nightly
+# monitoring task reads/writes them directly, no git involved for these.
+AGENTS.md
+ANALYTICS_LOG.md
+ASKS.md
+BUILDER_CREDIBILITY_CHECKLIST.md
+BUILD_PLAN.md
+CALL_UI_REBUILD_SPEC.md
+CLAUDE.md
+MONITORING.md
+PROMOTION_QUEUE.md
+REVENUE.md
+ROADMAP.md
+SLOGANS.md
+SOMEDAY_IDEAS.md
+STATUS.md
