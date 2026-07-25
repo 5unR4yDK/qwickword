@@ -8,10 +8,6 @@ A meeting tool where you set the maximum call length in advance and it **cannot 
 When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
 clock. If you need more time, you schedule another Qwickword.
 
-`BUILD_PLAN.md` and `ROADMAP.md` cover the design and what's built vs. planned. `STATUS.md` is an
-internal build log (large, verbose, not written for outside readers) — worth a look only if you
-want the blow-by-blow of every decision.
-
 ## Stack
 
 Next.js (App Router, TypeScript, Tailwind) for the app; [Daily.co](https://daily.co) for video,
@@ -68,4 +64,4 @@ npm run start   # serve the production build (run npm run build first)
 ## Deployment
 
 Live at **https://qwickword.com** (also reachable at `https://quickword.vercel.app`), deployed to
-its own dedicated Vercel project — never an existing/shared one (see `BUILD_PLAN.md`'s guardrails).
+its own dedicated Vercel project.

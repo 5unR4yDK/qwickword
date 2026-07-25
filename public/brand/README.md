@@ -42,5 +42,4 @@ serif Playfair Display "Q" watermark) predates this kit and is a different
 direction — cursive and bouncy versus elegant and moody. Rolling this
 brand's look into the homepage itself, whether that means the watermark, the
 accent color, or both, is a deliberate design call rather than an automatic
-follow-on from adding the favicon and social card. See `ASKS.md` for the
-options.
+follow-on from adding the favicon and social card.

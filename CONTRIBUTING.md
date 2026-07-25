@@ -14,10 +14,10 @@ it better, that's exactly the spirit it was built in.
 
 ## What to expect
 
-The day-to-day maintenance loop right now leans on autonomous monitoring for
-SEO/discoverability upkeep (see `MONITORING.md`), not a packed feature
-roadmap, and it's maintained by one person in their spare time. Replies
-happen on a spare-time schedule.
+The day-to-day maintenance loop right now leans on automated monitoring for
+SEO/discoverability upkeep, not a packed feature roadmap, and it's
+maintained by one person in their spare time. Replies happen on a
+spare-time schedule.
 
 ## License
 
