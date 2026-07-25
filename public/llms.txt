@@ -21,7 +21,14 @@ People who want a meeting, catch-up, or quick video chat that is guaranteed
 not to run long. Most video call tools are built to keep people on the call;
 this one is built to end it.
 
+## Links
+
+- A created call is a clean, memorable two-word link (e.g.
+  https://qwickword.com/quiet-otter) — no accounts, no tracking parameters,
+  nothing to configure after creation.
+
 ## Site
 
 - Homepage (create a link): https://qwickword.com
-- About / manifesto: https://qwickword.com/manifesto
+- What Qwickword is, in plain terms: https://qwickword.com/about
+- Manifesto (the case for short calls): https://qwickword.com/manifesto

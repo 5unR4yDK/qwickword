@@ -260,10 +260,9 @@ export async function startRoomCountdown(
   }
 
   const { apiKey, mockMode } = getDailyConfig();
-  const nowSeconds = Math.floor(Date.now() / 1000);
 
   if (mockMode) {
-    return { exp: nowSeconds + durationSeconds, started: true };
+    return { exp: Math.floor(Date.now() / 1000) + durationSeconds, started: true };
   }
 
   const getResponse = await fetch(
@@ -279,11 +278,29 @@ export async function startRoomCountdown(
   const current = (await getResponse.json()) as { config?: { exp?: number } };
   const currentExp = current.config?.exp;
 
-  if (typeof currentExp === "number" && isCountdownStarted(currentExp, nowSeconds)) {
+  if (
+    typeof currentExp === "number" &&
+    isCountdownStarted(currentExp, Math.floor(Date.now() / 1000))
+  ) {
     // Already started by the other trigger — don't reset the clock.
     return { exp: currentExp, started: true };
   }
 
+  // Captured here, AFTER the GET above rather than at the top of the
+  // function: this is the timestamp that actually becomes the room's real,
+  // server-enforced `exp`, so the closer it is to the moment the PATCH below
+  // takes effect, the closer the call's real length is to `durationSeconds`
+  // as experienced by whoever's looking at the screen. A 1-minute Qwickword
+  // was visibly starting its displayed countdown at ~58s instead of 60 —
+  // traced to this timestamp previously being captured before BOTH Daily
+  // round trips (the GET above and the PATCH below), so every millisecond
+  // those two sequential API calls took was silently deducted from the
+  // displayed remaining time before the client ever saw it. Capturing it
+  // here removes the GET's round-trip time from that deduction; the PATCH's
+  // own round trip (unavoidable — we only know `exp` really took effect once
+  // Daily confirms it) plus the final response reaching the browser is the
+  // small remainder still baked in.
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const newExp = nowSeconds + durationSeconds;
   const patchResponse = await fetch(
     `${DAILY_API_BASE}/rooms/${encodeURIComponent(name)}`,

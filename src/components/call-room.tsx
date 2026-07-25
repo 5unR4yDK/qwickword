@@ -308,11 +308,7 @@ export default function CallRoom({
     // daily-js connection) without any camera/mic/video UI.
     return (
       <div className="relative h-full w-full bg-black">
-        <CallOverlay
-          remainingMs={remainingMs}
-          started={started}
-          durationSeconds={durationSeconds ?? undefined}
-        />
+        <CallOverlay remainingMs={remainingMs} started={started} />
         {isOver ? (
           <EndedScreen />
         ) : (
@@ -386,11 +382,7 @@ export default function CallRoom({
         <>
           <AutoStartWatcher onSecondParticipant={handleSecondParticipant} />
           <CallVideoGrid />
-          <CallOverlay
-            remainingMs={remainingMs}
-            started={started}
-            durationSeconds={durationSeconds ?? undefined}
-          />
+          <CallOverlay remainingMs={remainingMs} started={started} />
           <CallControls
             onLeave={handleLeave}
             started={started}

@@ -42,7 +42,6 @@ function playTick(audioContext: AudioContext, volume: number): void {
 export default function CallOverlay({
   remainingMs,
   started,
-  durationSeconds,
 }: {
   remainingMs: number;
   /**
@@ -53,23 +52,24 @@ export default function CallOverlay({
    * until `started` is true.
    */
   started: boolean;
-  /**
-   * The call's full length in seconds, for the final-ten-seconds progress
-   * rail. Optional — legacy links minted before durations rode along in the
-   * URL don't carry it, and the rail simply doesn't render without it.
-   */
-  durationSeconds?: number;
 }) {
   const isOver = remainingMs <= 0;
   const remainingSeconds = Math.ceil(remainingMs / 1000);
   const isFinalCountdown = started && !isOver && remainingSeconds <= 10;
 
-  // Fraction of the call remaining, for the bottom progress rail. Only
-  // meaningful once ticking and only when the duration is known.
-  const remainingFraction =
-    durationSeconds && durationSeconds > 0
-      ? Math.min(1, Math.max(0, remainingMs / (durationSeconds * 1000)))
-      : null;
+  // Fraction of the final TEN-SECOND window remaining, for the bottom
+  // progress rail — deliberately not scaled against the call's total length.
+  // It used to be (remainingMs / totalDurationMs), which meant a short call
+  // started this rail already mostly full and a long call started it as a
+  // barely-visible sliver, since 10 seconds is a wildly different fraction
+  // of a 1-minute vs. 20-minute call. The rail's job is to show "how much of
+  // the final ten seconds is left," not "how much of the whole call is
+  // left," so it's anchored to a fixed 10,000ms window: full width the
+  // instant the final countdown begins, drained to empty exactly at zero,
+  // the same for every call length.
+  const remainingFraction = isFinalCountdown
+    ? Math.min(1, Math.max(0, remainingMs / 10_000))
+    : null;
 
   // T-10s audio tick: soft, low-volume, starting around T-10s and becoming
   // a little more audible down to zero — gentle and friendly, not an alarm.
@@ -173,8 +173,8 @@ export default function CallOverlay({
         )}
       </div>
 
-      {/* Bottom progress rail — final ten seconds only, remaining fraction
-          of the whole call. */}
+      {/* Bottom progress rail — final ten seconds only, drains from full to
+          empty across exactly that window (see remainingFraction above). */}
       {isFinalCountdown && remainingFraction !== null && (
         <div
           aria-hidden="true"
