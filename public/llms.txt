@@ -1,7 +1,7 @@
 # Qwickword
 
 > Qwickword is a free, no-signup video calling tool. You pick a time limit
-> (2 to 30 minutes), get a shareable link, and the call ends automatically
+> (1 to 30 minutes), get a shareable link, and the call ends automatically
 > the moment the timer hits zero — there's no way to extend it.
 
 ## What it does
