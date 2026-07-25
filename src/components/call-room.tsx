@@ -100,14 +100,24 @@ function LeftScreen() {
 
 function EndedScreen() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
-      <p className="text-lg font-medium">This Qwickword has ended.</p>
-      <p className="max-w-sm text-sm text-white/60">
-        It can&apos;t be rejoined or extended — that&apos;s the whole point.
+    <div className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white">
+      {/* Faint ambient glow behind the content. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 left-1/2 h-[1500px] w-[1500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(61,254,241,0.09)_0%,rgba(61,254,241,0.03)_38%,transparent_70%)] blur-[64px] mix-blend-screen"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/wordmark-only.svg"
+        alt="qwickword.com"
+        className="relative z-10 h-auto w-[300px] max-w-[80vw] opacity-80"
+      />
+      <p className="relative z-10 text-[22px] font-medium text-[#FAFAFA]">
+        This Qwickword has ended.
       </p>
       <Link
         href="/"
-        className="mt-2 cursor-pointer rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-zinc-200"
+        className="relative z-10 flex h-12 cursor-pointer items-center rounded-full bg-[#3DFEF1] px-[26px] text-[15px] font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"
       >
         Create a new one
       </Link>
@@ -282,7 +292,11 @@ export default function CallRoom({
     // daily-js connection) without any camera/mic/video UI.
     return (
       <div className="relative h-full w-full bg-black">
-        <CallOverlay remainingMs={remainingMs} started={started} />
+        <CallOverlay
+          remainingMs={remainingMs}
+          started={started}
+          durationSeconds={durationSeconds ?? undefined}
+        />
         {isOver ? (
           <EndedScreen />
         ) : (
@@ -352,7 +366,11 @@ export default function CallRoom({
         <>
           <AutoStartWatcher onSecondParticipant={handleSecondParticipant} />
           <CallVideoGrid />
-          <CallOverlay remainingMs={remainingMs} started={started} />
+          <CallOverlay
+            remainingMs={remainingMs}
+            started={started}
+            durationSeconds={durationSeconds ?? undefined}
+          />
           <CallControls
             onLeave={() => setLeftCall(true)}
             started={started}

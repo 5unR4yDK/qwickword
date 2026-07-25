@@ -88,7 +88,7 @@ export default function CallControls({
         aria-pressed={!audioTrack.isOff}
         aria-label={audioTrack.isOff ? "Unmute" : "Mute"}
         className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
-          audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+          audioTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-[rgba(61,254,241,0.9)] hover:text-[#062B28]"
         }`}
       >
         {audioTrack.isOff ? <MicOff size={18} /> : <Mic size={18} />}
@@ -99,7 +99,7 @@ export default function CallControls({
         aria-pressed={!videoTrack.isOff}
         aria-label={videoTrack.isOff ? "Turn camera on" : "Turn camera off"}
         className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
-          videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-white/25"
+          videoTrack.isOff ? "bg-red-600 hover:bg-red-700" : "bg-white/15 hover:bg-[rgba(61,254,241,0.9)] hover:text-[#062B28]"
         }`}
       >
         {videoTrack.isOff ? <VideoOff size={18} /> : <Video size={18} />}
@@ -110,7 +110,7 @@ export default function CallControls({
         aria-pressed={isSharingScreen}
         aria-label={isSharingScreen ? "Stop sharing your screen" : "Share your screen"}
         className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors sm:h-11 sm:w-11 ${
-          isSharingScreen ? "bg-blue-600 hover:bg-blue-700" : "bg-white/15 hover:bg-white/25"
+          isSharingScreen ? "bg-blue-600 hover:bg-blue-700" : "bg-white/15 hover:bg-[rgba(61,254,241,0.9)] hover:text-[#062B28]"
         }`}
       >
         {isSharingScreen ? <MonitorX size={18} /> : <MonitorUp size={18} />}
@@ -118,11 +118,10 @@ export default function CallControls({
       {/* "Start now" lives in this same pill, alongside the other controls,
           rather than as a separate floating button disconnected from the
           rest of the call's controls — same height as every icon button
-          beside it (h-10/sm:h-11). Kept the white fill (rather than the
-          neutral bg-white/15
-          the toggle buttons use) since Start is a one-time primary action,
-          not a toggle — same "white = the primary action" language this app
-          already uses for Join/Copy/Create elsewhere. Only rendered before
+          beside it (h-10/sm:h-11). Filled brand cyan (rather than the
+          neutral bg-white/15 the toggle buttons use) since Start is a
+          one-time primary action, not a toggle — same "cyan = the primary
+          action" language the rest of the app uses. Only rendered before
           the countdown has actually started; once `started` is true there's
           nothing left to start. */}
       {!started && (
@@ -130,7 +129,7 @@ export default function CallControls({
           type="button"
           onClick={onStart}
           disabled={starting}
-          className="flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-3 text-xs font-medium whitespace-nowrap text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4 sm:text-sm"
+          className="flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#3DFEF1] px-3 text-xs font-semibold whitespace-nowrap text-[#062B28] transition-colors hover:enabled:bg-[#7FFFF5] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4 sm:text-sm"
         >
           {starting ? "Starting…" : "Start now"}
         </button>

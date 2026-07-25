@@ -1,11 +1,5 @@
 import HomeContent from "@/components/home-content";
 
-// A different slogan (see src/lib/slogans.ts) on every load, so this page
-// must not be statically prerendered — force-dynamic makes sure Next.js
-// actually re-runs the pick per request rather than freezing one random
-// line in at build time.
-export const dynamic = "force-dynamic";
-
 // schema.org structured data. Gives search engines and AI crawlers a
 // machine-readable description of what
 // Qwickword actually is, on top of the plain title/description text in

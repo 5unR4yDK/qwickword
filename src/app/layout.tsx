@@ -62,12 +62,22 @@ export const metadata: Metadata = {
     title: "Qwickword — video calls that end on time",
     description:
       "Set a time limit, share the link, start talking. No account, no download — the call ends the moment the timer hits zero.",
+    images: [
+      {
+        url: "/og-card-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: "qwickword.com",
+      },
+      { url: "/og-card-square-1080.png", width: 1080, height: 1080 },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Qwickword — video calls that end on time",
     description:
       "Set a time limit, share the link, start talking. No account, no download — the call ends the moment the timer hits zero.",
+    images: ["/og-card-1200x630.png"],
   },
 };
 

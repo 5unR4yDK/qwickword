@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, Check } from "lucide-react";
 import {
   DURATION_PRESETS_SECONDS,
   formatDuration,
@@ -24,77 +25,47 @@ type CreateState =
   | {
       status: "success";
       link: string;
+      displayLink: string;
       roomPath: string;
       mockMode: boolean;
       durationSeconds: number;
     };
 
 /**
- * The core create-link flow. Two ways to set a duration:
- *  1. Preset buttons (DURATION_PRESETS_SECONDS, src/lib/duration.ts) —
- *     clicking one creates the room immediately, no separate "Create" step
- *     (2026-07-21: "the URL should automatically be copied... after you
- *     click that button").
- *  2. A manual minutes field for any whole-minute value the presets don't
- *     cover, submitted via its own "Create" button or Enter. Clamped to the
- *     shared MIN_/MAX_DURATION_MINUTES bounds so it can never submit a value
- *     the API route's own bounds check would reject.
- * Both paths funnel into the same `handleCreate`, so the success screen
- * below (auto-copy, "Join the meeting now," etc.) behaves identically either
- * way.
+ * The whole front-page flow: wordmark, tagline, duration picker, and — once
+ * a room exists — the link-created screen. This component owns the full
+ * centred column (not just the form controls) because creating a link
+ * changes the entire layout: the wordmark shrinks, the picker disappears,
+ * and the link card takes over as the largest element on screen.
  *
- * Collapsed by default: the manual-minutes field, its hint text, and the
- * "Create Qwickword" button only exist to serve the custom-duration path —
- * for anyone just clicking a preset (the common case), all three are dead
- * weight sitting on the page for no reason. They're hidden behind a single
- * discreet "custom" toggle, styled like a plain caption rather than a real
- * button so it doesn't compete with the presets. Clicking it expands the
- * same fields that would otherwise always be there — nothing about the
- * custom-duration mechanism itself changes, only whether it's visible
- * before someone asks for it.
+ * Duration picking has two paths that both funnel into `handleCreate`:
+ *  1. Preset pills — one click creates the room at that length.
+ *  2. The `custom` pill, which morphs in place into an inline minutes field
+ *     (nothing above or below moves; the other pills dim but stay
+ *     clickable). Enter or the arrow button submits; Escape reverts to the
+ *     plain pill.
  */
-export default function CreateLinkForm() {
-  // Deliberately blank, not pre-filled — the presets already cover the
-  // common durations, so pre-filling this field would just be redundant
-  // with them. The disabled-button colour issue this might tempt someone to
-  // work around by pre-filling a value is fixed on the button itself
-  // instead — see the Create button's className.
-  const [minutesInput, setMinutesInput] = useState<string>("");
+export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   const [state, setState] = useState<CreateState>({ status: "idle" });
-  const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [copied, setCopied] = useState(false);
-  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const customInputRef = useRef<HTMLInputElement>(null);
 
-  // Whether the custom-duration section (manual minutes field + its hint +
-  // the "Create Qwickword" button) is expanded — see this file's top
-  // comment. Starts collapsed; the "custom" toggle below is the only way in.
-  const [showCustom, setShowCustom] = useState(false);
-  const minutesInputRef = useRef<HTMLInputElement>(null);
-
+  // Focus the inline field the moment the custom pill morphs into it —
+  // whoever clicked is about to type a number.
   useEffect(() => {
-    return () => {
-      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    };
-  }, []);
+    if (customOpen) customInputRef.current?.focus();
+  }, [customOpen]);
 
-  // Send focus straight to the minutes field the moment it expands — anyone
-  // who clicked "custom" is about to type a number, so this saves them a
-  // second click and makes the reveal feel purposeful rather than just
-  // decorative.
-  useEffect(() => {
-    if (showCustom) minutesInputRef.current?.focus();
-  }, [showCustom]);
-
-  // Whole minutes only, within the shared bounds. An empty, non-integer, or
-  // out-of-range value is invalid — the Create button stays disabled and a
-  // short hint explains the range, rather than firing a request the server
-  // would just reject.
-  const parsedMinutes = Number(minutesInput);
+  const parsedMinutes = Number(customValue);
   const isValidDuration =
-    minutesInput.trim() !== "" &&
+    customValue.trim() !== "" &&
     Number.isInteger(parsedMinutes) &&
     parsedMinutes >= MIN_DURATION_MINUTES &&
     parsedMinutes <= MAX_DURATION_MINUTES;
+
+  const isLoading = state.status === "loading";
 
   async function handleCreate(durationSeconds: number) {
     setState({ status: "loading" });
@@ -136,42 +107,38 @@ export default function CreateLinkForm() {
     }
 
     const room = data as CreateRoomResponse;
-    // `exp` and `d` (durationSeconds) both ride along in the query string so
-    // the call page (`/[room]`) needs no server-side lookup for a first
-    // render — see src/app/[room]/page.tsx. Note `exp` here is the room's
-    // *pre-start* buffer, not the real call length: the countdown doesn't
-    // actually start until someone presses "Start now" or a second person
-    // joins (src/lib/daily-rooms.ts, "Anchor the countdown to first join").
-    // `d` is what the call page uses to start the real countdown at that
-    // point, and what the waiting screen displays before then.
+    // `exp` and `d` (durationSeconds) ride along in the query string so the
+    // call page needs no server-side lookup for a first render. `exp` here
+    // is the room's *pre-start* buffer, not the real call length — the
+    // countdown starts when the second person joins.
     const roomPath = `/${room.name}?exp=${room.exp}&d=${room.durationSeconds}`;
     const link = `${window.location.origin}${roomPath}`;
+    // What the link card shows: the readable core of the URL, not the
+    // query-string plumbing. Copying still copies the full working link.
+    const displayLink = `${window.location.host}/${room.name}`;
 
     setState({
       status: "success",
       link,
+      displayLink,
       roomPath,
       mockMode: room.mockMode,
       durationSeconds: room.durationSeconds,
     });
 
-    // Best-effort auto-copy. This can fail silently (insecure context,
-    // permission denied, or — notably in Safari — because the `await fetch`
-    // above already spent the click's "user activation" window). Either way
-    // the link is still visible below and the manual "Copy link" button
-    // still works, so a failed auto-copy is not fatal, just quietly skipped.
+    // Best-effort auto-copy: the card's button shows the post-copy state on
+    // success and falls back to an active "Copy link" if the clipboard
+    // write fails (insecure context, Safari's spent user-activation, etc.).
     try {
       await navigator.clipboard.writeText(link);
-      setShowCopiedToast(true);
-      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = setTimeout(() => setShowCopiedToast(false), 2500);
+      setCopied(true);
     } catch {
-      // no-op, see comment above
+      setCopied(false);
     }
   }
 
-  function handleSubmit() {
-    if (!isValidDuration || state.status === "loading") return;
+  function handleCustomSubmit() {
+    if (!isValidDuration || isLoading) return;
     handleCreate(parsedMinutes * 60);
   }
 
@@ -184,211 +151,257 @@ export default function CreateLinkForm() {
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Link created (6b)                                                   */
+  /* ------------------------------------------------------------------ */
   if (state.status === "success") {
-    return (
-      <div className="flex w-full flex-col items-center gap-4 text-center">
-        {/* In-flow, not `fixed` — a fixed position at the viewport top would
-            overlap the page's own "Qwickword" heading above this card.
-            Sitting in the normal layout right above the "ready" line keeps
-            it near the action without ever covering unrelated content,
-            regardless of viewport size.
+    const minutes = Math.round(state.durationSeconds / 60);
+    const mailSubject = encodeURIComponent(
+      `Qwickword — a ${minutes} minute call`
+    );
+    const mailBody = encodeURIComponent(
+      `Join me for a ${minutes} minute Qwickword. It ends when the timer does:\n\n${state.link}`
+    );
 
-            Always rendered, faded in/out via opacity rather than
-            mounted/unmounted. Conditionally rendering it reserved no space
-            while hidden, so the rest of the success screen
-            visibly jumped up the instant the toast's 2.5s timer unmounted
-            it. Keeping the element always in the DOM (just invisible)
-            reserves its height permanently, so nothing below it ever
-            moves. */}
-        <div
-          role="status"
-          aria-hidden={!showCopiedToast}
-          className={`rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-opacity duration-200 dark:bg-emerald-500 ${
-            showCopiedToast ? "opacity-100" : "invisible opacity-0"
-          }`}
-        >
-          Link copied to clipboard!
+    return (
+      <div className="flex w-full max-w-[720px] flex-col items-center gap-9 text-center">
+        <Wordmark className="w-[260px] max-w-[70vw] opacity-85" />
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <span className="flex h-6 items-center rounded-full bg-[rgba(61,254,241,0.14)] px-2.5 text-xs font-semibold tracking-[0.06em] text-teal-700 dark:text-[#3DFEF1]">
+            {minutes} MIN
+          </span>
+          <span className="text-sm text-zinc-500 dark:text-[#71717A]">
+            hard stop, no extend button
+          </span>
         </div>
-        <p className="text-lg font-medium text-black dark:text-zinc-50">
-          Your {formatDuration(state.durationSeconds)} Qwickword is ready.
-        </p>
+
         {state.mockMode && (
-          <p className="text-sm text-amber-700 dark:text-amber-400">
+          <p className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             Mock mode — this link is simulated, not a real call yet.
           </p>
         )}
-        <div className="flex w-full items-center gap-2">
-          <input
-            readOnly
-            value={state.link}
-            aria-label="Shareable Qwickword link"
-            onFocus={(event) => event.currentTarget.select()}
-            className="w-full min-w-0 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-sm text-zinc-800 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-200"
-          />
-          <button
-            type="button"
-            onClick={() => handleCopy(state.link)}
-            className="shrink-0 cursor-pointer rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-          >
-            {copied ? "Copied!" : "Copy link"}
-          </button>
+
+        <div className="flex w-full flex-col items-center gap-4">
+          <p className="text-[13px] font-medium tracking-[0.18em] text-zinc-500 uppercase dark:text-[#71717A]">
+            Share this link
+          </p>
+          <div className="flex w-full flex-col items-center gap-3.5 rounded-3xl border border-teal-600/40 bg-teal-500/[0.06] px-8 py-7 dark:border-[rgba(61,254,241,0.3)] dark:bg-[rgba(61,254,241,0.04)]">
+            <p className="text-3xl font-medium break-all text-teal-700 dark:text-[#3DFEF1]">
+              {state.displayLink}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleCopy(state.link)}
+                className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-teal-600/60 px-5 text-sm font-medium text-teal-700 transition-colors duration-150 hover:bg-teal-500/10 dark:border-[rgba(61,254,241,0.45)] dark:text-[#3DFEF1] dark:hover:bg-[rgba(61,254,241,0.08)]"
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} aria-hidden="true" /> Copied
+                  </>
+                ) : (
+                  "Copy link"
+                )}
+              </button>
+              <a
+                href={`mailto:?subject=${mailSubject}&body=${mailBody}`}
+                className="flex h-11 items-center rounded-full border border-black/[.145] px-5 text-sm font-medium text-zinc-600 transition-colors duration-150 hover:border-black/[.3] dark:border-white/[.145] dark:text-[#A1A1AA] dark:hover:border-white/[.3]"
+              >
+                Email it
+              </a>
+            </div>
+          </div>
         </div>
+
         <Link
           href={state.roomPath}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="flex h-[46px] items-center rounded-full bg-[#3DFEF1] px-[26px] text-sm font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"
         >
           Join the meeting now
         </Link>
-        <button
-          type="button"
-          onClick={() => {
-            setState({ status: "idle" });
-            setCopied(false);
-            setShowCopiedToast(false);
-            // Back to the simple, presets-only view — not left expanded
-            // from whatever this tab did last time (see this file's top
-            // comment on why collapsed is the default state to return to).
-            setShowCustom(false);
-            setMinutesInput("");
-          }}
-          className="cursor-pointer text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-        >
-          Create another
-        </button>
+
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setState({ status: "idle" });
+              setCopied(false);
+              setCustomOpen(false);
+              setCustomValue("");
+            }}
+            className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-[#71717A] dark:hover:text-zinc-400"
+          >
+            Create another
+          </button>
+          <FooterLinks />
+        </div>
       </div>
     );
   }
 
-  const isLoading = state.status === "loading";
-
+  /* ------------------------------------------------------------------ */
+  /* Front page (4a) + custom open (5a)                                  */
+  /* ------------------------------------------------------------------ */
   return (
-    <form
-      className="flex w-full flex-col items-center gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        handleSubmit();
-      }}
-    >
-      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-        How long is your quick word?
-      </p>
-      <div
-        role="group"
-        aria-label="Quick durations"
-        className="flex flex-wrap items-center justify-center gap-2"
-      >
-        {DURATION_PRESETS_SECONDS.map((seconds) => (
-          <button
-            key={seconds}
-            type="button"
-            disabled={isLoading}
-            onClick={() => handleCreate(seconds)}
-            // A genuinely white fill (bg-white), not bg-zinc-50, since this
-            // page's own background is bg-zinc-50 and would otherwise read
-            // as almost no contrast — same idea as the solid black/white
-            // buttons elsewhere on this page. `cursor-pointer` is explicit
-            // because Tailwind v4 no longer defaults `<button>` to
-            // `cursor: pointer` the way earlier versions did (a deliberate
-            // upstream change to match native browser behaviour), so every
-            // custom button in this app needs the utility set explicitly —
-            // added here and swept across every other button below. Fixed
-            // `w-20` (rather than a content-driven `min-w-14`) keeps every
-            // preset the same size regardless of label length ("1 min" vs.
-            // "20 min"); flex items-center/justify-center keeps the
-            // (already-uniform text-sm) label centered inside it either way.
-            //
-            // White means white in both light and dark mode: dark:bg-white
-            // with dark:text-zinc-900, matching the solid-color buttons
-            // already used elsewhere in dark mode on this page, rather than
-            // the near-black pill with light text a naive dark: override
-            // would otherwise produce.
-            className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white px-2 text-sm font-medium text-zinc-900 transition-colors hover:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-white dark:text-zinc-900 dark:hover:border-black/[.3]"
-          >
-            {formatDuration(seconds)}
-          </button>
-        ))}
+    <div className="flex w-full max-w-[720px] flex-col items-center gap-11 text-center">
+      <div className="flex flex-col items-center gap-5">
+        <Wordmark className="w-[540px] max-w-[86vw]" />
+        <p className="text-sm font-medium tracking-[0.26em] text-zinc-600 uppercase dark:text-[#D9D9D9]">
+          This meeting could&apos;ve been a Qwickword
+        </p>
       </div>
-      {/* Collapsed default: a single discreet toggle (see this file's top
-          comment for why). Only shown while collapsed; expanding replaces
-          it with the fields below rather than leaving a now-redundant
-          toggle sitting above them. */}
-      {!showCustom && (
-        <button
-          type="button"
-          onClick={() => setShowCustom(true)}
-          className="cursor-pointer text-xs text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-600 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
-        >
-          custom
-        </button>
+
+      {mockMode && (
+        <p className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          Mock mode — no Daily API key configured
+        </p>
       )}
 
-      {/* Smooth height reveal via the CSS grid-rows trick (0fr -> 1fr),
-          rather than a hard show/hide, so the box visibly expands down
-          instead of just appearing. `overflow-hidden` on the inner
-          wrapper is what makes the 0fr state actually clip to zero height;
-          the fields themselves are unchanged from before this redesign,
-          just no longer visible (and, via aria-hidden, no longer announced)
-          until expanded. */}
-      <div
-        className={`grid w-full transition-[grid-template-rows] duration-300 ease-out ${
-          showCustom ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
-      >
-        <div className="overflow-hidden">
-          <div
-            aria-hidden={!showCustom}
-            className="flex w-full flex-col items-center gap-4 pt-1"
-          >
-            <label htmlFor="duration-minutes" className="sr-only">
-              Custom call length in minutes
-            </label>
-            <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col items-center gap-4">
+        <p className="text-sm font-medium text-zinc-500 dark:text-[#71717A]">
+          How long is your Qwickword?
+        </p>
+
+        <div
+          role="group"
+          aria-label="Call length"
+          className="flex flex-wrap items-center justify-center gap-2"
+        >
+          {DURATION_PRESETS_SECONDS.map((seconds) => (
+            <button
+              key={seconds}
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleCreate(seconds)}
+              className={`flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border text-sm font-medium transition-colors duration-150 hover:border-[#3DFEF1] hover:bg-[#3DFEF1] hover:text-[#062B28] disabled:cursor-not-allowed disabled:opacity-60 ${
+                customOpen
+                  ? "border-teal-600/25 text-teal-700/60 dark:border-[rgba(61,254,241,0.25)] dark:text-[rgba(61,254,241,0.6)]"
+                  : "border-teal-600/50 text-teal-700 dark:border-[rgba(61,254,241,0.45)] dark:text-[#3DFEF1]"
+              }`}
+            >
+              {formatDuration(seconds)}
+            </button>
+          ))}
+
+          {customOpen ? (
+            /* The dashed pill, morphed in place into the inline field —
+               box-border keeps it exactly 44px tall including its border,
+               flush with the presets beside it. */
+            <div className="box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]">
+              <label htmlFor="custom-minutes" className="sr-only">
+                Custom call length in minutes
+              </label>
               <input
-                ref={minutesInputRef}
-                id="duration-minutes"
+                ref={customInputRef}
+                id="custom-minutes"
                 type="number"
                 inputMode="numeric"
                 min={MIN_DURATION_MINUTES}
                 max={MAX_DURATION_MINUTES}
                 step={1}
-                value={minutesInput}
-                onChange={(event) => setMinutesInput(event.target.value)}
-                disabled={isLoading || !showCustom}
-                tabIndex={showCustom ? 0 : -1}
-                aria-label="Call length in minutes"
-                aria-describedby="duration-hint"
-                aria-invalid={!isValidDuration}
-                className="w-24 rounded-full border border-black/[.08] bg-zinc-50 px-4 py-2 text-center text-lg font-medium tabular-nums text-zinc-900 outline-none focus:border-black/[.3] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-white/[.4] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                value={customValue}
+                onChange={(event) => setCustomValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleCustomSubmit();
+                  } else if (event.key === "Escape") {
+                    setCustomOpen(false);
+                    setCustomValue("");
+                  }
+                }}
+                disabled={isLoading}
+                aria-describedby="custom-hint"
+                aria-invalid={customValue.trim() !== "" && !isValidDuration}
+                className="w-10 bg-transparent text-[15px] font-medium text-teal-700 tabular-nums caret-teal-600 outline-none dark:text-[#3DFEF1] dark:caret-[#3DFEF1] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span className="text-base text-zinc-600 dark:text-zinc-400">min</span>
+              <span className="text-[13px] text-zinc-500 dark:text-[#8A8A8F]">
+                min
+              </span>
+              <button
+                type="button"
+                onClick={handleCustomSubmit}
+                disabled={isLoading || !isValidDuration}
+                aria-label="Create Qwickword"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#3DFEF1] text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
             </div>
-            <p id="duration-hint" className="text-xs text-zinc-400 dark:text-zinc-500">
-              {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole
-              minutes only.
-            </p>
-            {/* Deliberately no `disabled:opacity-*`/colour change here — this
-                button stays one color always, never dimming or shifting
-                shade. The field above starts empty on purpose, so this
-                button IS actually `disabled` while invalid
-                — that state is communicated only by
-                `disabled:cursor-not-allowed` and the hint text, not by
-                dimming the button's own colour. */}
+          ) : (
             <button
-              type="submit"
-              disabled={isLoading || !isValidDuration || !showCustom}
-              tabIndex={showCustom ? 0 : -1}
-              className="flex h-12 w-full cursor-pointer items-center justify-center rounded-full bg-black px-5 text-base font-medium text-white transition-colors hover:enabled:bg-zinc-800 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:hover:enabled:bg-zinc-200"
+              type="button"
+              disabled={isLoading}
+              onClick={() => setCustomOpen(true)}
+              className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-dashed border-black/20 text-sm font-medium text-zinc-500 transition-colors duration-150 hover:border-teal-600/60 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/20 dark:text-[#71717A] dark:hover:border-[rgba(61,254,241,0.55)] dark:hover:text-[#3DFEF1]"
             >
-              {isLoading ? "Creating…" : "Create Qwickword"}
+              custom
             </button>
-          </div>
+          )}
         </div>
+
+        {customOpen && (
+          <p id="custom-hint" className="text-xs text-zinc-500 dark:text-[#52525B]">
+            {MIN_DURATION_MINUTES}–{MAX_DURATION_MINUTES} minutes, whole minutes
+            only. Enter creates the link.
+          </p>
+        )}
+
+        {state.status === "error" && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {state.message}
+          </p>
+        )}
       </div>
-      {state.status === "error" && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {state.message}
+
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-[15px] leading-6 text-zinc-500 dark:text-[#71717A]">
+          Set a time limit, share the link. When the timer hits zero, the call
+          ends.
         </p>
-      )}
-    </form>
+        <FooterLinks />
+      </div>
+    </div>
+  );
+}
+
+/** The cursive wordmark — cyan on dark, black on light. */
+function Wordmark({ className }: { className?: string }) {
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/wordmark-only.svg"
+        alt="qwickword.com"
+        className={`hidden h-auto dark:block ${className ?? ""}`}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/wordmark-only-black.svg"
+        alt="qwickword.com"
+        className={`h-auto dark:hidden ${className ?? ""}`}
+      />
+    </>
+  );
+}
+
+function FooterLinks() {
+  return (
+    <nav className="flex items-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
+      <Link
+        href="/manifesto"
+        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
+      >
+        manifesto
+      </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
+      <Link
+        href="/about"
+        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
+      >
+        about
+      </Link>
+    </nav>
   );
 }

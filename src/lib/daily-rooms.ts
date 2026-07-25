@@ -76,6 +76,7 @@ export function isCountdownStarted(exp: number, nowSeconds: number): boolean {
 
 import { getDailyConfig } from "./daily-config";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "./duration";
+import { generateRoomSlug } from "./room-names";
 
 const DAILY_API_BASE = "https://api.daily.co/v1";
 
@@ -152,7 +153,7 @@ export async function createHardExpiryRoom(
   const { apiKey, domain, mockMode } = getDailyConfig();
 
   if (mockMode) {
-    const name = `mock-${Math.random().toString(36).slice(2, 10)}`;
+    const name = generateRoomSlug();
     return {
       url: `https://mock.daily.co/${name}`,
       name,
@@ -162,28 +163,47 @@ export async function createHardExpiryRoom(
     };
   }
 
-  const response = await fetch(`${DAILY_API_BASE}/rooms`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      privacy: "public",
-      properties: {
-        exp,
-        eject_at_room_exp: true,
-        eject_after_elapsed: PRE_START_BUFFER_SECONDS,
-        enable_prejoin_ui: true,
+  // Friendly two-word slug (src/lib/room-names.ts). The namespace only has
+  // to be unique among rooms that currently exist, so a duplicate-name
+  // rejection from Daily is rare — retry with a fresh slug a few times
+  // before giving up.
+  const MAX_NAME_ATTEMPTS = 4;
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < MAX_NAME_ATTEMPTS; attempt++) {
+    response = await fetch(`${DAILY_API_BASE}/rooms`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        name: generateRoomSlug(),
+        privacy: "public",
+        properties: {
+          exp,
+          eject_at_room_exp: true,
+          eject_after_elapsed: PRE_START_BUFFER_SECONDS,
+          enable_prejoin_ui: true,
+        },
+      }),
+    });
+    if (response.ok) break;
+    // Daily rejects a taken name with a 400 mentioning the room already
+    // exists; only that case is worth retrying with a different slug.
+    const detail = await response.clone().text().catch(() => "");
+    const isNameCollision =
+      response.status === 400 && /already exists/i.test(detail);
+    if (!isNameCollision) break;
+  }
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
+  if (!response || !response.ok) {
+    const detail = response
+      ? await response.text().catch(() => "")
+      : "no response";
+    const status = response?.status ?? 502;
     throw new DailyRoomError(
-      `Daily API returned ${response.status} creating a room: ${detail.slice(0, 500)}`,
-      response.status >= 400 && response.status < 500 ? 400 : 502
+      `Daily API returned ${status} creating a room: ${detail.slice(0, 500)}`,
+      status >= 400 && status < 500 ? 400 : 502
     );
   }
 
@@ -376,13 +396,13 @@ export async function getRoomPresence(name: string): Promise<number | null> {
   return typeof data.total_count === "number" ? data.total_count : null;
 }
 
-// Matches both this app's mock room names ("mock-xxxxxxxx") and Daily's own
-// auto-generated names (alphanumeric, sometimes with hyphens). Deliberately
-// permissive — this is a syntax sanity check to reject garbage that could
-// never be a real room name (empty, whitespace, slashes, control characters,
-// wildly long strings from a mistyped/mangled URL), not a strict format
-// validator against Daily's exact generator. See src/app/[room]/page.tsx
-// (Phase 0 item 7, "Invalid/expired-link handling") for where this is used.
+// Matches this app's slug-style room names ("quiet-otter"), older
+// Daily-generated names, and mock names alike. Deliberately permissive —
+// this is a syntax sanity check to reject garbage that could never be a
+// real room name (empty, whitespace, slashes, control characters, wildly
+// long strings from a mistyped/mangled URL), not a strict format validator.
+// See src/app/[room]/page.tsx's invalid-link handling for where this is
+// used.
 const ROOM_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
 
 export function isPlausibleRoomName(name: string): boolean {

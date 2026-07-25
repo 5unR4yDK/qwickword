@@ -1,9 +1,10 @@
 "use client";
 
-// Minimal top overlay for meeting identity/branding. "Qwickword" + the live
-// countdown as a translucent overlay ON the video, alongside the rest of
-// the call-object-mode UI — see src/components/call-room.tsx. This owns
-// both the countdown math and the T-10s audio tick.
+// Top overlay for meeting identity/branding: the cursive wordmark + the live
+// countdown as a translucent overlay ON the video, alongside the rest of the
+// call-object-mode UI — see src/components/call-room.tsx. This owns the
+// countdown math, the T-10s audio tick, and the final-ten-seconds warning
+// treatment (rose timer, frame glow, bottom progress rail).
 
 import { useEffect, useRef } from "react";
 import { getCountdownSoundEnabled } from "@/lib/call-preferences";
@@ -41,6 +42,7 @@ function playTick(audioContext: AudioContext, volume: number): void {
 export default function CallOverlay({
   remainingMs,
   started,
+  durationSeconds,
 }: {
   remainingMs: number;
   /**
@@ -51,17 +53,30 @@ export default function CallOverlay({
    * until `started` is true.
    */
   started: boolean;
+  /**
+   * The call's full length in seconds, for the final-ten-seconds progress
+   * rail. Optional — legacy links minted before durations rode along in the
+   * URL don't carry it, and the rail simply doesn't render without it.
+   */
+  durationSeconds?: number;
 }) {
   const isOver = remainingMs <= 0;
   const remainingSeconds = Math.ceil(remainingMs / 1000);
   const isFinalCountdown = started && !isOver && remainingSeconds <= 10;
 
+  // Fraction of the call remaining, for the bottom progress rail. Only
+  // meaningful once ticking and only when the duration is known.
+  const remainingFraction =
+    durationSeconds && durationSeconds > 0
+      ? Math.min(1, Math.max(0, remainingMs / (durationSeconds * 1000)))
+      : null;
+
   // T-10s audio tick: soft, low-volume, starting around T-10s and becoming
   // a little more audible down to zero — gentle and friendly, not an alarm.
-  // Only runs once `started` — the pre-start
-  // buffer's own huge `remainingSeconds` would otherwise sit way outside the
-  // 1–10 window this checks anyway, but gating on `started` explicitly
-  // keeps that self-evident rather than incidental.
+  // Only runs once `started` — the pre-start buffer's own huge
+  // `remainingSeconds` would otherwise sit way outside the 1–10 window this
+  // checks anyway, but gating on `started` explicitly keeps that
+  // self-evident rather than incidental.
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastTickSecondRef = useRef<number | null>(null);
 
@@ -100,38 +115,77 @@ export default function CallOverlay({
   }, []);
 
   return (
-    <div
-      className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-0.5 bg-gradient-to-b from-black/70 to-transparent px-4 pb-10 text-center"
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
-    >
-      {/* Explicit safe-area padding so the timer stays clear of the notch
-          on phones where the browser chrome overlaps the top of the
-          viewport, on top of the h-dvh/fixed layout that keeps this overlay
-          from ever being scrolled out of view. */}
-      <p className="text-xs font-medium tracking-wide text-white/70">Qwickword</p>
-      {started ? (
-        <>
-          <p
-            role="timer"
-            aria-live="polite"
-            // Bigger on desktop — the countdown is the most important thing
-            // on screen and deserves to read clearly, not blend in. Kept the
-            // mobile size (text-2xl) as-is — phone screens are tighter and
-            // the existing size already reads fine there — and only grows it
-            // from the `sm` breakpoint up, where there's room to spare.
-            className={`text-2xl font-semibold tabular-nums sm:text-4xl ${
-              isFinalCountdown ? "text-rose-300" : "text-white"
-            }`}
-          >
-            {isOver ? "Time's up" : formatRemaining(remainingMs)}
-          </p>
-          {isFinalCountdown && (
-            <p className="text-xs font-medium text-rose-300 sm:text-sm">Time to wrap!</p>
-          )}
-        </>
-      ) : (
-        <p className="text-sm font-medium text-white/80">Waiting to start</p>
+    <>
+      {/* Final-ten-seconds frame warning: an inset rose glow around the
+          whole viewport. Colour transitions in rather than snapping; no
+          flashing. */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-500 motion-reduce:transition-none ${
+          isFinalCountdown ? "opacity-100" : "opacity-0"
+        }`}
+        style={{
+          boxShadow:
+            "inset 0 0 0 2px rgba(253,164,175,0.55), inset 0 0 70px rgba(253,164,175,0.18)",
+        }}
+      />
+
+      {/* Top scrim + wordmark + timer stack. */}
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-1.5 bg-gradient-to-b from-black/72 to-transparent px-4 text-center ${
+          isFinalCountdown ? "pb-14" : "pb-10"
+        }`}
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+      >
+        {/* Explicit safe-area padding so the timer stays clear of the notch
+            on phones where the browser chrome overlaps the top of the
+            viewport, on top of the h-dvh/fixed layout that keeps this
+            overlay from ever being scrolled out of view. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/wordmark-only.svg"
+          alt="qwickword.com"
+          className={`h-auto w-[132px] transition-opacity duration-500 ${
+            isFinalCountdown ? "opacity-60" : "opacity-70"
+          }`}
+        />
+        {started ? (
+          <>
+            <p
+              role="timer"
+              aria-live="polite"
+              className={`font-semibold tabular-nums transition-colors duration-500 motion-reduce:transition-none ${
+                isFinalCountdown
+                  ? "text-[52px] leading-[1.05] text-[#FDA4AF]"
+                  : "text-[40px] leading-[1.1] text-[#3DFEF1]"
+              }`}
+            >
+              {isOver ? "Time's up" : formatRemaining(remainingMs)}
+            </p>
+            {isFinalCountdown && (
+              <p className="text-sm font-semibold tracking-[0.1em] text-[#FDA4AF] uppercase">
+                Time to wrap
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm font-medium text-white/80">Waiting to start</p>
+        )}
+      </div>
+
+      {/* Bottom progress rail — final ten seconds only, remaining fraction
+          of the whole call. */}
+      {isFinalCountdown && remainingFraction !== null && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1 bg-white/[0.06]"
+        >
+          <div
+            className="h-full bg-[#FDA4AF] transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
+            style={{ width: `${remainingFraction * 100}%` }}
+          />
+        </div>
       )}
-    </div>
+    </>
   );
 }

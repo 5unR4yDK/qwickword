@@ -7,11 +7,7 @@ import {
   getRoomStatus,
   isPlausibleRoomName,
 } from "@/lib/daily-rooms";
-import {
-  MAX_DURATION_SECONDS,
-  MIN_DURATION_SECONDS,
-  formatMinutesPhrase,
-} from "@/lib/duration";
+import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
@@ -100,33 +96,45 @@ function parseDurationParam(raw: string | string[] | undefined): number | null {
 }
 
 /**
- * Link-preview metadata: a per-link title/description tied to the actual
- * call, rather than the root layout's generic "Qwickword" / "Set a time
- * limit, share the link..." fallback, so a shared link previews as
- * "Someone wants a Qwickword. Click to start your X minute meeting."
- * Deliberately generic ("Someone"), not a real name — there's no "your
- * name" field in the create flow (considered, deferred), so this stays
- * generic for every link.
+ * Link-preview metadata: a per-link title/description carrying the call's
+ * real length, so a shared link previews as "Someone wants to have a
+ * Qwickword (7 min)" in WhatsApp/iMessage/Slack. Deliberately generic
+ * ("Someone"), not a real name — there's no "your name" field in the create
+ * flow, so a shared card never leaks a participant or a topic, only the
+ * length and the promise that it ends.
  *
- * Falls back to the root layout's original description for a link with no
- * valid `d` (a pre-this-feature link, or a mistyped one) — same content
- * either way, no announcement of the failure.
+ * The duration comes from the link's `d` query param (this app is
+ * stateless — no server-side room record to look up). A link with no valid
+ * `d` (a pre-this-feature link, a stripped query string, or a mistyped one)
+ * falls back to a generic title/description. The OG images and metadataBase
+ * are inherited from the root layout.
  */
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { d: rawDuration } = await searchParams;
   const durationSeconds = parseDurationParam(rawDuration);
 
-  const description = durationSeconds
-    ? `Someone wants a Qwickword. Click to start your ${formatMinutesPhrase(durationSeconds)} meeting.`
-    : "Set a time limit, share the link. The call ends when it hits zero.";
-
-  return {
-    title: "Qwickword",
-    description,
-    openGraph: {
+  if (!durationSeconds) {
+    const description =
+      "Set a time limit, share the link. When the timer hits zero, the call ends.";
+    return {
       title: "Qwickword",
       description,
-    },
+      openGraph: { title: "Qwickword", description, type: "website", siteName: "Qwickword" },
+      twitter: { card: "summary_large_image", title: "Qwickword", description },
+    };
+  }
+
+  const minutes = Math.round(durationSeconds / 60);
+  const title = `Someone wants to have a Qwickword (${minutes} min)`;
+  const description =
+    `${minutes} minutes, hard stop — it ends when the timer does and ` +
+    "can't be extended.";
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website", siteName: "Qwickword" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 

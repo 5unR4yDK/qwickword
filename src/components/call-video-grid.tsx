@@ -205,7 +205,7 @@ function PipTile({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-      className="absolute bottom-24 right-6 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 bg-black shadow-lg active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
+      className="absolute right-6 bottom-24 h-28 w-20 cursor-grab touch-none overflow-hidden rounded-xl border border-white/15 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.5)] active:cursor-grabbing sm:bottom-28 sm:h-40 sm:w-28"
     >
       {track.isOff ? (
         <SmallAvatarFallback />

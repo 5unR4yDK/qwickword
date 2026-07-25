@@ -12,11 +12,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Brand tokens (dark values are the canonical spec; light derives from
+     them where a lighter counterpart is needed). */
+  --brand-cyan: #3dfef1;
+  --brand-cyan-hover: #7ffff5;
+  --brand-cyan-ink: #062b28;
+  --brand-cyan-hairline: rgba(61, 254, 241, 0.45);
+  --brand-cyan-wash: rgba(61, 254, 241, 0.08);
+  --warn-rose: #fda4af;
+  --leave-red: #dc2626;
+  --leave-red-hover: #b91c1c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-cyan-hover: var(--brand-cyan-hover);
+  --color-brand-cyan-ink: var(--brand-cyan-ink);
+  --color-warn-rose: var(--warn-rose);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -27,12 +42,12 @@
    on the page, rather than the two ever being able to disagree (OS says
    dark, manual toggle says light, or vice versa). */
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #000000;
+  --foreground: #fafafa;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
