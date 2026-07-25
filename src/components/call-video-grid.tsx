@@ -69,7 +69,7 @@ function MainAvatarFallback({ sessionId }: { sessionId: string }) {
         <img
           src={dicebearAvatarUrl(sessionId)}
           alt=""
-          className="h-14 w-14 rounded-full bg-zinc-700"
+          className="h-28 w-28 rounded-full bg-zinc-700"
         />
       </div>
     </div>
