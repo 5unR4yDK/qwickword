@@ -1,3 +1,5 @@
+<img src="public/brand/qmark.png" width="72" height="72" alt="Qwickword icon" align="left" />
+
 # Qwickword
 
 [![CI](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml/badge.svg)](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml)

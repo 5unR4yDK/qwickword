@@ -25,25 +25,30 @@ kit the maintainer commissioned (2026-07-25).
   icon, Android/Chrome icon).
 - `social-card-square.png` — 1000x1000 wordmark + tagline on the dark
   background, sized for Twitter's "summary" card format.
+- `qmark.png` — the current favicon mark: a cyan rounded square with a
+  black lowercase "q", transparent corners. Used in `README.md`'s header
+  and as the source for `src/app/icon.png` / `apple-icon.png` /
+  `favicon.ico`.
 
 ## What's wired up already
 
-- `src/app/icon.png`, `apple-icon.png`, `favicon.ico` — generated from a
-  separate, later favicon (cyan rounded square, black lowercase "q"), not
-  from `icon-196.png` / `icon-180.png` above. Those two files are kept here
-  as the earlier cursive-wordmark icon variant, superseded for the actual
-  favicon but left in place in case they're useful elsewhere.
+- `src/app/icon.png`, `apple-icon.png`, `favicon.ico` — generated from
+  `qmark.png` above, not from `icon-196.png` / `icon-180.png`. Those two
+  are kept here as the earlier cursive-wordmark icon variant, superseded
+  for the actual favicon but left in place in case they're useful
+  elsewhere.
 - `src/app/opengraph-image.png` — a 1200x630 composition of
   `wordmark-color-on-dark.png` centered on the `#292929` background, used for
   link previews (Slack, iMessage, Twitter/X, etc.) via Next.js's
-  file-convention metadata.
+  file-convention metadata. Still the cursive wordmark, not `qmark.png` —
+  see the open question below.
 
 ## Homepage redesign: still open
 
 The homepage's current visual identity (the indigo/violet ambient glow, the
-serif Playfair Display "Q" watermark) predates this kit and is a different
-direction — cursive and bouncy versus elegant and moody. Rolling this
-brand's look into the homepage itself, whether that means the watermark, the
-accent color, or both, is a deliberate design call rather than an automatic
-follow-on from adding the favicon and social card. See `ASKS.md` for the
-options.
+serif Playfair Display "Q" watermark), the cursive wordmark kit, and the
+new `qmark.png` favicon are three different visual treatments, none fully
+reconciled with the others yet. Rolling one consistent look across the
+favicon, the link-preview image, and the homepage itself is a deliberate
+design call rather than an automatic follow-on from any one of these
+individually.
