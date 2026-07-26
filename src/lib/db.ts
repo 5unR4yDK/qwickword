@@ -117,7 +117,47 @@ export async function recordCallStarted(roomName: string): Promise<void> {
   }
 }
 
-// recordCallEndedEarly (the "vote to end early" stats hook) was removed
-// alongside the rest of that feature. The `end_reason`/`ended_at` columns
-// stay in the `calls` table (harmless, no migration needed) in case the
-// feature comes back later; nothing writes to them right now.
+/** Why a call stopped, as far as the client could tell. */
+export type CallEndReason = "completed" | "left_early";
+
+/**
+ * Records that a call finished, and why. Called from
+ * POST /api/rooms/[room]/end.
+ *
+ * `completed` means the countdown reached zero — the call ran its full
+ * length, which is the normal ending given Daily enforces the hard stop
+ * server-side. `left_early` means someone closed out while time remained.
+ *
+ * Both COALESCEs make this first-writer-wins, the same shape as
+ * `recordCallStarted`: every connected tab reports the end independently, so
+ * without them the last tab to fire would overwrite the real ending. First
+ * report is the truthful one.
+ *
+ * Known gap: a participant who kills the tab outright sends nothing, so a
+ * call whose last tab vanishes before the timer stays open-ended. Rows with
+ * `started_at` set and `ended_at` null are therefore "started, outcome
+ * unknown" rather than "still running", and the dashboard counts them that
+ * way.
+ */
+export async function recordCallEnded(
+  roomName: string,
+  reason: CallEndReason
+): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `UPDATE calls
+          SET ended_at = COALESCE(ended_at, now()),
+              end_reason = COALESCE(end_reason, $2)
+        WHERE id = (
+          SELECT id FROM calls WHERE room_name = $1
+          ORDER BY created_at DESC LIMIT 1
+        )
+          AND started_at IS NOT NULL`,
+      [roomName, reason]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to record call-ended stats:", err);
+  }
+}

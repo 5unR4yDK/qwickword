@@ -48,8 +48,8 @@ type CreateState =
  *  1. Preset pills — one click creates the room at that length.
  *  2. The `custom` pill, which morphs in place into an inline minutes field
  *     (nothing above or below moves; the other pills dim but stay
- *     clickable). Enter or the arrow button submits; Escape reverts to the
- *     plain pill.
+ *     clickable). Enter or the arrow button submits; Escape, or a click
+ *     anywhere else on the page, reverts to the plain pill.
  */
 export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   const [state, setState] = useState<CreateState>({ status: "idle" });
@@ -57,11 +57,29 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
   const customInputRef = useRef<HTMLInputElement>(null);
+  const customFieldRef = useRef<HTMLDivElement>(null);
 
   // Focus the inline field the moment the custom pill morphs into it —
   // whoever clicked is about to type a number.
   useEffect(() => {
     if (customOpen) customInputRef.current?.focus();
+  }, [customOpen]);
+
+  // Clicking anywhere else on the page reverts the field to the plain pill,
+  // the same as Escape. Listening on pointerdown rather than click means the
+  // revert happens as the press lands, so it still fires when the press ends
+  // outside the window, and it beats the input's own blur. The arrow button
+  // lives inside this container, so submitting is not treated as an outside
+  // click.
+  useEffect(() => {
+    if (!customOpen) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (customFieldRef.current?.contains(event.target as Node)) return;
+      setCustomOpen(false);
+      setCustomValue("");
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [customOpen]);
 
   const parsedMinutes = Number(customValue);
@@ -307,7 +325,10 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                positioned warning below is deliberate: the warning must not
                participate in layout, or its appearance/disappearance while
                typing shifts the whole picker row up and down. */
-            <div className="relative box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]">
+            <div
+              ref={customFieldRef}
+              className="relative box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]"
+            >
               {isOverMax && (
                 <p
                   id="custom-duration-warning"

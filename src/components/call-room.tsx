@@ -157,6 +157,24 @@ export default function CallRoom({
   }, [started]);
   const startingRef = useRef(false);
 
+  // Stats only — never gates the call itself, so every failure path here is
+  // a silent no-op. One report per tab per call; the server keeps only the
+  // first one it receives across all tabs.
+  const endReportedRef = useRef(false);
+  const reportEnd = useCallback(
+    (reason: "completed" | "left_early") => {
+      if (endReportedRef.current || mockMode) return;
+      endReportedRef.current = true;
+      void fetch(`/api/rooms/${room}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+        keepalive: true,
+      }).catch(() => {});
+    },
+    [mockMode, room]
+  );
+
   // Call-object mode: create the call object directly, no <iframe> to wrap.
   // The setCallObject call is deferred via a zero-delay setTimeout so this
   // stays clear of react-hooks/set-state-in-effect (that rule targets
@@ -282,6 +300,14 @@ export default function CallRoom({
 
   const isOver = remainingMs <= 0;
 
+  // The call ran its full length. Reported from whichever tabs are still
+  // open when the clock hits zero; if every participant closed out first,
+  // nothing fires and the row stays "started, outcome unknown" rather than
+  // being wrongly counted as completed.
+  useEffect(() => {
+    if (started && isOver) reportEnd("completed");
+  }, [started, isOver, reportEnd]);
+
   // Leaving before the countdown ever started abandons the room: if this
   // was the only person waiting, the server retires (deletes) it so a later
   // visitor sees the "ended" screen instead of a waiting room nobody is
@@ -294,8 +320,15 @@ export default function CallRoom({
         () => {}
       );
     }
+    // Walking out of a call that was already running is the one signal that
+    // separates "sat through it" from "bailed". Only report while time
+    // remains: leaving after the timer has run out is just closing an ended
+    // call, and `reportEnd` guards the completed case separately.
+    if (startedRef.current && remainingMs > 0) {
+      reportEnd("left_early");
+    }
     setLeftCall(true);
-  }, [mockMode, room]);
+  }, [mockMode, room, remainingMs, reportEnd]);
 
   if (leftCall) {
     return <LeftScreen preStart={!started} />;
