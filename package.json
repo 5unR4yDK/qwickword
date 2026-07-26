@@ -30,7 +30,7 @@
     "@vercel/analytics": "^2.0.1",
     "jotai": "^2.20.2",
     "lucide-react": "^1.25.0",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -42,9 +42,15 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "_comment_overrides": "next pins postcss and sharp internally at versions with published advisories; these force the patched releases across the tree. The brace-expansion entry is scoped to the 5.x instance under typescript-eslint so minimatch@3 keeps its own 1.x. Remaining audit findings are dev-only and sit under eslint 9 — eslint 10 fixes them but eslint-config-next's bundled eslint-plugin-react calls context.getFilename(), removed in v10, so the upgrade breaks linting. Revisit when eslint-config-next supports eslint 10.",
+  "overrides": {
+    "postcss": "^8.5.23",
+    "sharp": "^0.35.3",
+    "brace-expansion@5.0.7": "5.0.8"
   }
 }
