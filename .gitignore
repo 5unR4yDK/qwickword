@@ -40,3 +40,14 @@ next-env.d.ts
 _local/
 AGENTS.md
 CLAUDE.md
+
+# Local scratch archives — snapshots taken during the rebrand, not source.
+*.zip
+*.tgz
+
+# Agent tooling — machine-local, and .claude/skills/neon-postgres is a
+# symlink git cannot index on Windows, which breaks `git add -A`.
+.agents/
+agent/
+.claude/
+skills-lock.json
