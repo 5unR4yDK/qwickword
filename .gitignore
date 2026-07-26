@@ -41,6 +41,12 @@ _local/
 AGENTS.md
 CLAUDE.md
 
+# Playwright output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Local scratch archives — snapshots taken during the rebrand, not source.
 *.zip
 *.tgz
