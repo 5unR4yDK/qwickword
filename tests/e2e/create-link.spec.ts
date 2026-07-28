@@ -63,6 +63,27 @@ test("about page renders", async ({ page }) => {
   await expect(page.getByRole("heading").first()).toBeVisible();
 });
 
+test("the telemetry endpoint accepts good timings and drops bad ones", async ({ request }) => {
+  const res = await request.post("/api/telemetry", {
+    data: {
+      timings: [
+        { callName: "some-room", metric: "join_to_audio", ms: 1200, surface: "ios" },
+        { callName: "some-room", metric: "not_a_metric", ms: 5, surface: "ios" },
+        { callName: "some-room", metric: "reconnect", ms: -1, surface: "ios" },
+        { callName: "", metric: "reconnect", ms: 10, surface: "ios" },
+      ],
+    },
+  });
+  expect(res.status()).toBe(200);
+  // Only the first is valid; the rest are dropped without an error, because a
+  // client retrying telemetry on a bad network worsens what it is measuring.
+  expect((await res.json()).accepted).toBe(1);
+
+  const junk = await request.post("/api/telemetry", { data: { nonsense: true } });
+  expect(junk.status()).toBe(200);
+  expect((await junk.json()).accepted).toBe(0);
+});
+
 test("the share-stats endpoint validates its channel", async ({ request }) => {
   const good = await request.post("/api/rooms/some-room/shared", {
     data: { via: "copy" },

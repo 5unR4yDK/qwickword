@@ -45,14 +45,16 @@ function getPool(): Pool | null {
  */
 export async function recordCallCreated(
   roomName: string,
-  durationSeconds: number
+  durationSeconds: number,
+  /** Set when the call was started from inside a room; null for one-offs. */
+  roomId?: number | null
 ): Promise<boolean> {
   const p = getPool();
   if (!p) return false;
   try {
     await p.query(
-      `INSERT INTO calls (room_name, duration_seconds) VALUES ($1, $2)`,
-      [roomName, durationSeconds]
+      `INSERT INTO calls (room_name, duration_seconds, room_id) VALUES ($1, $2, $3)`,
+      [roomName, durationSeconds, roomId ?? null]
     );
     return true;
   } catch (err) {
@@ -114,6 +116,202 @@ export async function recordCallStarted(roomName: string): Promise<void> {
     );
   } catch (err) {
     console.error("[Qwickword] Failed to record call-started stats:", err);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Rooms — the persistent layer above calls (see planning/ROOMS_DESIGN) */
+/* ------------------------------------------------------------------ */
+
+/** A room with no call for this long is treated as abandoned. */
+export const ROOM_IDLE_DAYS = 90;
+
+export type Room = {
+  id: number;
+  slug: string;
+  name: string | null;
+  defaultDurationSeconds: number;
+  createdAt: string;
+  lastUsedAt: string | null;
+  closedAt: string | null;
+};
+
+type RoomRow = {
+  id: string | number;
+  slug: string;
+  name: string | null;
+  default_duration_seconds: number;
+  created_at: Date | string;
+  last_used_at: Date | string | null;
+  closed_at: Date | string | null;
+};
+
+function toRoom(row: RoomRow): Room {
+  return {
+    id: Number(row.id),
+    slug: row.slug,
+    name: row.name,
+    defaultDurationSeconds: row.default_duration_seconds,
+    createdAt: String(row.created_at),
+    lastUsedAt: row.last_used_at ? String(row.last_used_at) : null,
+    closedAt: row.closed_at ? String(row.closed_at) : null,
+  };
+}
+
+/**
+ * Creates a room. Unlike a call, this is durable: the slug keeps working, and
+ * returning to it is the point.
+ *
+ * Returns null rather than throwing when the database is unreachable — a room
+ * is an enhancement, and the one-off call flow must keep working without one.
+ */
+export async function createRoom(
+  slug: string,
+  defaultDurationSeconds: number,
+  name?: string
+): Promise<Room | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query<RoomRow>(
+      `INSERT INTO rooms (slug, name, default_duration_seconds)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [slug, name ?? null, defaultDurationSeconds]
+    );
+    return result.rows[0] ? toRoom(result.rows[0]) : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to create room:", err);
+    return null;
+  }
+}
+
+/**
+ * Looks a room up by slug. Returns null for unknown, closed, or idle-expired
+ * rooms alike — the caller shows the same "this has ended" screen for all
+ * three, so the distinction is deliberately not surfaced. A permanent link is
+ * a permanent open door; idle expiry closes abandoned ones automatically.
+ */
+export async function getRoom(slug: string): Promise<Room | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query<RoomRow>(
+      `SELECT * FROM rooms
+        WHERE slug = $1
+          AND closed_at IS NULL
+          AND (
+            last_used_at IS NULL
+              AND created_at > now() - ($2 || ' days')::interval
+            OR last_used_at > now() - ($2 || ' days')::interval
+          )
+        LIMIT 1`,
+      [slug, ROOM_IDLE_DAYS]
+    );
+    return result.rows[0] ? toRoom(result.rows[0]) : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to look up room:", err);
+    return null;
+  }
+}
+
+/** Marks a room used, which both orders the list and defers idle expiry. */
+export async function touchRoom(roomId: number): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(`UPDATE rooms SET last_used_at = now() WHERE id = $1`, [roomId]);
+  } catch (err) {
+    console.error("[Qwickword] Failed to touch room:", err);
+  }
+}
+
+/** Retires a room immediately, without waiting for idle expiry. */
+export async function closeRoom(slug: string): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `UPDATE rooms SET closed_at = COALESCE(closed_at, now()) WHERE slug = $1`,
+      [slug]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to close room:", err);
+  }
+}
+
+/** The calls held in a room, newest first. */
+export async function getRoomCalls(
+  roomId: number,
+  limit = 20
+): Promise<
+  Array<{
+    roomName: string;
+    durationSeconds: number;
+    createdAt: string;
+    startedAt: string | null;
+    endReason: string | null;
+  }>
+> {
+  const p = getPool();
+  if (!p) return [];
+  try {
+    const result = await p.query(
+      `SELECT room_name, duration_seconds, created_at, started_at, end_reason
+         FROM calls WHERE room_id = $1
+        ORDER BY created_at DESC LIMIT $2`,
+      [roomId, limit]
+    );
+    return result.rows.map((r) => ({
+      roomName: r.room_name,
+      durationSeconds: r.duration_seconds,
+      createdAt: String(r.created_at),
+      startedAt: r.started_at ? String(r.started_at) : null,
+      endReason: r.end_reason,
+    }));
+  } catch (err) {
+    console.error("[Qwickword] Failed to read room calls:", err);
+    return [];
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reliability timings                                                  */
+/* ------------------------------------------------------------------ */
+
+export type TimingInput = {
+  callName: string;
+  metric: string;
+  ms: number;
+  surface: string;
+};
+
+/**
+ * Records reliability timings in one round trip.
+ *
+ * These are what make the objectives in the architecture doc measurable:
+ * p95 join-to-audio under 3s, p95 reconnect under 2s. Without them every
+ * Stage 2 trigger is guesswork, and a regression is invisible.
+ *
+ * Batched into a single multi-row insert — a call producing a handful of
+ * timings should never cost a handful of round trips.
+ */
+export async function recordTimings(timings: TimingInput[]): Promise<void> {
+  const p = getPool();
+  if (!p || timings.length === 0) return;
+  try {
+    const values: unknown[] = [];
+    const rows = timings.map((t, i) => {
+      const b = i * 4;
+      values.push(t.callName, t.metric, t.ms, t.surface);
+      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4})`;
+    });
+    await p.query(
+      `INSERT INTO call_timings (call_name, metric, ms, surface) VALUES ${rows.join(", ")}`,
+      values
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to record timings:", err);
   }
 }
 
