@@ -6,6 +6,7 @@ import {
   startRoomCountdown,
 } from "@/lib/daily-rooms";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import { recordCallFirstJoined } from "@/lib/db";
 
 /**
  * Status poll: has this room's countdown started yet, and what's its
@@ -80,6 +81,16 @@ export async function GET(
       // presence read shouldn't take down the whole status poll a waiting
       // tab depends on to pick up a manual "Start now" from elsewhere.
       console.error("[Qwickword] Failed to read room presence (non-fatal):", err);
+    }
+
+    if (presentCount !== null && presentCount >= 1) {
+      // Stats (see src/lib/db.ts) — fire-and-forget, first write wins, so the
+      // repeated poll and every participant's own tab all collapse to one
+      // timestamp. Keyed off Daily's authoritative presence rather than the
+      // poll itself: link previewers (WhatsApp, Slack, iMessage) fetch the
+      // page HTML for their preview cards but never run JS and never appear
+      // in presence, so a pasted link can't masquerade as someone turning up.
+      void recordCallFirstJoined(room);
     }
 
     if (!status.started && hasValidDuration && presentCount !== null && presentCount >= 2) {

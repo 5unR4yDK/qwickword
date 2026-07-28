@@ -117,6 +117,69 @@ export async function recordCallStarted(roomName: string): Promise<void> {
   }
 }
 
+/**
+ * Records that someone actually opened the room — the first real browser to
+ * reach it, before any countdown.
+ *
+ * This is what separates "the link was never opened" from "someone turned up
+ * and nobody else came". Without it, every unstarted call looks identical,
+ * and those two need opposite fixes: one is a sharing problem, the other a
+ * coordination problem.
+ *
+ * Called from the call page's status poll rather than from server-rendering
+ * the room page, and that distinction matters: link previewers (WhatsApp,
+ * Slack, iMessage) fetch the page HTML to build their preview cards but never
+ * run JavaScript. Recording on render would count every link ever pasted into
+ * a chat as an open and quietly inflate the number.
+ *
+ * COALESCE keeps the first timestamp — the poll repeats every few seconds and
+ * every participant runs their own.
+ */
+export async function recordCallFirstJoined(roomName: string): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `UPDATE calls SET first_joined_at = COALESCE(first_joined_at, now())
+       WHERE id = (
+         SELECT id FROM calls WHERE room_name = $1
+         ORDER BY created_at DESC LIMIT 1
+       )`,
+      [roomName]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to record first-joined stats:", err);
+  }
+}
+
+/**
+ * Records that a never-started room was given up on. Called from
+ * POST /api/rooms/[room]/abandon, which has already established server-side
+ * that the countdown never started and that Daily reports at most one person
+ * present — so this is a checked signal, not a client's claim.
+ *
+ * Paired with `first_joined_at`, the gap between them is how long someone was
+ * willing to wait for the other side. That number decides whether the waiting
+ * room needs work.
+ */
+export async function recordCallAbandoned(roomName: string): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `UPDATE calls SET abandoned_at = COALESCE(abandoned_at, now())
+       WHERE id = (
+         SELECT id FROM calls WHERE room_name = $1
+         ORDER BY created_at DESC LIMIT 1
+       )
+         AND started_at IS NULL`,
+      [roomName]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to record abandoned stats:", err);
+  }
+}
+
 /** Why a call stopped, as far as the client could tell. */
 export type CallEndReason = "completed" | "left_early";
 

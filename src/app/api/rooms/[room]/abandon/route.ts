@@ -7,6 +7,7 @@ import {
   isPlausibleRoomName,
 } from "@/lib/daily-rooms";
 import { getDailyConfig } from "@/lib/daily-config";
+import { recordCallAbandoned } from "@/lib/db";
 
 /** Never cache: this depends on the room's live state. */
 export const dynamic = "force-dynamic";
@@ -55,6 +56,13 @@ export async function POST(
     if (present === null || present > 1) {
       return NextResponse.json({ retired: false }, { status: 200 });
     }
+
+    // Stats (see src/lib/db.ts) — fire-and-forget. Recorded here rather than
+    // on the client because both preconditions have just been checked against
+    // Daily: the countdown never started, and at most one person is present.
+    // That makes this a verified "someone turned up and gave up", which is the
+    // single most diagnostic thing about a call that never happened.
+    void recordCallAbandoned(room);
 
     const deleted = await deleteRoom(room);
     return NextResponse.json({ retired: deleted }, { status: 200 });
