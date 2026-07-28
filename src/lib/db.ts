@@ -117,6 +117,47 @@ export async function recordCallStarted(roomName: string): Promise<void> {
   }
 }
 
+/** How a link was deliberately sent. */
+export type ShareChannel = "copy" | "email";
+
+/**
+ * Records that the link was deliberately sent somewhere.
+ *
+ * This is the one step of the funnel the server cannot infer. Without it,
+ * "created but never opened" merges two opposite situations: the link was
+ * shared and the other person ignored it, or it was never shared at all. The
+ * first is a demand problem, the second a UX one.
+ *
+ * Deliberately NOT called from the auto-copy that runs on creation. That
+ * fires for every call, so counting it would mark 100% of links as shared and
+ * measure nothing. Only an explicit Copy press or the email link counts —
+ * actions that mean "I am sending this to someone".
+ *
+ * Still an imperfect proxy: copying to the clipboard is not proof the link was
+ * pasted anywhere. It is a floor, not a certainty, and should be read that way.
+ */
+export async function recordLinkShared(
+  roomName: string,
+  via: ShareChannel
+): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `UPDATE calls
+          SET link_shared_at = COALESCE(link_shared_at, now()),
+              shared_via = COALESCE(shared_via, $2)
+        WHERE id = (
+          SELECT id FROM calls WHERE room_name = $1
+          ORDER BY created_at DESC LIMIT 1
+        )`,
+      [roomName, via]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to record link-shared stats:", err);
+  }
+}
+
 /**
  * Records that someone actually opened the room — the first real browser to
  * reach it, before any countdown.

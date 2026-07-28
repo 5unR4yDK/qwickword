@@ -63,6 +63,18 @@ test("about page renders", async ({ page }) => {
   await expect(page.getByRole("heading").first()).toBeVisible();
 });
 
+test("the share-stats endpoint validates its channel", async ({ request }) => {
+  const good = await request.post("/api/rooms/some-room/shared", {
+    data: { via: "copy" },
+  });
+  expect(good.status()).toBe(200);
+
+  for (const bad of [{ via: "carrier-pigeon" }, {}]) {
+    const res = await request.post("/api/rooms/some-room/shared", { data: bad });
+    expect(res.status()).toBe(400);
+  }
+});
+
 test("the end-stats endpoint validates its reason", async ({ request }) => {
   // DATABASE_URL is blank here, so the write no-ops — this pins the route's
   // contract, not the database behaviour.

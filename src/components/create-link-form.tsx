@@ -33,6 +33,8 @@ type CreateState =
       link: string;
       displayLink: string;
       roomPath: string;
+      /** Slug only — needed to attribute a deliberate share to this call. */
+      roomName: string;
       mockMode: boolean;
       durationSeconds: number;
     };
@@ -156,6 +158,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       link,
       displayLink,
       roomPath,
+      roomName: room.name,
       mockMode: room.mockMode,
       durationSeconds: room.durationSeconds,
     });
@@ -176,7 +179,26 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     handleCreate(parsedMinutes * 60);
   }
 
-  async function handleCopy(link: string) {
+  /**
+   * Stats only (see src/lib/db.ts): the link was deliberately sent somewhere.
+   * Fire-and-forget — never let a stats ping affect sharing.
+   *
+   * Deliberately NOT called from the auto-copy on creation. That runs for
+   * every call, so counting it would mark every link as shared and measure
+   * nothing. Only an explicit press counts.
+   */
+  function reportShared(roomName: string, via: "copy" | "email") {
+    if (mockMode) return;
+    void fetch(`/api/rooms/${encodeURIComponent(roomName)}/shared`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ via }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+
+  async function handleCopy(link: string, roomName: string) {
+    reportShared(roomName, "copy");
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
@@ -227,7 +249,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleCopy(state.link)}
+                onClick={() => handleCopy(state.link, state.roomName)}
                 className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full border border-teal-600/60 px-5 text-sm font-medium text-teal-700 transition-colors duration-150 hover:bg-teal-500/10 dark:border-[rgba(61,254,241,0.45)] dark:text-[#3DFEF1] dark:hover:bg-[rgba(61,254,241,0.08)]"
               >
                 {copied ? (
@@ -239,6 +261,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                 )}
               </button>
               <a
+                onClick={() => reportShared(state.roomName, "email")}
                 href={`mailto:?subject=${mailSubject}&body=${mailBody}`}
                 className="flex h-11 items-center rounded-full border border-black/[.145] px-5 text-sm font-medium text-zinc-600 transition-colors duration-150 hover:border-black/[.3] dark:border-white/[.145] dark:text-[#A1A1AA] dark:hover:border-white/[.3]"
               >
