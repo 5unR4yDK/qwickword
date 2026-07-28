@@ -15,7 +15,7 @@ import { recordTimings, type TimingInput } from "@/lib/db";
  */
 export const dynamic = "force-dynamic";
 
-const METRICS = ["join_to_audio", "prejoin_to_join", "reconnect", "teardown"] as const;
+const METRICS = ["join_to_audio", "reconnect", "teardown"] as const;
 const MAX_BATCH = 50;
 const MAX_MS = 10 * 60 * 1000;
 

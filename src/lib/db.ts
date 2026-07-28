@@ -321,7 +321,6 @@ export type AppendedEvent = {
   kind: EventKind;
   roomId?: number | null;
   callName?: string | null;
-  actor?: string | null;
   payload?: Record<string, unknown>;
   /**
    * Client-supplied idempotency key. A flaky network retrying a request must
@@ -345,13 +344,12 @@ export async function appendEvent(e: AppendedEvent): Promise<void> {
   if (!p) return;
   try {
     await p.query(
-      `INSERT INTO events (room_id, call_name, actor, kind, payload, dedupe_key)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+      `INSERT INTO events (room_id, call_name, kind, payload, dedupe_key)
+       VALUES ($1, $2, $3, $4::jsonb, $5)
        ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
       [
         e.roomId ?? null,
         e.callName ?? null,
-        e.actor ?? null,
         e.kind,
         JSON.stringify(e.payload ?? {}),
         e.dedupeKey ?? null,
@@ -369,7 +367,6 @@ export type LoggedEvent = {
   kind: string;
   roomId: number | null;
   callName: string | null;
-  actor: string | null;
   payload: Record<string, unknown>;
   createdAt: string;
 };
@@ -389,13 +386,13 @@ export async function readEventsSince(
   try {
     const result = opts.roomId
       ? await p.query(
-          `SELECT server_seq, kind, room_id, call_name, actor, payload, created_at
+          `SELECT server_seq, kind, room_id, call_name, payload, created_at
              FROM events WHERE server_seq > $1 AND room_id = $2
             ORDER BY server_seq LIMIT $3`,
           [sinceSeq, opts.roomId, limit]
         )
       : await p.query(
-          `SELECT server_seq, kind, room_id, call_name, actor, payload, created_at
+          `SELECT server_seq, kind, room_id, call_name, payload, created_at
              FROM events WHERE server_seq > $1
             ORDER BY server_seq LIMIT $2`,
           [sinceSeq, limit]
@@ -405,7 +402,6 @@ export async function readEventsSince(
       kind: r.kind,
       roomId: r.room_id === null ? null : Number(r.room_id),
       callName: r.call_name,
-      actor: r.actor,
       payload: r.payload ?? {},
       createdAt: String(r.created_at),
     }));
