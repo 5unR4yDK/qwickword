@@ -56,6 +56,7 @@ export async function recordCallCreated(
       `INSERT INTO calls (room_name, duration_seconds, room_id) VALUES ($1, $2, $3)`,
       [roomName, durationSeconds, roomId ?? null]
     );
+    void appendEvent({ kind: "call.created", callName: roomName, roomId: roomId ?? null, payload: { durationSeconds } });
     return true;
   } catch (err) {
     console.error("[Qwickword] Failed to record call-created stats:", err);
@@ -114,6 +115,7 @@ export async function recordCallStarted(roomName: string): Promise<void> {
        )`,
       [roomName]
     );
+    void appendEvent({ kind: "call.started", callName: roomName });
   } catch (err) {
     console.error("[Qwickword] Failed to record call-started stats:", err);
   }
@@ -179,7 +181,15 @@ export async function createRoom(
        RETURNING *`,
       [slug, name ?? null, defaultDurationSeconds]
     );
-    return result.rows[0] ? toRoom(result.rows[0]) : null;
+    const room = result.rows[0] ? toRoom(result.rows[0]) : null;
+    if (room) {
+      void appendEvent({
+        kind: "room.created",
+        roomId: room.id,
+        payload: { slug, defaultDurationSeconds },
+      });
+    }
+    return room;
   } catch (err) {
     console.error("[Qwickword] Failed to create room:", err);
     return null;
@@ -235,6 +245,11 @@ export async function closeRoom(slug: string): Promise<void> {
       `UPDATE rooms SET closed_at = COALESCE(closed_at, now()) WHERE slug = $1`,
       [slug]
     );
+    void appendEvent({
+      kind: "room.closed",
+      payload: { slug },
+      dedupeKey: `room.closed:${slug}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to close room:", err);
   }
@@ -271,6 +286,131 @@ export async function getRoomCalls(
     }));
   } catch (err) {
     console.error("[Qwickword] Failed to read room calls:", err);
+    return [];
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The event log                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every durable fact, appended in order.
+ *
+ * Message ordering, duplicate delivery, history loss and cross-device
+ * divergence are four of the failures the market report names across mature
+ * products, and all four share one cause: state kept as current-value rows,
+ * mutated in place, with each client's copy drifting. An append-only log with
+ * server-assigned ordering removes the cause rather than patching the symptoms.
+ *
+ * `server_seq` comes from a database sequence, so ordering is never a client's
+ * opinion. A new device replays from 0; a returning one replays from its last
+ * seen sequence. That is what "history follows the user" means concretely.
+ */
+export type EventKind =
+  | "call.created"
+  | "call.shared"
+  | "call.opened"
+  | "call.started"
+  | "call.ended"
+  | "call.abandoned"
+  | "room.created"
+  | "room.closed";
+
+export type AppendedEvent = {
+  kind: EventKind;
+  roomId?: number | null;
+  callName?: string | null;
+  actor?: string | null;
+  payload?: Record<string, unknown>;
+  /**
+   * Client-supplied idempotency key. A flaky network retrying a request must
+   * not be able to append the same fact twice.
+   */
+  dedupeKey?: string | null;
+};
+
+/**
+ * Appends one event.
+ *
+ * **Transitional note.** The current-value tables (`calls`, `rooms`) are still
+ * written directly and remain authoritative for reads; the log is written
+ * alongside them in the same transaction, so the two cannot diverge. Deriving
+ * those tables *from* the log is the eventual shape, but rewriting live call
+ * recording to be event-sourced is a change worth making deliberately rather
+ * than as a side effect. Everything appended from today is replayable.
+ */
+export async function appendEvent(e: AppendedEvent): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `INSERT INTO events (room_id, call_name, actor, kind, payload, dedupe_key)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+       ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
+      [
+        e.roomId ?? null,
+        e.callName ?? null,
+        e.actor ?? null,
+        e.kind,
+        JSON.stringify(e.payload ?? {}),
+        e.dedupeKey ?? null,
+      ]
+    );
+  } catch (err) {
+    // The log is never allowed to break a call. A lost event costs a data
+    // point; a failed call costs the product.
+    console.error("[Qwickword] Failed to append event:", err);
+  }
+}
+
+export type LoggedEvent = {
+  seq: number;
+  kind: string;
+  roomId: number | null;
+  callName: string | null;
+  actor: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+
+/**
+ * Replays events after a given sequence number — the primitive a new or
+ * returning device uses to reconstruct state without the old device being
+ * online. `limit` is bounded so a first sync cannot ask for everything at once.
+ */
+export async function readEventsSince(
+  sinceSeq: number,
+  opts: { roomId?: number; limit?: number } = {}
+): Promise<LoggedEvent[]> {
+  const p = getPool();
+  if (!p) return [];
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000);
+  try {
+    const result = opts.roomId
+      ? await p.query(
+          `SELECT server_seq, kind, room_id, call_name, actor, payload, created_at
+             FROM events WHERE server_seq > $1 AND room_id = $2
+            ORDER BY server_seq LIMIT $3`,
+          [sinceSeq, opts.roomId, limit]
+        )
+      : await p.query(
+          `SELECT server_seq, kind, room_id, call_name, actor, payload, created_at
+             FROM events WHERE server_seq > $1
+            ORDER BY server_seq LIMIT $2`,
+          [sinceSeq, limit]
+        );
+    return result.rows.map((r) => ({
+      seq: Number(r.server_seq),
+      kind: r.kind,
+      roomId: r.room_id === null ? null : Number(r.room_id),
+      callName: r.call_name,
+      actor: r.actor,
+      payload: r.payload ?? {},
+      createdAt: String(r.created_at),
+    }));
+  } catch (err) {
+    console.error("[Qwickword] Failed to read events:", err);
     return [];
   }
 }
@@ -351,6 +491,12 @@ export async function recordLinkShared(
         )`,
       [roomName, via]
     );
+    void appendEvent({
+      kind: "call.shared",
+      callName: roomName,
+      payload: { via },
+      dedupeKey: `call.shared:${roomName}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to record link-shared stats:", err);
   }
@@ -386,6 +532,14 @@ export async function recordCallFirstJoined(roomName: string): Promise<void> {
        )`,
       [roomName]
     );
+    // Deliberately appended on every poll rather than only the first: the
+    // dedupe key makes it idempotent, and doing the check in the database
+    // avoids a read-then-write race between two participants' polls.
+    void appendEvent({
+      kind: "call.opened",
+      callName: roomName,
+      dedupeKey: `call.opened:${roomName}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to record first-joined stats:", err);
   }
@@ -414,6 +568,11 @@ export async function recordCallAbandoned(roomName: string): Promise<void> {
          AND started_at IS NULL`,
       [roomName]
     );
+    void appendEvent({
+      kind: "call.abandoned",
+      callName: roomName,
+      dedupeKey: `call.abandoned:${roomName}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to record abandoned stats:", err);
   }
@@ -459,6 +618,7 @@ export async function recordCallEnded(
           AND started_at IS NOT NULL`,
       [roomName, reason]
     );
+    void appendEvent({ kind: "call.ended", callName: roomName, payload: { reason } });
   } catch (err) {
     console.error("[Qwickword] Failed to record call-ended stats:", err);
   }
