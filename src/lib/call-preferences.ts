@@ -12,6 +12,10 @@
 const CAMERA_KEY = "qwickword-preferred-camera";
 const MIC_KEY = "qwickword-preferred-mic";
 const COUNTDOWN_SOUND_KEY = "qwickword-countdown-sound";
+// Versioned because these two keys establish new cross-session behavior. Only
+// the non-default "off" value is stored, keeping the preference minimal.
+const CAMERA_ENABLED_KEY = "qwickword-camera-enabled:v1";
+const MIC_ENABLED_KEY = "qwickword-mic-enabled:v1";
 
 function readString(key: string): string | null {
   try {
@@ -49,6 +53,23 @@ export function getPreferredMicId(): string | null {
 
 export function setPreferredMicId(deviceId: string | null): void {
   writeString(MIC_KEY, deviceId);
+}
+
+/** Camera and microphone default to on, preserving the original behavior. */
+export function getCameraEnabled(): boolean {
+  return readString(CAMERA_ENABLED_KEY) !== "off";
+}
+
+export function setCameraEnabled(enabled: boolean): void {
+  writeString(CAMERA_ENABLED_KEY, enabled ? null : "off");
+}
+
+export function getMicEnabled(): boolean {
+  return readString(MIC_ENABLED_KEY) !== "off";
+}
+
+export function setMicEnabled(enabled: boolean): void {
+  writeString(MIC_ENABLED_KEY, enabled ? null : "off");
 }
 
 /** Defaults to on — matches the countdown tick's existing always-on behavior

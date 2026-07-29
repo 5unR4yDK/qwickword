@@ -13,6 +13,7 @@ import {
   useScreenShare,
   useVideoTrack,
 } from "@daily-co/daily-react";
+import { setCameraEnabled, setMicEnabled } from "@/lib/call-preferences";
 
 export default function CallControls({
   onLeave,
@@ -39,11 +40,15 @@ export default function CallControls({
   const { isSharingScreen, startScreenShare, stopScreenShare } = useScreenShare();
 
   const toggleMic = useCallback(() => {
-    daily?.setLocalAudio(audioTrack.isOff);
+    const enabled = audioTrack.isOff;
+    daily?.setLocalAudio(enabled);
+    setMicEnabled(enabled);
   }, [daily, audioTrack.isOff]);
 
   const toggleCamera = useCallback(() => {
-    daily?.setLocalVideo(videoTrack.isOff);
+    const enabled = videoTrack.isOff;
+    daily?.setLocalVideo(enabled);
+    setCameraEnabled(enabled);
   }, [daily, videoTrack.isOff]);
 
   const toggleScreenShare = useCallback(() => {
@@ -55,11 +60,10 @@ export default function CallControls({
   }, [isSharingScreen, startScreenShare, stopScreenShare]);
 
   const handleLeave = useCallback(() => {
-    daily?.leave().catch((err) => {
-      console.error("[Qwickword] Failed to leave the call cleanly:", err);
-    });
+    // CallRoom owns leave + destroy so teardown has one authoritative path
+    // and the release time can be measured accurately.
     onLeave();
-  }, [daily, onLeave]);
+  }, [onLeave]);
 
   return (
     <div

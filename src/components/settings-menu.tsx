@@ -17,12 +17,24 @@
 // (same size/style, so the two read as a matched pair of corner icons).
 
 import { useEffect, useRef, useState } from "react";
-import { Settings, Volume2, VolumeX } from "lucide-react";
 import {
+  Mic,
+  MicOff,
+  Settings,
+  Video,
+  VideoOff,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import {
+  getCameraEnabled,
   getCountdownSoundEnabled,
+  getMicEnabled,
   getPreferredCameraId,
   getPreferredMicId,
+  setCameraEnabled,
   setCountdownSoundEnabled,
+  setMicEnabled,
   setPreferredCameraId,
   setPreferredMicId,
 } from "@/lib/call-preferences";
@@ -35,6 +47,8 @@ export default function SettingsMenu() {
   const [microphones, setMicrophones] = useState<DeviceOption[]>([]);
   const [cameraId, setCameraId] = useState<string>("");
   const [micId, setMicId] = useState<string>("");
+  const [cameraEnabled, setCameraEnabledState] = useState(true);
+  const [micEnabled, setMicEnabledState] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [labelsHidden, setLabelsHidden] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -80,6 +94,8 @@ export default function SettingsMenu() {
     const id = setTimeout(() => {
       setCameraId(getPreferredCameraId() ?? "");
       setMicId(getPreferredMicId() ?? "");
+      setCameraEnabledState(getCameraEnabled());
+      setMicEnabledState(getMicEnabled());
       setSoundEnabled(getCountdownSoundEnabled());
       void refreshDevices();
     }, 0);
@@ -148,6 +164,18 @@ export default function SettingsMenu() {
     const next = !soundEnabled;
     setSoundEnabled(next);
     setCountdownSoundEnabled(next);
+  }
+
+  function toggleCameraEnabled() {
+    const next = !cameraEnabled;
+    setCameraEnabledState(next);
+    setCameraEnabled(next);
+  }
+
+  function toggleMicEnabled() {
+    const next = !micEnabled;
+    setMicEnabledState(next);
+    setMicEnabled(next);
   }
 
   return (
@@ -219,6 +247,23 @@ export default function SettingsMenu() {
             </button>
           )}
 
+          <div className="grid grid-cols-2 gap-2">
+            <PreferenceToggle
+              label="Start with camera"
+              enabled={cameraEnabled}
+              onToggle={toggleCameraEnabled}
+              onIcon={<Video size={16} />}
+              offIcon={<VideoOff size={16} />}
+            />
+            <PreferenceToggle
+              label="Start with mic"
+              enabled={micEnabled}
+              onToggle={toggleMicEnabled}
+              onIcon={<Mic size={16} />}
+              offIcon={<MicOff size={16} />}
+            />
+          </div>
+
           <button
             type="button"
             onClick={toggleSound}
@@ -240,5 +285,41 @@ export default function SettingsMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+function PreferenceToggle({
+  label,
+  enabled,
+  onToggle,
+  onIcon,
+  offIcon,
+}: {
+  label: string;
+  enabled: boolean;
+  onToggle: () => void;
+  onIcon: React.ReactNode;
+  offIcon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      aria-pressed={enabled}
+      className="flex cursor-pointer flex-col gap-2 rounded-xl border border-black/[.08] bg-white px-3 py-2.5 text-left text-sm text-zinc-800 transition-colors hover:bg-zinc-50 dark:border-white/[.145] dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+    >
+      <span className="flex items-center justify-between gap-2">
+        {enabled ? onIcon : offIcon}
+        <span
+          className={`text-xs font-semibold ${
+            enabled ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400"
+          }`}
+        >
+          {enabled ? "On" : "Off"}
+        </span>
+      </span>
+      <span className="text-xs leading-4">{label}</span>
+    </button>
   );
 }

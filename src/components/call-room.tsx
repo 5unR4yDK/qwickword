@@ -25,14 +25,26 @@
 // height and styling. This file only supplies the
 // `started`/`starting`/`onStart` it needs.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import Link from "next/link";
-import DailyIframe, { type DailyCall } from "@daily-co/daily-js";
+import DailyIframe, {
+  type DailyCall,
+  type DailyEventObject,
+} from "@daily-co/daily-js";
 import { DailyAudio, DailyProvider, useParticipantCounts } from "@daily-co/daily-react";
 import CallPrejoin from "@/components/call-prejoin";
 import CallVideoGrid from "@/components/call-video-grid";
 import CallControls from "@/components/call-controls";
 import CallOverlay from "@/components/call-overlay";
+import {
+  initialCallState,
+  isInCall,
+  isTerminal,
+  reduceCallState,
+  remainingMs,
+  type CallEvent,
+} from "@/lib/call-state";
+import { createHttpTimingSink, Timings } from "@/lib/telemetry";
 
 type Props = {
   room: string;
@@ -72,11 +84,15 @@ type Props = {
  * hook — mirrors the old iframe flow's "second participant joined, start the
  * countdown" auto-start. Renders nothing; it's a side-effect-only watcher.
  */
-function AutoStartWatcher({ onSecondParticipant }: { onSecondParticipant: () => void }) {
+function ParticipantWatcher({
+  onParticipantCount,
+}: {
+  onParticipantCount: (count: number) => void;
+}) {
   const counts = useParticipantCounts();
   useEffect(() => {
-    if (counts.present >= 2) onSecondParticipant();
-  }, [counts.present, onSecondParticipant]);
+    onParticipantCount(counts.present);
+  }, [counts.present, onParticipantCount]);
   return null;
 }
 
@@ -126,6 +142,23 @@ function EndedScreen() {
   );
 }
 
+function FailedScreen({ message }: { message: string | null }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
+      <p className="text-lg font-medium">This call ended unexpectedly.</p>
+      <p className="max-w-sm text-sm text-white/60">
+        {message ?? "The connection could not be recovered."}
+      </p>
+      <Link
+        href="/"
+        className="mt-2 cursor-pointer rounded-full bg-[#3DFEF1] px-5 py-2 text-sm font-semibold text-[#062B28] transition-colors hover:bg-[#7FFFF5]"
+      >
+        Create a new one
+      </Link>
+    </div>
+  );
+}
+
 export default function CallRoom({
   room,
   exp,
@@ -136,26 +169,72 @@ export default function CallRoom({
   joinUrl,
 }: Props) {
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
-  const [phase, setPhase] = useState<"prejoin" | "in-call">("prejoin");
-  const [currentExp, setCurrentExp] = useState<number>(exp);
-  const [started, setStarted] = useState<boolean>(initialStarted);
-  const [remainingMs, setRemainingMs] = useState<number>(initialRemainingMs);
-  const [starting, setStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
-
-  // "the timer also should go away after we have left the call, no more
-  // countdown" — set either by CallControls's own Leave button (a click,
-  // synchronous) or by the presence-based backstop poll below (this tab
-  // silently dropped out without a clean click). Deliberately separate from
-  // `isOver`: leaving early is a per-tab, personal thing, not the room-wide
-  // hard end `isOver` represents.
-  const [leftCall, setLeftCall] = useState(false);
-
-  const startedRef = useRef(started);
+  const [state, dispatch] = useReducer(
+    reduceCallState,
+    {
+      durationSeconds: durationSeconds ?? 0,
+      expiresAt: initialStarted ? exp * 1000 : null,
+      joined: mockMode,
+      alreadyEnded: initialStarted && initialRemainingMs <= 0,
+    },
+    initialCallState
+  );
+  // This is only a projection clock for the countdown display. Lifecycle
+  // truth lives in `state`; the initial value is derived entirely from server
+  // props so the first server and client renders remain identical.
+  const [clockNowMs, setClockNowMs] = useState(() =>
+    initialStarted ? exp * 1000 - initialRemainingMs : 0
+  );
+  const stateRef = useRef(state);
   useEffect(() => {
-    startedRef.current = started;
-  }, [started]);
-  const startingRef = useRef(false);
+    stateRef.current = state;
+  }, [state]);
+  const callObjectRef = useRef<DailyCall | null>(null);
+  const callObjectDestroyedRef = useRef(false);
+  const teardownStartedRef = useRef(false);
+  const startRequestRef = useRef(false);
+  const reconnectOpenRef = useRef(false);
+
+  const timingSink = useMemo(
+    () => createHttpTimingSink({ endpoint: "/api/telemetry" }),
+    []
+  );
+  const timings = useMemo(() => new Timings(room, timingSink), [room, timingSink]);
+
+  const emit = useCallback(
+    (event: CallEvent) => {
+      switch (event.type) {
+        case "JOIN":
+          timings.start("join_to_audio");
+          break;
+        case "JOINED":
+          timings.end("join_to_audio");
+          break;
+        case "JOIN_FAILED":
+          timings.cancel("join_to_audio");
+          break;
+        case "TRANSPORT_LOST":
+          if (!reconnectOpenRef.current) {
+            reconnectOpenRef.current = true;
+            timings.start("reconnect");
+          }
+          break;
+        case "TRANSPORT_RECOVERED":
+          if (reconnectOpenRef.current) {
+            reconnectOpenRef.current = false;
+            timings.end("reconnect");
+          }
+          break;
+        case "FATAL":
+          reconnectOpenRef.current = false;
+          timings.cancel("join_to_audio");
+          timings.cancel("reconnect");
+          break;
+      }
+      dispatch(event);
+    },
+    [timings]
+  );
 
   // Stats only — never gates the call itself, so every failure path here is
   // a silent no-op. One report per tab per call; the server keeps only the
@@ -175,29 +254,127 @@ export default function CallRoom({
     [mockMode, room]
   );
 
-  // Call-object mode: create the call object directly, no <iframe> to wrap.
-  // The setCallObject call is deferred via a zero-delay setTimeout so this
-  // stays clear of react-hooks/set-state-in-effect (that rule targets
-  // setState calls made unconditionally and synchronously as the effect body
-  // runs, not ones deferred into a callback like this). Skipped entirely in
-  // mock mode — there's no API key to actually create a call with.
+  // Call-object mode: create the transport once and translate every Daily
+  // lifecycle event into the explicit state machine. Provider-specific event
+  // strings live here and nowhere in the UI.
   useEffect(() => {
     if (mockMode) return;
     const co = DailyIframe.createCallObject();
-    const id = setTimeout(() => setCallObject(co), 0);
+    callObjectRef.current = co;
+    callObjectDestroyedRef.current = false;
+
+    const handleJoined = () => emit({ type: "JOINED" });
+    const handleLeft = () => emit({ type: "TRANSPORT_LEFT", at: Date.now() });
+    const handleNetwork = (
+      event: DailyEventObject<"network-connection">
+    ) => {
+      if (event.event === "interrupted") emit({ type: "TRANSPORT_LOST" });
+      if (event.event === "connected") {
+        emit({ type: "TRANSPORT_RECOVERED", at: Date.now() });
+      }
+    };
+    const handleError = (event: DailyEventObject<"error">) => {
+      const message = event.errorMsg || "The call connection failed.";
+      emit(
+        stateRef.current.phase === "joining"
+          ? { type: "JOIN_FAILED", message }
+          : { type: "FATAL", message }
+      );
+    };
+
+    co.on("joined-meeting", handleJoined);
+    co.on("left-meeting", handleLeft);
+    co.on("network-connection", handleNetwork);
+    co.on("error", handleError);
+
+    const id = setTimeout(() => {
+      setCallObject(co);
+      emit({ type: "PREPARE" });
+    }, 0);
     return () => {
       clearTimeout(id);
-      co.destroy().catch((err) => {
-        console.error("[Qwickword] Failed to destroy the call object:", err);
-      });
+      co.off("joined-meeting", handleJoined);
+      co.off("left-meeting", handleLeft);
+      co.off("network-connection", handleNetwork);
+      co.off("error", handleError);
+      if (callObjectRef.current === co) callObjectRef.current = null;
+      if (!callObjectDestroyedRef.current) {
+        void co.destroy().catch((err) => {
+          console.error("[Qwickword] Failed to destroy the call object:", err);
+        });
+      }
     };
-  }, [mockMode]);
+  }, [emit, mockMode]);
+
+  // All exit paths converge here: manual leave, expiry, a forced transport
+  // exit, or a fatal error. `teardown` ends only after leave + destroy have
+  // released Daily's media resources, which is the ghost-call measurement we
+  // actually care about.
+  useEffect(() => {
+    if (state.phase !== "ending" || teardownStartedRef.current) return;
+    teardownStartedRef.current = true;
+    let active = true;
+    if (!mockMode) timings.start("teardown");
+
+    void (async () => {
+      const co = callObjectRef.current;
+      try {
+        await co?.leave();
+      } catch (err) {
+        console.error("[Qwickword] Failed to leave the call cleanly:", err);
+      }
+      try {
+        await co?.destroy();
+      } catch (err) {
+        console.error("[Qwickword] Failed to release call media:", err);
+      } finally {
+        if (co) callObjectDestroyedRef.current = true;
+        if (callObjectRef.current === co) callObjectRef.current = null;
+        if (!mockMode) {
+          timings.end("teardown");
+          timingSink.flush();
+        }
+        if (active) {
+          setCallObject(null);
+          dispatch({ type: "TEARDOWN_COMPLETE" });
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [mockMode, state.phase, timingSink, timings]);
+
+  useEffect(
+    () => () => {
+      timingSink.flush();
+      timings.discard();
+    },
+    [timingSink, timings]
+  );
+
+  const applyCountdownStarted = useCallback(
+    (expiresAtSeconds: number) => {
+      setClockNowMs(Date.now());
+      emit({
+        type: "COUNTDOWN_STARTED",
+        expiresAt: expiresAtSeconds * 1000,
+      });
+    },
+    [emit]
+  );
 
   const triggerStart = useCallback(async () => {
-    if (startingRef.current || startedRef.current || !durationSeconds) return;
-    startingRef.current = true;
-    setStarting(true);
-    setStartError(null);
+    if (
+      startRequestRef.current ||
+      stateRef.current.expiresAt !== null ||
+      !durationSeconds
+    ) {
+      return;
+    }
+    startRequestRef.current = true;
+    emit({ type: "COUNTDOWN_STARTING" });
     try {
       const response = await fetch(`/api/rooms/${room}/start`, {
         method: "POST",
@@ -210,41 +387,58 @@ export default function CallRoom({
           typeof data?.error === "string" ? data.error : "Couldn't start the countdown."
         );
       }
-      setCurrentExp(data.exp);
-      setStarted(true);
+      applyCountdownStarted(data.exp);
     } catch (err) {
-      setStartError(err instanceof Error ? err.message : "Couldn't start the countdown.");
+      emit({
+        type: "COUNTDOWN_FAILED",
+        message:
+          err instanceof Error ? err.message : "Couldn't start the countdown.",
+      });
     } finally {
-      startingRef.current = false;
-      setStarting(false);
+      startRequestRef.current = false;
     }
-  }, [room, durationSeconds]);
+  }, [applyCountdownStarted, durationSeconds, emit, room]);
 
-  const handleSecondParticipant = useCallback(() => {
-    void triggerStart();
-  }, [triggerStart]);
+  const handleParticipantCount = useCallback(
+    (count: number) => {
+      emit({ type: "PARTICIPANT_COUNT", count });
+      if (count >= 2) void triggerStart();
+    },
+    [emit, triggerStart]
+  );
 
-  // Ticks the displayed remaining time off `currentExp` — see the
-  // pre-promotion version of this file for why both an immediate zero-delay
-  // setTimeout AND a 1s setInterval are needed (closes the gap that caused
-  // the "1400.56 seconds" flash bug).
+  // Project the server-owned absolute expiry into the visible clock and emit
+  // EXPIRED exactly through the machine. Backgrounding cannot drift the end:
+  // each tick compares against the absolute server timestamp.
   useEffect(() => {
-    const tick = () => setRemainingMs(currentExp * 1000 - Date.now());
+    if (
+      state.expiresAt === null ||
+      state.phase === "ending" ||
+      isTerminal(state.phase)
+    ) {
+      return;
+    }
+    const expiresAt = state.expiresAt;
+    const tick = () => {
+      const now = Date.now();
+      setClockNowMs(now);
+      if (now >= expiresAt) emit({ type: "EXPIRED" });
+    };
     const immediateId = setTimeout(tick, 0);
     const intervalId = setInterval(tick, 1000);
     return () => {
       clearTimeout(immediateId);
       clearInterval(intervalId);
     };
-  }, [currentExp]);
+  }, [emit, state.expiresAt, state.phase]);
 
   // Picks up a start triggered from a *different* tab, and carries
   // `durationSeconds` so the status route can auto-start the room
   // server-side once Daily's own presence count hits 2, independent of
-  // whether any tab's own daily-js detection worked. Skipped once `started`,
+  // whether any tab's own daily-js detection worked. Skipped once started,
   // for a link with no duration, or in mock mode (no persisted room to poll).
   useEffect(() => {
-    if (started || !durationSeconds || mockMode) return;
+    if (state.expiresAt !== null || !durationSeconds || mockMode) return;
     const id = setInterval(async () => {
       try {
         const response = await fetch(
@@ -252,16 +446,22 @@ export default function CallRoom({
         );
         if (!response.ok) return;
         const data = await response.json();
-        if (data.started) {
-          setCurrentExp(data.exp);
-          setStarted(true);
+        if (data.started && typeof data.exp === "number") {
+          applyCountdownStarted(data.exp);
         }
       } catch {
         // Transient — the next poll gets another chance.
       }
     }, 4000);
     return () => clearInterval(id);
-  }, [started, durationSeconds, mockMode, room, exp]);
+  }, [
+    applyCountdownStarted,
+    durationSeconds,
+    exp,
+    mockMode,
+    room,
+    state.expiresAt,
+  ]);
 
   // Re-syncs `currentExp` against Daily's own live room status once the
   // countdown has started (corrects client-clock drift against Daily's own
@@ -274,19 +474,38 @@ export default function CallRoom({
   // false positive. Skipped in mock mode — no persisted room to poll.
   const emptyPollStreakRef = useRef(0);
   useEffect(() => {
-    if (!started || mockMode) return;
+    if (
+      state.expiresAt === null ||
+      mockMode ||
+      state.phase === "ending" ||
+      isTerminal(state.phase)
+    ) {
+      return;
+    }
+    const currentExpSeconds = state.expiresAt / 1000;
     const id = setInterval(async () => {
       try {
-        const response = await fetch(`/api/rooms/${room}/status?fallbackExp=${currentExp}`);
+        const response = await fetch(
+          `/api/rooms/${room}/status?fallbackExp=${currentExpSeconds}`
+        );
         if (!response.ok) return;
         const data = await response.json();
-        if (typeof data.exp === "number" && data.exp !== currentExp) {
-          setCurrentExp(data.exp);
+        if (
+          typeof data.exp === "number" &&
+          data.exp !== currentExpSeconds
+        ) {
+          applyCountdownStarted(data.exp);
+        }
+        if (typeof data.presentCount === "number") {
+          emit({ type: "PARTICIPANT_COUNT", count: data.presentCount });
         }
         if (data.presentCount === 0) {
           emptyPollStreakRef.current += 1;
-          if (emptyPollStreakRef.current >= 2) {
-            setLeftCall(true);
+          if (
+            emptyPollStreakRef.current >= 2 &&
+            isInCall(stateRef.current)
+          ) {
+            emit({ type: "TRANSPORT_LEFT", at: Date.now() });
           }
         } else {
           emptyPollStreakRef.current = 0;
@@ -296,17 +515,28 @@ export default function CallRoom({
       }
     }, 10_000);
     return () => clearInterval(id);
-  }, [started, mockMode, room, currentExp]);
+  }, [
+    applyCountdownStarted,
+    emit,
+    mockMode,
+    room,
+    state.expiresAt,
+    state.phase,
+  ]);
 
-  const isOver = remainingMs <= 0;
+  const started = state.expiresAt !== null;
+  const displayedRemainingMs =
+    remainingMs(state, clockNowMs) ?? initialRemainingMs;
 
   // The call ran its full length. Reported from whichever tabs are still
   // open when the clock hits zero; if every participant closed out first,
   // nothing fires and the row stays "started, outcome unknown" rather than
   // being wrongly counted as completed.
   useEffect(() => {
-    if (started && isOver) reportEnd("completed");
-  }, [started, isOver, reportEnd]);
+    if (state.phase === "ending" && state.endReason === "completed") {
+      reportEnd("completed");
+    }
+  }, [reportEnd, state.endReason, state.phase]);
 
   // Leaving before the countdown ever started abandons the room: if this
   // was the only person waiting, the server retires (deletes) it so a later
@@ -315,7 +545,8 @@ export default function CallRoom({
   // state and presence itself, so a stale/failed call here just means the
   // room quietly rots out via its 24h buffer instead.
   const handleLeave = useCallback(() => {
-    if (!startedRef.current && !mockMode) {
+    const current = stateRef.current;
+    if (current.expiresAt === null && !mockMode) {
       void fetch(`/api/rooms/${room}/abandon`, { method: "POST" }).catch(
         () => {}
       );
@@ -324,14 +555,18 @@ export default function CallRoom({
     // separates "sat through it" from "bailed". Only report while time
     // remains: leaving after the timer has run out is just closing an ended
     // call, and `reportEnd` guards the completed case separately.
-    if (startedRef.current && remainingMs > 0) {
+    if (current.expiresAt !== null && Date.now() < current.expiresAt) {
       reportEnd("left_early");
     }
-    setLeftCall(true);
-  }, [mockMode, room, remainingMs, reportEnd]);
+    emit({ type: "LEAVE" });
+  }, [emit, mockMode, reportEnd, room]);
 
-  if (leftCall) {
-    return <LeftScreen preStart={!started} />;
+  if (state.phase === "ending" || state.phase === "ended" || state.phase === "failed") {
+    if (state.endReason === "completed") return <EndedScreen />;
+    if (state.endReason === "left_early" || state.endReason === "abandoned") {
+      return <LeftScreen preStart={state.endReason === "abandoned"} />;
+    }
+    return <FailedScreen message={state.error} />;
   }
 
   if (mockMode) {
@@ -341,16 +576,12 @@ export default function CallRoom({
     // daily-js connection) without any camera/mic/video UI.
     return (
       <div className="relative h-full w-full bg-black">
-        <CallOverlay remainingMs={remainingMs} started={started} />
-        {isOver ? (
-          <EndedScreen />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center text-white">
-            <p className="text-base font-medium">Mock call — no Daily API key configured</p>
-            <p className="text-sm text-white/60">Room: {room}</p>
-          </div>
-        )}
-        {!isOver && !started && durationSeconds && (
+        <CallOverlay remainingMs={displayedRemainingMs} started={started} />
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center text-white">
+          <p className="text-base font-medium">Mock call — no Daily API key configured</p>
+          <p className="text-sm text-white/60">Room: {room}</p>
+        </div>
+        {!started && durationSeconds && (
           <div
             className="absolute left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-3 backdrop-blur"
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
@@ -358,20 +589,20 @@ export default function CallRoom({
             <button
               type="button"
               onClick={() => void triggerStart()}
-              disabled={starting}
+              disabled={state.countdownStarting}
               className="flex h-11 cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-medium text-black transition-colors hover:enabled:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {starting ? "Starting…" : "Start now"}
+              {state.countdownStarting ? "Starting…" : "Start now"}
             </button>
           </div>
         )}
-        {startError && (
+        {state.error && (
           <p
             role="alert"
             className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
           >
-            {startError}
+            {state.error}
           </p>
         )}
       </div>
@@ -397,39 +628,46 @@ export default function CallRoom({
     );
   }
 
-  if (phase === "in-call" && isOver) {
-    return <EndedScreen />;
-  }
-
   return (
     <DailyProvider callObject={callObject}>
       <DailyAudio />
-      {phase === "prejoin" && (
+      {!isInCall(state) && (
         <CallPrejoin
           joinUrl={joinUrl}
           durationSeconds={durationSeconds ?? undefined}
-          onJoined={() => setPhase("in-call")}
+          phase={state.phase}
+          error={state.error}
+          onEvent={emit}
         />
       )}
-      {phase === "in-call" && (
+      {isInCall(state) && (
         <>
-          <AutoStartWatcher onSecondParticipant={handleSecondParticipant} />
+          <ParticipantWatcher onParticipantCount={handleParticipantCount} />
           <CallVideoGrid />
-          <CallOverlay remainingMs={remainingMs} started={started} />
+          <CallOverlay remainingMs={displayedRemainingMs} started={started} />
           <CallControls
             onLeave={handleLeave}
             started={started}
-            starting={starting}
+            starting={state.countdownStarting}
             onStart={() => void triggerStart()}
           />
 
-          {startError && (
+          {state.phase === "reconnecting" && (
+            <p
+              role="status"
+              className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 text-sm text-white/80 backdrop-blur"
+            >
+              Reconnecting…
+            </p>
+          )}
+
+          {state.error && (
             <p
               role="alert"
               className="absolute left-1/2 -translate-x-1/2 text-sm text-red-400"
               style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
             >
-              {startError}
+              {state.error}
             </p>
           )}
         </>

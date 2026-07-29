@@ -11,7 +11,7 @@
 // (on the button below) is the actual join, using whatever devices/state
 // startCamera already set up.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ChevronDown,
   Mic,
@@ -26,22 +26,33 @@ import {
   useLocalSessionId,
   useVideoTrack,
 } from "@daily-co/daily-react";
-import { getPreferredCameraId, getPreferredMicId } from "@/lib/call-preferences";
+import {
+  getCameraEnabled,
+  getMicEnabled,
+  getPreferredCameraId,
+  getPreferredMicId,
+  setCameraEnabled,
+  setMicEnabled,
+  setPreferredCameraId,
+  setPreferredMicId,
+} from "@/lib/call-preferences";
+import type { CallEvent, CallPhase } from "@/lib/call-state";
 
 export default function CallPrejoin({
   joinUrl,
   durationSeconds,
-  onJoined,
+  phase,
+  error,
+  onEvent,
 }: {
   joinUrl: string;
   /** The call's intended length; omitted for legacy links that don't carry it. */
   durationSeconds?: number;
-  onJoined: () => void;
+  phase: CallPhase;
+  error: string | null;
+  onEvent: (event: CallEvent) => void;
 }) {
   const daily = useDaily();
-  const [starting, setStarting] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { cameras, microphones, setCamera, setMicrophone } = useDevices();
   const localSessionId = useLocalSessionId();
   const videoTrack = useVideoTrack(localSessionId ?? "");
@@ -53,22 +64,27 @@ export default function CallPrejoin({
     let cancelled = false;
     (async () => {
       try {
-        await daily.startCamera({ url: joinUrl });
+        await daily.startCamera({
+          url: joinUrl,
+          startVideoOff: !getCameraEnabled(),
+          startAudioOff: !getMicEnabled(),
+        });
+        if (!cancelled) onEvent({ type: "MEDIA_READY" });
       } catch (err) {
         console.error("[Qwickword] Failed to start the camera preview:", err);
         if (!cancelled) {
-          setError(
-            "Couldn't access your camera or microphone. Check your browser permissions and try again."
-          );
+          onEvent({
+            type: "MEDIA_DENIED",
+            message:
+              "Couldn't access your camera or microphone. Check your browser permissions and try again.",
+          });
         }
-      } finally {
-        if (!cancelled) setStarting(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [daily, joinUrl]);
+  }, [daily, joinUrl, onEvent]);
 
   // Applies whatever camera/mic was chosen ahead of time in the home page's
   // settings menu (src/components/settings-menu.tsx / src/lib/
@@ -114,28 +130,51 @@ export default function CallPrejoin({
   }, [videoTrack.persistentTrack]);
 
   const toggleMic = useCallback(() => {
-    daily?.setLocalAudio(audioTrack.isOff);
+    const enabled = audioTrack.isOff;
+    daily?.setLocalAudio(enabled);
+    setMicEnabled(enabled);
   }, [daily, audioTrack.isOff]);
 
   const toggleCamera = useCallback(() => {
-    daily?.setLocalVideo(videoTrack.isOff);
+    const enabled = videoTrack.isOff;
+    daily?.setLocalVideo(enabled);
+    setCameraEnabled(enabled);
   }, [daily, videoTrack.isOff]);
 
+  const chooseCamera = useCallback(
+    (deviceId: string) => {
+      setCamera(deviceId);
+      setPreferredCameraId(deviceId || null);
+    },
+    [setCamera]
+  );
+
+  const chooseMicrophone = useCallback(
+    (deviceId: string) => {
+      setMicrophone(deviceId);
+      setPreferredMicId(deviceId || null);
+    },
+    [setMicrophone]
+  );
+
   const handleJoin = useCallback(async () => {
-    if (!daily || joining) return;
-    setJoining(true);
-    setError(null);
+    if (!daily || phase !== "ready") return;
+    onEvent({ type: "JOIN" });
     try {
       await daily.join();
-      onJoined();
+      // joined-meeting is wired in call-room.tsx and is the authoritative
+      // event. This fallback makes the transition total if an SDK/browser
+      // combination resolves join() without delivering that event.
+      onEvent({ type: "JOINED" });
     } catch (err) {
       console.error("[Qwickword] Failed to join the call:", err);
-      setError("Couldn't join the call. Try again.");
-      setJoining(false);
+      onEvent({ type: "JOIN_FAILED", message: "Couldn't join the call. Try again." });
     }
-  }, [daily, joining, onJoined]);
+  }, [daily, onEvent, phase]);
 
   const minutes = durationSeconds ? Math.round(durationSeconds / 60) : null;
+  const starting = phase === "idle" || phase === "preparing";
+  const joining = phase === "joining";
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-black">
@@ -223,7 +262,7 @@ export default function CallPrejoin({
                   icon={<Video size={14} aria-hidden="true" />}
                   label="Camera"
                   value={cameras.find((cam) => cam.selected)?.device.deviceId ?? ""}
-                  onChange={setCamera}
+                  onChange={chooseCamera}
                   options={cameras.map((cam) => ({
                     id: cam.device.deviceId,
                     label: cam.device.label || "Camera",
@@ -237,7 +276,7 @@ export default function CallPrejoin({
                   value={
                     microphones.find((mic) => mic.selected)?.device.deviceId ?? ""
                   }
-                  onChange={setMicrophone}
+                  onChange={chooseMicrophone}
                   options={microphones.map((mic) => ({
                     id: mic.device.deviceId,
                     label: mic.device.label || "Microphone",
@@ -256,7 +295,7 @@ export default function CallPrejoin({
           <button
             type="button"
             onClick={() => void handleJoin()}
-            disabled={starting || joining}
+            disabled={phase !== "ready"}
             className="flex h-14 w-full cursor-pointer items-center justify-center rounded-full bg-[#3DFEF1] text-base font-semibold text-[#062B28] transition-colors duration-150 hover:enabled:bg-[#7FFFF5] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {joining ? "Joining…" : "Join the Qwickword"}
