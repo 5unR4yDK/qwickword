@@ -15,6 +15,13 @@ type CreateRoomBody = {
 };
 
 export async function POST(request: NextRequest) {
+  // The app repository runs a real production contract probe. It still mints
+  // and starts a genuine one-minute Daily room, but it must not look like a
+  // human-created link in the product funnel. The room is started immediately
+  // by the probe, so Daily's own hard expiry removes it after one minute.
+  const isContractCheck =
+    request.headers.get("x-qwickword-contract-check") === "1";
+
   let body: CreateRoomBody;
   try {
     body = (await request.json()) as CreateRoomBody;
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
     // falls back to a link that carries exp/d in the query string, which
     // works with no database at all. Mock rooms always use the fallback —
     // they aren't persisted anywhere a later request could look them up.
-    const recorded = room.mockMode
+    const recorded = room.mockMode || isContractCheck
       ? false
       : await recordCallCreated(room.name, room.durationSeconds);
     return NextResponse.json({ ...room, clean: recorded }, { status: 200 });
