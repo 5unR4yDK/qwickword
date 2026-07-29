@@ -22,7 +22,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:network": "playwright test tests/e2e/network-conditions.spec.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

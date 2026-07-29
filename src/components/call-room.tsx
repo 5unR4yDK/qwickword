@@ -392,7 +392,11 @@ export default function CallRoom({
       emit({
         type: "COUNTDOWN_FAILED",
         message:
-          err instanceof Error ? err.message : "Couldn't start the countdown.",
+          err instanceof TypeError
+            ? "Couldn't reach the server. Check your connection and try again."
+            : err instanceof Error
+              ? err.message
+              : "Couldn't start the countdown.",
       });
     } finally {
       startRequestRef.current = false;
