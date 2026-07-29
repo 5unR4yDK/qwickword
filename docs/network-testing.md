@@ -1,5 +1,6 @@
-# Network-condition testing
+# Network degradation and condition testing
 
+F6 defines how a live call protects audio when Daily reports a poor network.
 F7 makes bad connections a named, repeatable part of the web test suite rather
 than an occasional manual experiment.
 
@@ -25,8 +26,37 @@ protocol to both requests and `navigator.onLine`:
 The profile values are centralized so future tests do not grow arbitrary sleeps
 or subtly different definitions of “slow.”
 
+## Live-call degradation policy
+
+The call client listens to Daily's `network-quality-change` event and uses
+`networkState`; the older numeric `quality` and `threshold` fields are
+deliberately ignored.
+
+- `good` — Daily Adaptive Bitrate is enabled, camera receive quality may use the
+  highest simulcast layer, and video subscriptions stay on.
+- `warning` or `low` — immediately use Daily's `bandwidth-optimized` camera
+  preset, `detail-optimized` screen share, and the lowest receive layer. The
+  call shows that video quality was reduced to protect audio.
+- `bad` — apply the reduced profile immediately. If the assessment remains bad
+  for five seconds, pause the local camera and screen share and unsubscribe from
+  remote camera/screen video while keeping all audio subscribed.
+- `unknown` — do not treat missing evidence as a recovery.
+
+Audio-only mode is sticky even after Daily reports a good connection. The call
+shows what happened and offers **Try video again**. That explicit action restores
+video subscriptions and only turns the local camera back on if it was on before
+the automatic pause. If the network is still bad, the five-second grace starts
+again. Automatic degradation never changes the visitor's remembered camera
+preference.
+
 ## What CI proves
 
+- The F6 state tests prove immediate weak-network degradation, the five-second
+  bad-network grace, sticky audio-only behavior, explicit restoration and a
+  fresh grace window after an override.
+- The F6 Daily-adapter tests prove audio remains subscribed, remote video is
+  unsubscribed in audio-only mode, screen sharing stops, and a camera that was
+  already off is not silently enabled during restoration.
 - A room-creation request that begins offline fails with actionable copy and
   succeeds from the same UI after connectivity returns.
 - Slow mobile creation remains single-flight while every duration control is
@@ -43,8 +73,11 @@ or subtly different definitions of “slow.”
 These remain physical-device tests; a browser harness cannot honestly simulate
 them:
 
-- Wi-Fi → cellular handoff during a live call.
-- Airplane mode for 10 seconds, then recovery.
+- Wi-Fi → cellular handoff: the call should show reduced video before
+  audio-only, preserve speech, and remain joined.
+- Airplane mode for 10 seconds, then recovery: the reconnecting state should
+  appear, the absolute countdown must keep running, and **Try video again**
+  should be available if the call entered audio-only.
 - App backgrounded for 10 minutes and reopened.
 - An ordinary phone call interrupting Qwickword.
 - AirPods connecting and disconnecting mid-call.

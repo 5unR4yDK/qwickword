@@ -44,6 +44,17 @@ import {
   remainingMs,
   type CallEvent,
 } from "@/lib/call-state";
+import {
+  applyNetworkMediaMode,
+  applyParticipantNetworkMode,
+  BAD_NETWORK_GRACE_MS,
+  INITIAL_NETWORK_MEDIA_MEMORY,
+  INITIAL_NETWORK_POLICY,
+  NETWORK_MEDIA_PROFILES,
+  normalizeNetworkQuality,
+  reduceNetworkPolicy,
+  type NetworkMediaMode,
+} from "@/lib/network-degradation";
 import { createHttpTimingSink, Timings } from "@/lib/telemetry";
 
 type Props = {
@@ -94,6 +105,38 @@ function ParticipantWatcher({
     onParticipantCount(counts.present);
   }, [counts.present, onParticipantCount]);
   return null;
+}
+
+function NetworkStatus({
+  mode,
+  onRestoreVideo,
+}: {
+  mode: Exclude<NetworkMediaMode, "standard">;
+  onRestoreVideo: () => void;
+}) {
+  const audioOnly = mode === "audio-only";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="absolute top-28 left-1/2 z-20 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-black/80 px-4 py-2 text-center text-xs text-white/85 shadow-lg backdrop-blur sm:text-sm"
+    >
+      <span>
+        {audioOnly
+          ? "Audio-only mode — video paused to keep the call clear."
+          : "Weak connection — video quality reduced to protect audio."}
+      </span>
+      {audioOnly && (
+        <button
+          type="button"
+          onClick={onRestoreVideo}
+          className="shrink-0 cursor-pointer rounded-full bg-white/15 px-3 py-1 font-semibold text-white transition-colors hover:bg-white/25"
+        >
+          Try video again
+        </button>
+      )}
+    </div>
+  );
 }
 
 function LeftScreen({ preStart }: { preStart: boolean }) {
@@ -179,6 +222,10 @@ export default function CallRoom({
     },
     initialCallState
   );
+  const [networkPolicy, dispatchNetworkPolicy] = useReducer(
+    reduceNetworkPolicy,
+    INITIAL_NETWORK_POLICY
+  );
   // This is only a projection clock for the countdown display. Lifecycle
   // truth lives in `state`; the initial value is derived entirely from server
   // props so the first server and client renders remain identical.
@@ -194,6 +241,14 @@ export default function CallRoom({
   const teardownStartedRef = useRef(false);
   const startRequestRef = useRef(false);
   const reconnectOpenRef = useRef(false);
+  const networkModeRef = useRef<NetworkMediaMode>(networkPolicy.mode);
+  const appliedNetworkModeRef = useRef<NetworkMediaMode | null>(null);
+  const networkMediaMemoryRef = useRef(INITIAL_NETWORK_MEDIA_MEMORY);
+  const networkSettingsQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    networkModeRef.current = networkPolicy.mode;
+  }, [networkPolicy.mode]);
 
   const timingSink = useMemo(
     () => createHttpTimingSink({ endpoint: "/api/telemetry" }),
@@ -254,12 +309,45 @@ export default function CallRoom({
     [mockMode, room]
   );
 
+  const enqueueNetworkMode = useCallback(
+    (co: DailyCall, mode: NetworkMediaMode) => {
+      networkSettingsQueueRef.current = networkSettingsQueueRef.current
+        .then(async () => {
+          if (
+            callObjectRef.current !== co ||
+            callObjectDestroyedRef.current
+          ) {
+            return;
+          }
+          networkMediaMemoryRef.current = await applyNetworkMediaMode(
+            co,
+            mode,
+            appliedNetworkModeRef.current,
+            networkMediaMemoryRef.current
+          );
+          appliedNetworkModeRef.current = mode;
+        })
+        .catch((err) => {
+          // Media adaptation must never become a fatal call error. Daily's
+          // own adaptive transport remains in place if a settings update
+          // fails, and the next quality transition gets another chance.
+          console.warn(
+            "[Qwickword] Failed to apply network media policy:",
+            err
+          );
+        });
+    },
+    []
+  );
+
   // Call-object mode: create the transport once and translate every Daily
   // lifecycle event into the explicit state machine. Provider-specific event
   // strings live here and nowhere in the UI.
   useEffect(() => {
     if (mockMode) return;
-    const co = DailyIframe.createCallObject();
+    const co = DailyIframe.createCallObject({
+      sendSettings: NETWORK_MEDIA_PROFILES.standard.sendSettings,
+    });
     callObjectRef.current = co;
     callObjectDestroyedRef.current = false;
 
@@ -271,6 +359,30 @@ export default function CallRoom({
       if (event.event === "interrupted") emit({ type: "TRANSPORT_LOST" });
       if (event.event === "connected") {
         emit({ type: "TRANSPORT_RECOVERED", at: Date.now() });
+      }
+    };
+    const handleNetworkQuality = (
+      event: DailyEventObject<"network-quality-change">
+    ) => {
+      if (!isInCall(stateRef.current)) return;
+      dispatchNetworkPolicy({
+        type: "QUALITY_CHANGED",
+        quality: normalizeNetworkQuality(event.networkState),
+        at: Date.now(),
+      });
+    };
+    const handleParticipantJoined = (
+      event: DailyEventObject<"participant-joined">
+    ) => {
+      if (
+        !event.participant.local &&
+        networkModeRef.current === "audio-only"
+      ) {
+        applyParticipantNetworkMode(
+          co,
+          event.participant.session_id,
+          "audio-only"
+        );
       }
     };
     const handleError = (event: DailyEventObject<"error">) => {
@@ -285,6 +397,8 @@ export default function CallRoom({
     co.on("joined-meeting", handleJoined);
     co.on("left-meeting", handleLeft);
     co.on("network-connection", handleNetwork);
+    co.on("network-quality-change", handleNetworkQuality);
+    co.on("participant-joined", handleParticipantJoined);
     co.on("error", handleError);
 
     const id = setTimeout(() => {
@@ -296,6 +410,8 @@ export default function CallRoom({
       co.off("joined-meeting", handleJoined);
       co.off("left-meeting", handleLeft);
       co.off("network-connection", handleNetwork);
+      co.off("network-quality-change", handleNetworkQuality);
+      co.off("participant-joined", handleParticipantJoined);
       co.off("error", handleError);
       if (callObjectRef.current === co) callObjectRef.current = null;
       if (!callObjectDestroyedRef.current) {
@@ -305,6 +421,36 @@ export default function CallRoom({
       }
     };
   }, [emit, mockMode]);
+
+  useEffect(() => {
+    if (!callObject) return;
+    enqueueNetworkMode(callObject, networkPolicy.mode);
+  }, [callObject, enqueueNetworkMode, networkPolicy.mode]);
+
+  useEffect(() => {
+    if (
+      networkPolicy.quality !== "bad" ||
+      networkPolicy.mode === "audio-only" ||
+      networkPolicy.badSince === null
+    ) {
+      return;
+    }
+    const delay = Math.max(
+      0,
+      networkPolicy.badSince + BAD_NETWORK_GRACE_MS - Date.now()
+    );
+    const id = setTimeout(() => {
+      dispatchNetworkPolicy({
+        type: "BAD_GRACE_EXPIRED",
+        at: Date.now(),
+      });
+    }, delay);
+    return () => clearTimeout(id);
+  }, [
+    networkPolicy.badSince,
+    networkPolicy.mode,
+    networkPolicy.quality,
+  ]);
 
   // All exit paths converge here: manual leave, expiry, a forced transport
   // exit, or a fatal error. `teardown` ends only after leave + destroy have
@@ -565,6 +711,10 @@ export default function CallRoom({
     emit({ type: "LEAVE" });
   }, [emit, mockMode, reportEnd, room]);
 
+  const restoreVideo = useCallback(() => {
+    dispatchNetworkPolicy({ type: "RESTORE_VIDEO", at: Date.now() });
+  }, []);
+
   if (state.phase === "ending" || state.phase === "ended" || state.phase === "failed") {
     if (state.endReason === "completed") return <EndedScreen />;
     if (state.endReason === "left_early" || state.endReason === "abandoned") {
@@ -649,11 +799,20 @@ export default function CallRoom({
           <ParticipantWatcher onParticipantCount={handleParticipantCount} />
           <CallVideoGrid />
           <CallOverlay remainingMs={displayedRemainingMs} started={started} />
+          {state.phase !== "reconnecting" &&
+            networkPolicy.mode !== "standard" && (
+              <NetworkStatus
+                mode={networkPolicy.mode}
+                onRestoreVideo={restoreVideo}
+              />
+            )}
           <CallControls
             onLeave={handleLeave}
             started={started}
             starting={state.countdownStarting}
             onStart={() => void triggerStart()}
+            audioOnly={networkPolicy.mode === "audio-only"}
+            onVideoOverride={restoreVideo}
           />
 
           {state.phase === "reconnecting" && (

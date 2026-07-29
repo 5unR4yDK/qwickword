@@ -20,6 +20,8 @@ export default function CallControls({
   started,
   starting,
   onStart,
+  audioOnly,
+  onVideoOverride,
 }: {
   onLeave: () => void;
   /** Whether the real countdown has started — see call-room.tsx. */
@@ -29,6 +31,10 @@ export default function CallControls({
   /** Manual start trigger — the other path (a second participant joining) is
    * handled by call-room.tsx's own AutoStartWatcher, not this component. */
   onStart: () => void;
+  /** Whether F6 has paused video subscriptions to protect call audio. */
+  audioOnly: boolean;
+  /** Explicit user override for F6's sticky audio-only mode. */
+  onVideoOverride: () => void;
 }) {
   const daily = useDaily();
   const localSessionId = useLocalSessionId();
@@ -47,9 +53,10 @@ export default function CallControls({
 
   const toggleCamera = useCallback(() => {
     const enabled = videoTrack.isOff;
+    if (enabled && audioOnly) onVideoOverride();
     daily?.setLocalVideo(enabled);
     setCameraEnabled(enabled);
-  }, [daily, videoTrack.isOff]);
+  }, [audioOnly, daily, onVideoOverride, videoTrack.isOff]);
 
   const toggleScreenShare = useCallback(() => {
     if (isSharingScreen) {
