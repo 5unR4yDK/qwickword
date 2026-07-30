@@ -249,7 +249,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   ) {
     try {
       await navigator.share({
-        title: `Qwickword — a ${minutes} minute call`,
+        title: `Qwickword: a ${minutes} minute call`,
         text: `Join me for a ${minutes} minute Qwickword. It ends when the timer does.`,
         url: link,
       });
@@ -266,7 +266,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   if (state.status === "success") {
     const minutes = Math.round(state.durationSeconds / 60);
     const mailSubject = encodeURIComponent(
-      `Qwickword — a ${minutes} minute call`
+      `Qwickword: a ${minutes} minute call`
     );
     const mailBody = encodeURIComponent(
       `Join me for a ${minutes} minute Qwickword. It ends when the timer does:\n\n${state.link}`
@@ -287,7 +287,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
 
         {state.mockMode && (
           <p className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            Mock mode — this link is simulated, not a real call yet.
+            Mock mode: this link is simulated, not a real call yet.
           </p>
         )}
 
@@ -379,7 +379,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
 
       {mockMode && (
         <p className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Mock mode — no Daily API key configured
+          Mock mode: no Daily API key configured
         </p>
       )}
 

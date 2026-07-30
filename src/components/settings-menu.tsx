@@ -199,7 +199,7 @@ export default function SettingsMenu() {
           <div className="flex flex-col gap-1">
             <p className="text-sm font-semibold text-black dark:text-zinc-50">Call settings</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Applied automatically the next time you join a Qwickword — no need to fiddle with
+              Applied automatically the next time you join a Qwickword. No need to fiddle with
               these once the clock is running.
             </p>
           </div>

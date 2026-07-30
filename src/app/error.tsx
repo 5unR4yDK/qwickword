@@ -35,7 +35,7 @@ export default function ErrorBoundary({
       </h1>
       <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
         That&apos;s a bug on our side, not anything you did. Your link itself
-        is still fine — try again, or head back and open it fresh.
+        is still fine. Try again, or head back and open it fresh.
       </p>
       <div className="flex gap-3">
         <button

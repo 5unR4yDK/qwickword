@@ -133,7 +133,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const minutes = Math.round(durationSeconds / 60);
   const title = `Someone wants to have a Qwickword (${minutes} min)`;
   const description =
-    `${minutes} minutes, hard stop — it ends when the timer does and ` +
+    `${minutes} minutes, hard stop. It ends when the timer does and ` +
     "can't be extended.";
 
   return {
@@ -168,7 +168,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
       <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
         <InvalidLinkScreen
           heading="This link isn't valid"
-          message="It doesn't look like a Qwickword link — it may have been copied incorrectly or cut off."
+          message="It doesn't look like a Qwickword link. It may have been copied incorrectly or cut off."
         />
       </div>
     );
@@ -185,7 +185,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
         <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
           <InvalidLinkScreen
             heading="This link isn't valid"
-            message="It's missing information Qwickword needs to connect you — the link may have been copied incorrectly or cut off."
+            message="It's missing information Qwickword needs to connect you. The link may have been copied incorrectly or cut off."
           />
         </div>
       );
@@ -237,8 +237,8 @@ export default async function RoomPage({ params, searchParams }: Props) {
             }
             message={
               wasReal
-                ? "The call ended or the link expired — every Qwickword is single-use. Ask for a fresh link, or create one yourself."
-                : "The room can't be found — the link may have been mistyped, or it's already gone."
+                ? "The call ended or the link expired. Every Qwickword is single-use. Ask for a fresh link, or create one yourself."
+                : "The room can't be found. The link may have been mistyped, or it's already gone."
             }
           />
         </div>

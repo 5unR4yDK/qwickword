@@ -28,7 +28,7 @@ export function getDailyConfig(): DailyConfig {
     loggedOnce = true;
     if (mockMode) {
       console.warn(
-        "[Qwickword] Daily: mock mode — DAILY_API_KEY / DAILY_DOMAIN not set in " +
+        "[Qwickword] Daily: mock mode. DAILY_API_KEY / DAILY_DOMAIN not set in " +
           ".env.local. Room creation and video will be simulated until real credentials " +
           "are configured."
       );
