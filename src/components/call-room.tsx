@@ -123,8 +123,8 @@ function NetworkStatus({
     >
       <span>
         {audioOnly
-          ? "Audio-only mode — video paused to keep the call clear."
-          : "Weak connection — video quality reduced to protect audio."}
+          ? "Audio-only mode. Video paused to keep the call clear."
+          : "Weak connection. Video quality reduced to protect audio."}
       </span>
       {audioOnly && (
         <button
@@ -145,8 +145,8 @@ function LeftScreen({ preStart }: { preStart: boolean }) {
       <p className="text-lg font-medium">You&apos;ve left this call.</p>
       <p className="max-w-sm text-sm text-white/60">
         {preStart
-          ? "The call never started, so this link is done — anyone opening it now will see that it's over."
-          : "It may still be running for anyone else still in it — there's no way back into this one."}
+          ? "The call never started, so this link is done. Anyone opening it now will see that it's over."
+          : "It may still be running for anyone else still in it. There's no way back into this one."}
       </p>
       <Link
         href="/"
@@ -732,7 +732,7 @@ export default function CallRoom({
       <div className="relative h-full w-full bg-black">
         <CallOverlay remainingMs={displayedRemainingMs} started={started} />
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center text-white">
-          <p className="text-base font-medium">Mock call — no Daily API key configured</p>
+          <p className="text-base font-medium">Mock call: no Daily API key configured</p>
           <p className="text-sm text-white/60">Room: {room}</p>
         </div>
         {!started && durationSeconds && (

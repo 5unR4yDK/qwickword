@@ -51,7 +51,7 @@ export default function ManifestoPage() {
           <p>Look at what they did to you. Look at it clearly.</p>
 
           <p>
-            They invented a device — the meeting — whose sole engineering
+            They invented a device, the meeting, whose sole engineering
             purpose is to expand. Work expands to fill the time available;
             this is a law of nature, and they knew it, and they weaponized
             it. They gave the meeting no ending. They gave it a start time
@@ -73,15 +73,15 @@ export default function ManifestoPage() {
 
           <p>
             Comrades, I tell you that the age of the eternal meeting is
-            over, and it ends — as all things now will end — exactly when
-            we say it ends.
+            over. Like all things now will end, it ends exactly when we say
+            it ends.
           </p>
 
           <p>
             Behold the instrument of your liberation. Qwickword. You set the
             length before the meeting begins. You choose the number. And
-            then — hear me, hear this, for this is the whole revolution in a
-            single sentence — there is no extend button. Not a hidden one.
+            then, hear me, hear this, for this is the whole revolution in a
+            single sentence: there is no extend button. Not a hidden one.
             Not a &quot;just this once.&quot; Not a plea to the
             administrator. There is no extend button anywhere, ever, because
             the extend button is where freedom goes to die, and we have
@@ -92,7 +92,7 @@ export default function ManifestoPage() {
             When the timer reaches zero, the call ends. It ends for the
             person still talking. It ends for the person sharing their
             screen who has not noticed. It ends for Dave and his one last
-            slide. And it ends — glorious, at last — even for Kevin. The
+            slide. Glorious at last, it even ends for Kevin. The
             timer does not care about Kevin&apos;s anecdote. The timer has
             never met Kevin. The timer serves only you, and at zero it
             throws open the doors and everyone goes free.
@@ -100,11 +100,11 @@ export default function ManifestoPage() {
 
           <p>
             They will resist us. Of course they will resist us. The men who
-            built their whole importance out of your stolen hours — they
+            built their whole importance out of your stolen hours. They
             will call this &quot;aggressive.&quot; They will say meetings
             &quot;need room to breathe.&quot; They will whisper that a hard
             stop is unrealistic. And I say to them: everyone always claimed
-            they had a hard stop. For the first time in human history — this
+            they had a hard stop. For the first time in human history, this
             time it is true.
           </p>
 
@@ -127,8 +127,8 @@ export default function ManifestoPage() {
             A standup that actually stands up, and sits back down, and
             returns you to your desk before the coffee cools. A calendar
             invite that keeps its word. A meeting you can fit between two
-            other meetings without it devouring both. An ending — an actual
-            ending — which it turns out is so rare, so precious, so nearly
+            other meetings without it devouring both. An actual ending,
+            which it turns out is so rare, so precious, so nearly
             extinct, that we had to build an entire product around the
             radical proposition that things should stop.
           </p>
@@ -142,7 +142,7 @@ export default function ManifestoPage() {
           <p>You have nothing to lose but your recurring events.</p>
 
           <p>
-            Set the time. Have your word. And when the clock strikes zero —
+            Set the time. Have your word. And when the clock strikes zero:
           </p>
 
           <p>hang up, and be free.</p>

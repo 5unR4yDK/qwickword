@@ -73,6 +73,24 @@ test("about page renders", async ({ page }) => {
   ).toBe(true);
 });
 
+test("public copy does not use em dashes", async ({ page, request }) => {
+  for (const path of ["/", "/about", "/how-it-works", "/manifesto"]) {
+    await page.goto(path);
+    await expect(page.locator("body")).not.toContainText("—");
+
+    const metadata = await page
+      .locator("meta[content]")
+      .evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute("content") ?? "")
+      );
+    expect(metadata.join(" ")).not.toContain("—");
+  }
+
+  const llms = await request.get("/llms.txt");
+  expect(llms.status()).toBe(200);
+  expect(await llms.text()).not.toContain("—");
+});
+
 test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   await page.goto("/how-it-works");
   await expect(

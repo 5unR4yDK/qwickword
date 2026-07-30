@@ -250,7 +250,7 @@ export default function CallPrejoin({
               )}
             </h1>
             <p className="text-[15px] leading-[23px] text-[#8A8A8F]">
-              It ends by itself when the timer runs out — no extending, no
+              It ends by itself when the timer runs out. No extending, no
               rejoining. Nothing counts down until the second person is here.
             </p>
           </div>

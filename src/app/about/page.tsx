@@ -58,7 +58,7 @@ export default function AboutPage() {
               <p>
                 Most of us learn that this question rarely describes the real
                 commitment. A minute can become five, twenty, or the rest of the
-                hour. The rational response is often to say no — not because the
+                hour. The rational response is often to say no. Not because the
                 conversation has no value, but because its cost is unknown.
               </p>
               <p>
