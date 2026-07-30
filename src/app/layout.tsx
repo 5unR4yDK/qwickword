@@ -51,6 +51,11 @@ export const metadata: Metadata = {
     "Daily.co video call app",
   ],
   authors: [{ name: "Qwickword" }],
+  alternates: {
+    types: {
+      "application/rss+xml": "https://qwickword.com/feed.xml",
+    },
+  },
   robots: {
     index: true,
     follow: true,

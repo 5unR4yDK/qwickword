@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordLinkShared, type ShareChannel } from "@/lib/db";
+import {
+  sessionFromRequest,
+  trafficClassFromRequest,
+} from "@/lib/attribution";
 
 /**
  * Stats-only: the link was deliberately sent somewhere.
@@ -17,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 type SharedBody = { via?: unknown };
 
-const CHANNELS: readonly ShareChannel[] = ["copy", "email"];
+const CHANNELS: readonly ShareChannel[] = ["native", "copy", "email"];
 
 function isChannel(value: unknown): value is ShareChannel {
   return (
@@ -46,6 +50,10 @@ export async function POST(
     );
   }
 
-  await recordLinkShared(room, body.via);
+  const { sessionId } = sessionFromRequest(request);
+  await recordLinkShared(room, body.via, {
+    sessionId,
+    trafficClass: trafficClassFromRequest(request),
+  });
   return NextResponse.json({ ok: true }, { status: 200 });
 }

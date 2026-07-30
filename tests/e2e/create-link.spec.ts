@@ -63,6 +63,61 @@ test("about page renders", async ({ page }) => {
   await expect(page.getByRole("heading").first()).toBeVisible();
 });
 
+test("owned discovery surfaces are crawlable", async ({ page, request }) => {
+  await page.goto("/how-it-works");
+  await expect(
+    page.getByRole("heading", { name: "How a Qwickword ends on time" })
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create a timed call" })).toBeVisible();
+
+  const feed = await request.get("/feed.xml");
+  expect(feed.status()).toBe(200);
+  expect(feed.headers()["content-type"]).toContain("application/rss+xml");
+  expect(await feed.text()).toContain(
+    "https://qwickword.com/how-it-works"
+  );
+
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.status()).toBe(200);
+  expect(await sitemap.text()).toContain(
+    "https://qwickword.com/how-it-works"
+  );
+
+  const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
+  expect(key.status()).toBe(200);
+  expect((await key.text()).trim()).toBe(
+    "10f8619456c2ea84499dd5e46ca68a4c"
+  );
+});
+
+test("share controls fit mobile and desktop viewports", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async () => undefined,
+    });
+  });
+
+  for (const viewport of [
+    { width: 360, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await page
+      .getByRole("group", { name: "Call length" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expect(page.getByRole("button", { name: "Share", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Copied|Copy link/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Email it" })).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    ).toBe(true);
+  }
+});
+
 test("the telemetry endpoint accepts good timings and drops bad ones", async ({ request }) => {
   const res = await request.post("/api/telemetry", {
     data: {
@@ -85,15 +140,80 @@ test("the telemetry endpoint accepts good timings and drops bad ones", async ({ 
 });
 
 test("the share-stats endpoint validates its channel", async ({ request }) => {
-  const good = await request.post("/api/rooms/some-room/shared", {
-    data: { via: "copy" },
-  });
-  expect(good.status()).toBe(200);
+  for (const via of ["native", "copy", "email"]) {
+    const good = await request.post("/api/rooms/some-room/shared", {
+      data: { via },
+    });
+    expect(good.status()).toBe(200);
+  }
 
   for (const bad of [{ via: "carrier-pigeon" }, {}]) {
     const res = await request.post("/api/rooms/some-room/shared", { data: bad });
     expect(res.status()).toBe(400);
   }
+});
+
+test("landing attribution is sanitized and stored in first-party cookies", async ({
+  request,
+}) => {
+  const response = await request.post("/api/attribution/landing", {
+    data: {
+      attribution: {
+        source: "linkedin",
+        medium: "organic_social",
+        campaign: "hard_stop_30d",
+        content: "native_share_v1",
+      },
+      trafficClass: "smoke",
+    },
+  });
+  expect(response.status()).toBe(200);
+  const setCookie = response.headers()["set-cookie"];
+  expect(setCookie).toContain("qw_session=");
+  expect(setCookie).toContain("qw_attribution=");
+  expect(setCookie).toContain("qw_traffic=smoke");
+  expect(setCookie).toContain("HttpOnly");
+  expect(setCookie).toContain("SameSite=lax");
+});
+
+test("native share opens the supported share sheet with truthful copy", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    (
+      window as typeof window & {
+        sharedPayload?: ShareData;
+      }
+    ).sharedPayload = undefined;
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (payload: ShareData) => {
+        (
+          window as typeof window & {
+            sharedPayload?: ShareData;
+          }
+        ).sharedPayload = payload;
+      },
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("group", { name: "Call length" })
+    .getByRole("button")
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Share", exact: true }).click();
+  const payload = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          sharedPayload?: ShareData;
+        }
+      ).sharedPayload
+  );
+  expect(payload?.title).toContain("Qwickword");
+  expect(payload?.text).toContain("ends when the timer does");
+  expect(payload?.url).toMatch(/^http:\/\/127\.0\.0\.1:3100\//);
 });
 
 test("the end-stats endpoint validates its reason", async ({ request }) => {

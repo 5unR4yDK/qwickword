@@ -9,19 +9,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: "https://qwickword.com",
-      lastModified: new Date(),
+      lastModified: "2026-07-30",
       changeFrequency: "monthly",
       priority: 1,
     },
     {
+      url: "https://qwickword.com/how-it-works",
+      lastModified: "2026-07-30",
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: "https://qwickword.com/about",
-      lastModified: new Date(),
+      lastModified: "2026-07-29",
       changeFrequency: "yearly",
       priority: 0.5,
     },
     {
       url: "https://qwickword.com/manifesto",
-      lastModified: new Date(),
+      lastModified: "2026-07-29",
       changeFrequency: "yearly",
       priority: 0.3,
     },

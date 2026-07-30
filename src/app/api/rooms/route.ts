@@ -6,12 +6,27 @@ import {
   MIN_DURATION_SECONDS,
 } from "@/lib/daily-rooms";
 import { recordCallCreated } from "@/lib/db";
+import {
+  attributionFromRequest,
+  clearParentRoomCookie,
+  CREATED_ROOM_COOKIE,
+  normalizeAttribution,
+  normalizeTrafficClass,
+  PARENT_ROOM_COOKIE,
+  sessionFromRequest,
+  setAttributionCookies,
+  setRoomCookie,
+  setSessionCookie,
+  trafficClassFromRequest,
+} from "@/lib/attribution";
 
 /** Never cache: every call must mint a fresh room. */
 export const dynamic = "force-dynamic";
 
 type CreateRoomBody = {
   durationSeconds?: unknown;
+  attribution?: unknown;
+  trafficClass?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -45,6 +60,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const room = await createHardExpiryRoom(durationSeconds);
+    const { sessionId } = sessionFromRequest(request);
+    const cookieAttribution = attributionFromRequest(request);
+    const bodyAttribution = normalizeAttribution(body.attribution);
+    const attribution =
+      Object.values(cookieAttribution).some(Boolean)
+        ? cookieAttribution
+        : bodyAttribution;
+    const cookieTrafficClass = trafficClassFromRequest(request);
+    const trafficClass = isContractCheck
+      ? "contract"
+      : cookieTrafficClass === "public"
+        ? normalizeTrafficClass(body.trafficClass)
+        : cookieTrafficClass;
+    const parentCallName =
+      request.cookies.get(PARENT_ROOM_COOKIE)?.value ?? null;
     // The database row is what lets the shared link be clean (slug only, no
     // query params) — the call page recovers the duration from it. Awaited,
     // because the response's `clean` flag depends on whether the write
@@ -54,8 +84,21 @@ export async function POST(request: NextRequest) {
     // they aren't persisted anywhere a later request could look them up.
     const recorded = room.mockMode || isContractCheck
       ? false
-      : await recordCallCreated(room.name, room.durationSeconds);
-    return NextResponse.json({ ...room, clean: recorded }, { status: 200 });
+      : await recordCallCreated(room.name, room.durationSeconds, null, {
+          sessionId,
+          trafficClass,
+          ...attribution,
+          parentCallName,
+        });
+    const response = NextResponse.json(
+      { ...room, clean: recorded },
+      { status: 200 }
+    );
+    setSessionCookie(response, sessionId);
+    setAttributionCookies(response, attribution, trafficClass);
+    setRoomCookie(response, CREATED_ROOM_COOKIE, room.name);
+    clearParentRoomCookie(response);
+    return response;
   } catch (err) {
     if (err instanceof DailyRoomError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Share2 } from "lucide-react";
 import {
   DURATION_PRESETS_SECONDS,
   formatDuration,
@@ -60,6 +60,38 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   const [customValue, setCustomValue] = useState("");
   const customInputRef = useRef<HTMLInputElement>(null);
   const customFieldRef = useRef<HTMLDivElement>(null);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+
+  function clientAttribution() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      attribution: {
+        source: params.get("utm_source"),
+        medium: params.get("utm_medium"),
+        campaign: params.get("utm_campaign"),
+        content: params.get("utm_content"),
+      },
+      trafficClass:
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+          ? "developer"
+          : params.get("traffic_class"),
+    };
+  }
+
+  useEffect(() => {
+    const capabilityCheck = setTimeout(
+      () => setCanNativeShare(typeof navigator.share === "function"),
+      0
+    );
+    void fetch("/api/attribution/landing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clientAttribution()),
+      keepalive: true,
+    }).catch(() => {});
+    return () => clearTimeout(capabilityCheck);
+  }, []);
 
   // Focus the inline field the moment the custom pill morphs into it —
   // whoever clicked is about to type a number.
@@ -109,7 +141,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       response = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationSeconds }),
+        body: JSON.stringify({ durationSeconds, ...clientAttribution() }),
       });
     } catch {
       setState({
@@ -187,7 +219,10 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
    * every call, so counting it would mark every link as shared and measure
    * nothing. Only an explicit press counts.
    */
-  function reportShared(roomName: string, via: "copy" | "email") {
+  function reportShared(
+    roomName: string,
+    via: "native" | "copy" | "email"
+  ) {
     if (mockMode) return;
     void fetch(`/api/rooms/${encodeURIComponent(roomName)}/shared`, {
       method: "POST",
@@ -204,6 +239,24 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       setCopied(true);
     } catch {
       setCopied(false);
+    }
+  }
+
+  async function handleNativeShare(
+    link: string,
+    roomName: string,
+    minutes: number
+  ) {
+    try {
+      await navigator.share({
+        title: `Qwickword — a ${minutes} minute call`,
+        text: `Join me for a ${minutes} minute Qwickword. It ends when the timer does.`,
+        url: link,
+      });
+      reportShared(roomName, "native");
+    } catch {
+      // Closing the share sheet or a platform share failure is not intent
+      // completed, so it must not be counted as a share.
     }
   }
 
@@ -246,7 +299,22 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
             <p className="text-3xl font-medium break-all text-teal-700 dark:text-[#3DFEF1]">
               {state.displayLink}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {canNativeShare && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleNativeShare(
+                      state.link,
+                      state.roomName,
+                      minutes
+                    )
+                  }
+                  className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full bg-[#3DFEF1] px-5 text-sm font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"
+                >
+                  <Share2 size={16} aria-hidden="true" /> Share
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => handleCopy(state.link, state.roomName)}
@@ -453,7 +521,14 @@ function Wordmark({ className }: { className?: string }) {
 
 function FooterLinks() {
   return (
-    <nav className="flex items-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
+    <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
+      <Link
+        href="/how-it-works"
+        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
+      >
+        how it works
+      </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
       <Link
         href="/manifesto"
         className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"

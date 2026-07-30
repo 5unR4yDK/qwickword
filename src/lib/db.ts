@@ -47,7 +47,16 @@ export async function recordCallCreated(
   roomName: string,
   durationSeconds: number,
   /** Set when the call was started from inside a room; null for one-offs. */
-  roomId?: number | null
+  roomId?: number | null,
+  attribution?: {
+    sessionId: string;
+    trafficClass: string;
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    content: string | null;
+    parentCallName?: string | null;
+  }
 ): Promise<boolean> {
   const p = getPool();
   if (!p) return false;
@@ -56,7 +65,23 @@ export async function recordCallCreated(
       `INSERT INTO calls (room_name, duration_seconds, room_id) VALUES ($1, $2, $3)`,
       [roomName, durationSeconds, roomId ?? null]
     );
-    void appendEvent({ kind: "call.created", callName: roomName, roomId: roomId ?? null, payload: { durationSeconds } });
+    void appendEvent({
+      kind: "call.created",
+      callName: roomName,
+      roomId: roomId ?? null,
+      payload: {
+        durationSeconds,
+        surface: "web",
+        creatorSessionId: attribution?.sessionId ?? null,
+        trafficClass: attribution?.trafficClass ?? "public",
+        source: attribution?.source ?? null,
+        medium: attribution?.medium ?? null,
+        campaign: attribution?.campaign ?? null,
+        content: attribution?.content ?? null,
+        parentCallName: attribution?.parentCallName ?? null,
+      },
+      dedupeKey: `call.created:${roomName}`,
+    });
     return true;
   } catch (err) {
     console.error("[Qwickword] Failed to record call-created stats:", err);
@@ -115,7 +140,11 @@ export async function recordCallStarted(roomName: string): Promise<void> {
        )`,
       [roomName]
     );
-    void appendEvent({ kind: "call.started", callName: roomName });
+    void appendEvent({
+      kind: "call.started",
+      callName: roomName,
+      dedupeKey: `call.started:${roomName}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to record call-started stats:", err);
   }
@@ -308,6 +337,7 @@ export async function getRoomCalls(
  * seen sequence. That is what "history follows the user" means concretely.
  */
 export type EventKind =
+  | "landing.view"
   | "call.created"
   | "call.shared"
   | "call.opened"
@@ -452,7 +482,7 @@ export async function recordTimings(timings: TimingInput[]): Promise<void> {
 }
 
 /** How a link was deliberately sent. */
-export type ShareChannel = "copy" | "email";
+export type ShareChannel = "native" | "copy" | "email";
 
 /**
  * Records that the link was deliberately sent somewhere.
@@ -472,7 +502,8 @@ export type ShareChannel = "copy" | "email";
  */
 export async function recordLinkShared(
   roomName: string,
-  via: ShareChannel
+  via: ShareChannel,
+  context?: { sessionId: string; trafficClass: string }
 ): Promise<void> {
   const p = getPool();
   if (!p) return;
@@ -490,7 +521,11 @@ export async function recordLinkShared(
     void appendEvent({
       kind: "call.shared",
       callName: roomName,
-      payload: { via },
+      payload: {
+        via,
+        sessionId: context?.sessionId ?? null,
+        trafficClass: context?.trafficClass ?? "public",
+      },
       dedupeKey: `call.shared:${roomName}`,
     });
   } catch (err) {
@@ -516,7 +551,14 @@ export async function recordLinkShared(
  * COALESCE keeps the first timestamp — the poll repeats every few seconds and
  * every participant runs their own.
  */
-export async function recordCallFirstJoined(roomName: string): Promise<void> {
+export async function recordCallFirstJoined(
+  roomName: string,
+  context: {
+    sessionId: string;
+    trafficClass: string;
+    role: "creator" | "recipient";
+  }
+): Promise<void> {
   const p = getPool();
   if (!p) return;
   try {
@@ -528,13 +570,14 @@ export async function recordCallFirstJoined(roomName: string): Promise<void> {
        )`,
       [roomName]
     );
-    // Deliberately appended on every poll rather than only the first: the
-    // dedupe key makes it idempotent, and doing the check in the database
-    // avoids a read-then-write race between two participants' polls.
+    // One event per browser session: this preserves the difference between
+    // the creator opening their own room and a recipient genuinely arriving.
+    // It uses a random first-party session ID, not a device fingerprint.
     void appendEvent({
       kind: "call.opened",
       callName: roomName,
-      dedupeKey: `call.opened:${roomName}`,
+      payload: context,
+      dedupeKey: `call.opened:${roomName}:${context.sessionId}`,
     });
   } catch (err) {
     console.error("[Qwickword] Failed to record first-joined stats:", err);
@@ -614,7 +657,12 @@ export async function recordCallEnded(
           AND started_at IS NOT NULL`,
       [roomName, reason]
     );
-    void appendEvent({ kind: "call.ended", callName: roomName, payload: { reason } });
+    void appendEvent({
+      kind: "call.ended",
+      callName: roomName,
+      payload: { reason },
+      dedupeKey: `call.ended:${roomName}`,
+    });
   } catch (err) {
     console.error("[Qwickword] Failed to record call-ended stats:", err);
   }

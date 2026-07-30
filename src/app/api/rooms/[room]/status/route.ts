@@ -7,6 +7,14 @@ import {
 } from "@/lib/daily-rooms";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
 import { recordCallFirstJoined } from "@/lib/db";
+import {
+  CREATED_ROOM_COOKIE,
+  PARENT_ROOM_COOKIE,
+  sessionFromRequest,
+  setRoomCookie,
+  setSessionCookie,
+  trafficClassFromRequest,
+} from "@/lib/attribution";
 
 /**
  * Status poll: has this room's countdown started yet, and what's its
@@ -72,6 +80,9 @@ export async function GET(
   try {
     let status = await getRoomStatus(room, fallbackExp);
     let presentCount: number | null = null;
+    const { sessionId } = sessionFromRequest(request);
+    const createdRoom =
+      request.cookies.get(CREATED_ROOM_COOKIE)?.value ?? null;
 
     try {
       presentCount = await getRoomPresence(room);
@@ -84,13 +95,18 @@ export async function GET(
     }
 
     if (presentCount !== null && presentCount >= 1) {
+      const role = createdRoom === room ? "creator" : "recipient";
       // Stats (see src/lib/db.ts) — fire-and-forget, first write wins, so the
       // repeated poll and every participant's own tab all collapse to one
       // timestamp. Keyed off Daily's authoritative presence rather than the
       // poll itself: link previewers (WhatsApp, Slack, iMessage) fetch the
       // page HTML for their preview cards but never run JS and never appear
       // in presence, so a pasted link can't masquerade as someone turning up.
-      void recordCallFirstJoined(room);
+      void recordCallFirstJoined(room, {
+        sessionId,
+        trafficClass: trafficClassFromRequest(request),
+        role,
+      });
     }
 
     if (!status.started && hasValidDuration && presentCount !== null && presentCount >= 2) {
@@ -101,7 +117,17 @@ export async function GET(
       status = await startRoomCountdown(room, durationSeconds);
     }
 
-    return NextResponse.json({ ...status, presentCount }, { status: 200 });
+    const response = NextResponse.json(
+      { ...status, presentCount },
+      { status: 200 }
+    );
+    if (presentCount !== null && presentCount >= 1) {
+      setSessionCookie(response, sessionId);
+      if (createdRoom !== room) {
+        setRoomCookie(response, PARENT_ROOM_COOKIE, room);
+      }
+    }
+    return response;
   } catch (err) {
     if (err instanceof DailyRoomError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
