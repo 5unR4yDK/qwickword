@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import {
+  SOCIAL_PREVIEW_ALT,
+  SOCIAL_PREVIEW_IMAGE,
+  SOCIAL_PREVIEW_URL,
+} from "@/lib/social-preview";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -67,22 +72,16 @@ export const metadata: Metadata = {
     title: "Qwickword — video calls that end on time",
     description:
       "Set a time limit, share the link, start talking. No account, no download — the call ends the moment the timer hits zero.",
-    images: [
-      {
-        url: "/og-card-1200x630.png",
-        width: 1200,
-        height: 630,
-        alt: "qwickword.com",
-      },
-      { url: "/og-card-square-1080.png", width: 1080, height: 1080 },
-    ],
+    // One image only. Apple Messages may render multiple og:image entries as
+    // a collage, which previously duplicated and cropped the Qwickword card.
+    images: [SOCIAL_PREVIEW_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Qwickword — video calls that end on time",
     description:
       "Set a time limit, share the link, start talking. No account, no download — the call ends the moment the timer hits zero.",
-    images: ["/og-card-1200x630.png"],
+    images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
   },
 };
 
