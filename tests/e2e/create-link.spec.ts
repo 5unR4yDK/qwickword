@@ -60,7 +60,17 @@ test("an unknown room shows the invalid-link screen, not a crash", async ({ page
 
 test("about page renders", async ({ page }) => {
   await page.goto("/about");
-  await expect(page.getByRole("heading").first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "A small request you can believe" })
+  ).toBeVisible();
+  await expect(page.getByText("Permission goes both ways")).toBeVisible();
+  await expect(page.getByText("An opinion, not a universal rule")).toBeVisible();
+  await expect(
+    page.getByText(/A five-minute invitation becomes easier to accept/)
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+  ).toBe(true);
 });
 
 test("owned discovery surfaces are crawlable", async ({ page, request }) => {
