@@ -1,0 +1,8 @@
+.claude
+.agents
+agent
+_local
+test-results
+playwright-report
+*.zip
+*.tgz
