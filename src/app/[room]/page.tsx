@@ -8,6 +8,11 @@ import {
 } from "@/lib/daily-rooms";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
 import { getRecordedDurationSeconds } from "@/lib/db";
+import {
+  SOCIAL_PREVIEW_ALT,
+  SOCIAL_PREVIEW_IMAGE,
+  SOCIAL_PREVIEW_URL,
+} from "@/lib/social-preview";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
 
@@ -91,8 +96,9 @@ function parseDurationParam(raw: string | string[] | undefined): number | null {
  * The duration comes from the link's `d` query param when present, or the
  * database row written at creation for a clean param-less link. A link with
  * neither (a pre-duration-era link, or a database miss) falls back to a
- * generic title/description. The OG images and metadataBase are inherited
- * from the root layout.
+ * generic title/description. Next.js shallowly replaces nested Open Graph and
+ * Twitter metadata, so the single canonical share image is repeated here
+ * explicitly rather than assumed to inherit from the root layout.
  */
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { room } = await params;
@@ -107,8 +113,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     return {
       title: "Qwickword",
       description,
-      openGraph: { title: "Qwickword", description, type: "website", siteName: "Qwickword" },
-      twitter: { card: "summary_large_image", title: "Qwickword", description },
+      openGraph: {
+        title: "Qwickword",
+        description,
+        type: "website",
+        siteName: "Qwickword",
+        url: `https://qwickword.com/${encodeURIComponent(room)}`,
+        images: [SOCIAL_PREVIEW_IMAGE],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "Qwickword",
+        description,
+        images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
+      },
     };
   }
 
@@ -121,8 +139,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return {
     title,
     description,
-    openGraph: { title, description, type: "website", siteName: "Qwickword" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "Qwickword",
+      url: `https://qwickword.com/${encodeURIComponent(room)}`,
+      images: [SOCIAL_PREVIEW_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
+    },
   };
 }
 
