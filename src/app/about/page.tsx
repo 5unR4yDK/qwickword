@@ -150,9 +150,8 @@ export default function AboutPage() {
             <p className="mt-3">
               Choose any whole number from 1 to 30 minutes and share the link.
               The countdown starts when the second person joins, not when the
-              link is created. There are no accounts and nothing to install; the
-              call runs in the browser, and the room enforces the ending for
-              everyone.
+              link is created. The call runs in the browser, and the room
+              enforces the ending for everyone.
             </p>
           </section>
         </div>
