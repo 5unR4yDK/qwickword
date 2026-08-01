@@ -27,6 +27,7 @@ test("routes that need an account refuse a guest without leaking detail", async 
     ["POST", "/api/calls/quiet-otter/participants"],
     ["GET", "/api/calls/quiet-otter/participants"],
     ["GET", "/api/contacts"],
+    ["DELETE", "/api/account"],
   ] as const) {
     const res = await request.fetch(path, { method });
     expect(res.status(), `${method} ${path}`).toBe(401);

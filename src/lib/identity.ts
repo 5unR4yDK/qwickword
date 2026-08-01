@@ -326,3 +326,85 @@ export async function revokeSession(token: string): Promise<void> {
     console.error("[Qwickword] Failed to revoke a session:", err);
   }
 }
+
+export type DeleteAccountResult = "deleted" | "unauthorized" | "unavailable";
+
+/**
+ * Permanently deletes the account authenticated by this session token.
+ *
+ * The caller is resolved and locked inside the same transaction as the
+ * deletion. That closes the gap where a session could be revoked between an
+ * authorization check and a destructive query, and makes every linked record
+ * disappear together or not at all.
+ */
+export async function deleteAccount(
+  token: string | null
+): Promise<DeleteAccountResult> {
+  if (!token) return "unauthorized";
+  const p = getPool();
+  if (!p) return "unavailable";
+
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+
+    const found = await client.query<{ id: string }>(
+      `SELECT u.id
+         FROM sessions s
+         JOIN users u ON u.id = s.user_id
+        WHERE s.token_hash = $1
+          AND s.revoked_at IS NULL
+          AND u.deleted_at IS NULL
+        FOR UPDATE OF u`,
+      [hashSessionToken(token)]
+    );
+    const userId = found.rows[0]?.id;
+    if (!userId) {
+      await client.query("ROLLBACK");
+      return "unauthorized";
+    }
+
+    // A challenge carries the encrypted address but has no user foreign key,
+    // so remove it before deleting the identity rows that map it to this user.
+    await client.query(
+      `DELETE FROM auth_challenges
+        WHERE lookup_hash IN (
+          SELECT lookup_hash FROM user_identities WHERE user_id = $1
+        )`,
+      [userId]
+    );
+
+    // Delete leaf records first. Existing foreign keys intentionally predate
+    // account deletion and do not cascade, so the order is explicit here.
+    await client.query(
+      `DELETE FROM push_receipts
+        WHERE push_token_id IN (
+          SELECT id FROM push_tokens WHERE user_id = $1
+        )`,
+      [userId]
+    );
+    await client.query(`DELETE FROM push_tokens WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
+    await client.query(
+      `DELETE FROM contacts
+        WHERE owner_user_id = $1 OR contact_user_id = $1`,
+      [userId]
+    );
+    await client.query(`DELETE FROM call_participants WHERE user_id = $1`, [
+      userId,
+    ]);
+    await client.query(`DELETE FROM user_identities WHERE user_id = $1`, [
+      userId,
+    ]);
+    await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+    await client.query("COMMIT");
+    return "deleted";
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("[Qwickword] Failed to delete an account:", err);
+    return "unavailable";
+  } finally {
+    client.release();
+  }
+}
