@@ -10,6 +10,7 @@ import {
   MIN_DURATION_MINUTES,
 } from "@/lib/duration";
 import MakeRoomAction from "./make-room-action";
+import { SignInLink } from "./sign-in";
 
 type CreateRoomResponse = {
   url: string;
@@ -497,6 +498,9 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
         {/* Second, and quiet. A one-off Qwickword stays one tap; a room answers
             a different question and must not compete with it. */}
         <MakeRoomAction />
+        {/* Quieter still. Signing in is never why anyone came here, and the
+            whole product works without it. */}
+        <SignInLink />
         <FooterLinks />
       </div>
     </div>

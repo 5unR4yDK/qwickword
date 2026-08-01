@@ -15,6 +15,7 @@ import {
 } from "@/lib/social-preview";
 import CallRoom from "@/components/call-room";
 import InvalidLinkScreen from "@/components/invalid-link-screen";
+import RecordParticipation from "@/components/record-participation";
 
 /**
  * Call page: joins the Daily room named by the `[room]` segment.
@@ -193,6 +194,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
     const mockDuration = parseDurationParam(rawDuration);
     return (
       <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+        <RecordParticipation callName={room} />
         <CallRoom
           room={room}
           exp={linkExp}
@@ -283,6 +285,10 @@ export default async function RoomPage({ params, searchParams }: Props) {
 
   return (
     <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
+      {/* Renders nothing. Records a signed-in visitor as having been here, so
+          the two people can keep each other afterwards. A guest is not
+          recorded and never appears — joining still costs nothing. */}
+      <RecordParticipation callName={room} />
       <CallRoom
         room={room}
         exp={exp}

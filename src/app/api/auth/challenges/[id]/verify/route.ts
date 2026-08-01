@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyChallenge } from "@/lib/identity";
+import { setSessionCookie } from "@/lib/require-user";
 
 /**
  * Completes a sign-in.
@@ -78,7 +79,7 @@ export async function POST(
     }
   }
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       token: result.token,
       user: { id: result.user.id, displayName: result.user.displayName },
@@ -86,4 +87,11 @@ export async function POST(
     },
     { status: 200 }
   );
+
+  // Both transports, always. The app reads the token from the body and puts it
+  // in the Keychain, ignoring the cookie; the browser lets the cookie do the
+  // work and never touches the token. Neither has to tell the server which it
+  // is, and there is one code path rather than two.
+  setSessionCookie(response, result.token);
+  return response;
 }

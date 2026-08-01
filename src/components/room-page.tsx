@@ -35,7 +35,13 @@ export default function RoomPage({ room }: { room: RoomView }) {
   // Claims the key from `#k=…` if it is there, stores it, and strips it from
   // the address bar so copying the URL shares the room without handing over
   // control of it.
+  //
+  // This is the read-from-an-external-system case the rule exists to allow, and
+  // it cannot be done anywhere else: the fragment is never sent to the server,
+  // so there is nothing to read during render on the server, and claiming it
+  // rewrites history, which is not something render may do.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOwnerKey(claimOwnerKey(room.slug));
   }, [room.slug]);
 
