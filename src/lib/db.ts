@@ -199,16 +199,21 @@ function toRoom(row: RoomRow): Room {
 export async function createRoom(
   slug: string,
   defaultDurationSeconds: number,
-  name?: string
+  name?: string,
+  /**
+   * SHA-256 of the owner key. Only the hash is ever stored; the key itself is
+   * returned to the creator once and never again. See lib/room-keys.ts.
+   */
+  ownerKeyHash?: string
 ): Promise<Room | null> {
   const p = getPool();
   if (!p) return null;
   try {
     const result = await p.query<RoomRow>(
-      `INSERT INTO rooms (slug, name, default_duration_seconds)
-       VALUES ($1, $2, $3)
+      `INSERT INTO rooms (slug, name, default_duration_seconds, owner_key_hash)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [slug, name ?? null, defaultDurationSeconds]
+      [slug, name ?? null, defaultDurationSeconds, ownerKeyHash ?? ""]
     );
     const room = result.rows[0] ? toRoom(result.rows[0]) : null;
     if (room) {
@@ -281,6 +286,79 @@ export async function closeRoom(slug: string): Promise<void> {
     });
   } catch (err) {
     console.error("[Qwickword] Failed to close room:", err);
+  }
+}
+
+/**
+ * The stored hash of a room's owner key, or null if the room is not open.
+ *
+ * Returns the hash rather than doing the comparison here so the crypto stays
+ * in lib/room-keys.ts, where it can be tested without a database.
+ */
+export async function getRoomOwnerKeyHash(slug: string): Promise<string | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query<{ owner_key_hash: string }>(
+      `SELECT owner_key_hash FROM rooms WHERE slug = $1 AND closed_at IS NULL`,
+      [slug]
+    );
+    return result.rows[0]?.owner_key_hash ?? null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to read a room owner key hash:", err);
+    return null;
+  }
+}
+
+/**
+ * Renames a room. An empty name clears it, so the room falls back to reading
+ * as its slug rather than showing an empty title.
+ *
+ * Requires the owner key at the route layer — see api/r/[slug]/route.ts.
+ */
+export async function renameRoom(
+  slug: string,
+  name: string | null
+): Promise<Room | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const trimmed = name?.trim() || null;
+    const result = await p.query<RoomRow>(
+      `UPDATE rooms SET name = $2
+        WHERE slug = $1 AND closed_at IS NULL
+        RETURNING *`,
+      [slug, trimmed]
+    );
+    return result.rows[0] ? toRoom(result.rows[0]) : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to rename room:", err);
+    return null;
+  }
+}
+
+/**
+ * Changes the length a room proposes by default. Calls already held in the
+ * room are untouched — each one's duration was fixed when it was created, and
+ * nothing may reach back and alter a call that has already happened.
+ */
+export async function setRoomDefaultDuration(
+  slug: string,
+  defaultDurationSeconds: number
+): Promise<Room | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query<RoomRow>(
+      `UPDATE rooms SET default_duration_seconds = $2
+        WHERE slug = $1 AND closed_at IS NULL
+        RETURNING *`,
+      [slug, defaultDurationSeconds]
+    );
+    return result.rows[0] ? toRoom(result.rows[0]) : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to set room default duration:", err);
+    return null;
   }
 }
 

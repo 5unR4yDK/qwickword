@@ -20,9 +20,8 @@ kit the maintainer commissioned (2026-07-25).
 - `wordmark-color-on-dark.svg` / `.png`: same, on the `#292929` background.
 - `wordmark-black.svg` / `.png`, `wordmark-white.svg` / `.png`: single-color
   variants for light/dark contexts.
-- `icon-32.png`, `icon-180.png`, `icon-196.png`: the standalone cursive "Q"
-  mark at standard favicon/touch-icon sizes (browser favicon, Apple touch
-  icon, Android/Chrome icon).
+- `wordmark-only.svg` / `wordmark-only-black.svg`: the script alone, without
+  the tagline. What the site actually renders on every page.
 - `social-card-square.png`: 1000x1000 wordmark + tagline on the dark
   background, sized for Twitter's "summary" card format.
 - `qmark.png`: the current favicon mark, a cyan rounded square with a
@@ -33,10 +32,17 @@ kit the maintainer commissioned (2026-07-25).
 ## What's wired up already
 
 - `src/app/icon.png`, `apple-icon.png`, `favicon.ico`: generated from
-  `qmark.png` above, not from `icon-196.png` / `icon-180.png`. Those two
-  are kept here as the earlier cursive-wordmark icon variant, superseded
-  for the actual favicon but left in place in case they're useful
-  elsewhere.
+  `qmark.png` above.
+- The iPhone app uses the same two marks: `qmark.png` as its app icon, and
+  `wordmark-color.png` cropped to the script alone. See
+  `QwickwordMobile/scripts/prepare-brand.mjs`.
+
+## Removed
+
+`icon-32.png`, `icon-180.png`, `icon-196.png` — a standalone cursive "Q"
+monogram, generated rather than commissioned, and not part of this identity.
+Deleted 31 July 2026. Nothing referenced them. The mark is the `q` in
+`qmark.png`; there is no separate monogram.
 - `src/app/opengraph-image.png`: a 1200x630 composition of
   `wordmark-color-on-dark.png` centered on the `#292929` background, used for
   link previews (Slack, iMessage, Twitter/X, etc.) via Next.js's

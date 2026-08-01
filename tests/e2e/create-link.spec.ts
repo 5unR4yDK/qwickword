@@ -244,6 +244,30 @@ test("native share opens the supported share sheet with truthful copy", async ({
   expect(payload?.url).toMatch(/^http:\/\/127\.0\.0\.1:3100\//);
 });
 
+test("the resolve endpoint validates its room name and refuses to guess", async ({
+  request,
+}) => {
+  // Exists for the native app, which receives a bare qwickword.com/<slug> link
+  // and has no server-rendered page to read the join details from.
+  for (const bad of ["has/slash", "has%20space", ""]) {
+    const res = await request.get(
+      `/api/rooms/${encodeURIComponent(bad)}/resolve`
+    );
+    // An empty or slash-bearing name never reaches the handler as a single
+    // path segment; either way it must not resolve to a room.
+    expect(res.status()).not.toBe(200);
+  }
+
+  // Mock mode has no persisted room to resolve, so the route says so rather
+  // than fabricating a Daily URL that would fail later at connect time.
+  const res = await request.get("/api/rooms/some-room/resolve");
+  expect(res.status()).toBe(503);
+  const body = await res.json();
+  expect(body.error).toContain("mock mode");
+  // Whatever it returns, it must never carry credentials.
+  expect(JSON.stringify(body)).not.toMatch(/apiKey|api_key|Bearer/i);
+});
+
 test("the end-stats endpoint validates its reason", async ({ request }) => {
   // DATABASE_URL is blank here, so the write no-ops — this pins the route's
   // contract, not the database behaviour.

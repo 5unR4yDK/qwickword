@@ -9,6 +9,7 @@ import {
   MAX_DURATION_MINUTES,
   MIN_DURATION_MINUTES,
 } from "@/lib/duration";
+import MakeRoomAction from "./make-room-action";
 
 type CreateRoomResponse = {
   url: string;
@@ -493,6 +494,9 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
           Set a time limit, share the link. When the timer hits zero, the call
           ends.
         </p>
+        {/* Second, and quiet. A one-off Qwickword stays one tap; a room answers
+            a different question and must not compete with it. */}
+        <MakeRoomAction />
         <FooterLinks />
       </div>
     </div>
