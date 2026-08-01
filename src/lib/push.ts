@@ -8,7 +8,9 @@ import { Pool } from "pg";
 import { hashSessionToken } from "./identity-core";
 import {
   callStartedMessage,
+  isExpoPushReceiptId,
   isExpoPushToken,
+  pushReceiptOutcome,
   type PushPlatform,
 } from "./push-core";
 
@@ -115,6 +117,165 @@ export async function revokePushTokensForSession(
 
 type Target = { id: string; token: string };
 
+type ExpoPushTicket = {
+  status?: string;
+  id?: string;
+  details?: { error?: string };
+};
+
+async function savePushReceipts(
+  targets: Target[],
+  tickets: ExpoPushTicket[]
+): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  const accepted = tickets.flatMap((ticket, index) =>
+    ticket.status === "ok" && isExpoPushReceiptId(ticket.id) && targets[index]
+      ? [{ receiptId: ticket.id, pushTokenId: targets[index].id }]
+      : []
+  );
+  if (accepted.length === 0) return;
+  try {
+    await p.query(
+      `INSERT INTO push_receipts (receipt_id, push_token_id)
+       SELECT * FROM unnest($1::text[], $2::bigint[])
+       ON CONFLICT (receipt_id) DO NOTHING`,
+      [
+        accepted.map((item) => item.receiptId),
+        accepted.map((item) => item.pushTokenId),
+      ]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to store Expo push receipts:", err);
+  }
+}
+
+async function drainMaturePushReceipts(): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    // Expo recommends checking around fifteen minutes after send and clears
+    // receipts after twenty-four hours. Missing receipts remain pending until
+    // a later send retries them; old ones are closed honestly as expired.
+    await p.query(
+      `UPDATE push_receipts
+          SET checked_at = now(), status = 'expired'
+        WHERE checked_at IS NULL
+          AND created_at <= now() - interval '24 hours'`
+    );
+    const pending = await p.query<{
+      receipt_id: string;
+      push_token_id: string;
+    }>(
+      `SELECT receipt_id, push_token_id::text
+         FROM push_receipts
+        WHERE checked_at IS NULL
+          AND created_at <= now() - interval '15 minutes'
+        ORDER BY created_at
+        LIMIT 1000`
+    );
+    if (pending.rows.length === 0) return;
+
+    const response = await fetch(
+      "https://exp.host/--/api/v2/push/getReceipts",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ids: pending.rows.map((row) => row.receipt_id),
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!response.ok) {
+      console.error(
+        `[Qwickword] Expo receipt request failed (${response.status}).`
+      );
+      return;
+    }
+    const body = (await response.json()) as {
+      data?: Record<string, unknown>;
+    };
+    const receipts = body.data ?? {};
+    const resolved = pending.rows.flatMap((row) => {
+      const outcome = pushReceiptOutcome(receipts[row.receipt_id]);
+      return outcome ? [{ ...row, ...outcome }] : [];
+    });
+    if (resolved.length === 0) return;
+
+    const client = await p.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `UPDATE push_receipts AS receipt
+            SET checked_at = now(),
+                status = incoming.status,
+                error_code = incoming.error_code
+           FROM unnest($1::text[], $2::text[], $3::text[])
+             AS incoming(receipt_id, status, error_code)
+          WHERE receipt.receipt_id = incoming.receipt_id
+            AND receipt.checked_at IS NULL`,
+        [
+          resolved.map((item) => item.receipt_id),
+          resolved.map((item) => item.status),
+          resolved.map((item) => item.errorCode),
+        ]
+      );
+      const deadTokenIds = resolved
+        .filter((item) => item.errorCode === "DeviceNotRegistered")
+        .map((item) => item.push_token_id);
+      if (deadTokenIds.length > 0) {
+        await client.query(
+          `UPDATE push_tokens
+              SET revoked_at = COALESCE(revoked_at, now())
+            WHERE id = ANY($1::bigint[])`,
+          [deadTokenIds]
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("[Qwickword] Failed to check Expo push receipts:", err);
+  }
+}
+
+async function sendExpoPushRequest(
+  messages: Array<ReturnType<typeof callStartedMessage>>
+): Promise<Response> {
+  let firstError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messages),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const transient = response.status === 429 || response.status >= 500;
+      if (!transient || attempt === 1) return response;
+    } catch (err) {
+      if (attempt === 1) throw err;
+      firstError = err;
+    }
+    // One bounded retry for the transient cases Expo documents. collapseId
+    // and tag ensure an accepted first attempt cannot become two visible call
+    // invitations if its response was lost in transit.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw firstError ?? new Error("Expo push request did not return a response.");
+}
+
 async function targetsForMutualCallContact(input: {
   callerId: string;
   recipientId: string;
@@ -170,6 +331,7 @@ export async function notifyMutualCallContact(input: {
   callName: string;
   durationSeconds: number;
 }): Promise<number> {
+  await drainMaturePushReceipts();
   const targets = await targetsForMutualCallContact(input);
   if (targets.length === 0) return 0;
 
@@ -183,25 +345,12 @@ export async function notifyMutualCallContact(input: {
   );
 
   try {
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(messages),
-      signal: AbortSignal.timeout(10_000),
-    });
+    const response = await sendExpoPushRequest(messages);
     if (!response.ok) {
       console.error(`[Qwickword] Expo push request failed (${response.status}).`);
       return 0;
     }
-    const body = (await response.json()) as {
-      data?: Array<{
-        status?: string;
-        details?: { error?: string };
-      }>;
-    };
+    const body = (await response.json()) as { data?: ExpoPushTicket[] };
     const tickets = Array.isArray(body.data) ? body.data : [];
     const deadIds = tickets.flatMap((ticket, index) =>
       ticket.status === "error" && ticket.details?.error === "DeviceNotRegistered"
@@ -216,6 +365,7 @@ export async function notifyMutualCallContact(input: {
         [deadIds]
       );
     }
+    await savePushReceipts(targets, tickets);
     return tickets.filter((ticket) => ticket.status === "ok").length;
   } catch (err) {
     console.error("[Qwickword] Failed to send call push notifications:", err);

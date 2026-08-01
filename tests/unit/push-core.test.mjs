@@ -2,9 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   callStartedMessage,
+  isExpoPushReceiptId,
   isExpoPushToken,
   isPushPlatform,
   isUserId,
+  pushReceiptOutcome,
 } from "../../src/lib/push-core.ts";
 
 test("only Expo push tokens and supported app platforms register", () => {
@@ -19,6 +21,23 @@ test("only Expo push tokens and supported app platforms register", () => {
   assert.equal(isUserId("not-a-user"), false);
 });
 
+test("receipt responses are bounded and parsed without trusting Expo JSON", () => {
+  assert.equal(isExpoPushReceiptId("ticket-123"), true);
+  assert.equal(isExpoPushReceiptId(""), false);
+  assert.deepEqual(pushReceiptOutcome({ status: "ok" }), {
+    status: "ok",
+    errorCode: null,
+  });
+  assert.deepEqual(
+    pushReceiptOutcome({
+      status: "error",
+      details: { error: "DeviceNotRegistered" },
+    }),
+    { status: "error", errorCode: "DeviceNotRegistered" }
+  );
+  assert.equal(pushReceiptOutcome({ status: "waiting" }), null);
+});
+
 test("a call push is actionable and contains no identity address", () => {
   const message = callStartedMessage({
     to: "ExpoPushToken[abc]",
@@ -28,6 +47,9 @@ test("a call push is actionable and contains no identity address", () => {
   });
   assert.equal(message.title, "Alex Smith is starting a Qwickword");
   assert.equal(message.body, "5 min · tap to join");
+  assert.equal(message.ttl, 300);
+  assert.equal(message.collapseId, "quiet-otter");
+  assert.equal(message.tag, "quiet-otter");
   assert.deepEqual(message.data, {
     type: "call-started",
     callerName: "Alex Smith",

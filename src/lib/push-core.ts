@@ -30,6 +30,31 @@ export function isUserId(value: unknown): value is string {
   );
 }
 
+export function isExpoPushReceiptId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 200;
+}
+
+export type PushReceiptOutcome =
+  | { status: "ok"; errorCode: null }
+  | { status: "error"; errorCode: string | null };
+
+export function pushReceiptOutcome(value: unknown): PushReceiptOutcome | null {
+  if (typeof value !== "object" || value === null) return null;
+  const receipt = value as {
+    status?: unknown;
+    details?: { error?: unknown };
+  };
+  if (receipt.status === "ok") return { status: "ok", errorCode: null };
+  if (receipt.status !== "error") return null;
+  return {
+    status: "error",
+    errorCode:
+      typeof receipt.details?.error === "string"
+        ? receipt.details.error.slice(0, 100)
+        : null,
+  };
+}
+
 /**
  * The complete actionable payload. It deliberately contains no identity
  * address, contact label, analytics id, or owner credential.
@@ -65,6 +90,9 @@ export function callStartedMessage(input: {
     sound: "default" as const,
     channelId: "qwickword-calls",
     priority: "high" as const,
+    ttl: input.durationSeconds,
+    collapseId: input.room,
+    tag: input.room,
     title: `${data.callerName} is starting a Qwickword`,
     body: `${duration} · tap to join`,
     data,
