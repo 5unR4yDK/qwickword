@@ -155,7 +155,59 @@ function NetworkStatus({
   );
 }
 
-function LeftScreen({ preStart }: { preStart: boolean }) {
+function ProblemReportButton({
+  onReport,
+}: {
+  onReport: () => Promise<string | null>;
+}) {
+  const [reference, setReference] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const requestReference = useCallback(async () => {
+    if (requesting || reference) return;
+    setRequesting(true);
+    setFailed(false);
+    const result = await onReport();
+    setReference(result);
+    setFailed(result === null);
+    setRequesting(false);
+  }, [onReport, reference, requesting]);
+
+  if (reference) {
+    return (
+      <p className="text-xs text-white/55" role="status">
+        Support code: <span className="font-mono text-white/80">{reference}</span>
+        {" · kept for 14 days"}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => void requestReference()}
+        disabled={requesting}
+        className="cursor-pointer text-xs text-white/50 underline decoration-white/25 underline-offset-4 transition-colors hover:text-white/75 disabled:cursor-wait"
+      >
+        {requesting ? "Creating support code…" : "Report a timing problem"}
+      </button>
+      {failed && (
+        <p className="text-xs text-white/45" role="status">
+          A support code could not be created. Please try again.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LeftScreen({
+  preStart,
+  onReport,
+}: {
+  preStart: boolean;
+  onReport: () => Promise<string | null>;
+}) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
       <p className="text-lg font-medium">You&apos;ve left this call.</p>
@@ -170,11 +222,12 @@ function LeftScreen({ preStart }: { preStart: boolean }) {
       >
         Create a new one
       </Link>
+      <ProblemReportButton onReport={onReport} />
     </div>
   );
 }
 
-function EndedScreen() {
+function EndedScreen({ onReport }: { onReport: () => Promise<string | null> }) {
   return (
     <div className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white">
       {/* Faint ambient glow behind the content. */}
@@ -197,11 +250,20 @@ function EndedScreen() {
       >
         Create a new one
       </Link>
+      <div className="relative z-10">
+        <ProblemReportButton onReport={onReport} />
+      </div>
     </div>
   );
 }
 
-function FailedScreen({ message }: { message: string | null }) {
+function FailedScreen({
+  message,
+  onReport,
+}: {
+  message: string | null;
+  onReport: () => Promise<string | null>;
+}) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
       <p className="text-lg font-medium">This call ended unexpectedly.</p>
@@ -214,6 +276,7 @@ function FailedScreen({ message }: { message: string | null }) {
       >
         Create a new one
       </Link>
+      <ProblemReportButton onReport={onReport} />
     </div>
   );
 }
@@ -300,6 +363,33 @@ export default function CallRoom({
     () => new CallDiagnostics(room, diagnosticSink, buildVersion),
     [buildVersion, diagnosticSink, room]
   );
+
+  const requestIncidentReference = useCallback(async () => {
+    diagnostics.record("problem_report.requested", {
+      phase: stateRef.current.phase,
+      authoritativeExpMs: stateRef.current.expiresAt ?? undefined,
+    });
+    diagnosticSink.flush();
+    try {
+      const response = await fetch(
+        `/api/rooms/${encodeURIComponent(room)}/incident`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientCallSessionId: diagnostics.sessionId,
+            surface: "web",
+            appVersion: buildVersion,
+          }),
+        }
+      );
+      if (!response.ok) return null;
+      const body = (await response.json()) as { reference?: unknown };
+      return typeof body.reference === "string" ? body.reference : null;
+    } catch {
+      return null;
+    }
+  }, [buildVersion, diagnosticSink, diagnostics, room]);
 
   useEffect(() => {
     diagnostics.record("call.opened", {
@@ -953,11 +1043,23 @@ export default function CallRoom({
   }, []);
 
   if (state.phase === "ending" || state.phase === "ended" || state.phase === "failed") {
-    if (state.endReason === "completed") return <EndedScreen />;
-    if (state.endReason === "left_early" || state.endReason === "abandoned") {
-      return <LeftScreen preStart={state.endReason === "abandoned"} />;
+    if (state.endReason === "completed") {
+      return <EndedScreen onReport={requestIncidentReference} />;
     }
-    return <FailedScreen message={state.error} />;
+    if (state.endReason === "left_early" || state.endReason === "abandoned") {
+      return (
+        <LeftScreen
+          preStart={state.endReason === "abandoned"}
+          onReport={requestIncidentReference}
+        />
+      );
+    }
+    return (
+      <FailedScreen
+        message={state.error}
+        onReport={requestIncidentReference}
+      />
+    );
   }
 
   if (mockMode) {

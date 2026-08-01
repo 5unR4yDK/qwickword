@@ -82,6 +82,10 @@ export class CallDiagnostics {
     this.clientCallSessionId = idFactory();
   }
 
+  get sessionId(): string {
+    return this.clientCallSessionId;
+  }
+
   record(eventName: DiagnosticEventName, details: DiagnosticDetails = {}): void {
     try {
       this.sink({

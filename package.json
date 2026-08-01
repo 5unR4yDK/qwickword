@@ -22,6 +22,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "incident": "node scripts/incident-report.mjs",
+    "verify:diagnostics-db": "node scripts/verify-diagnostics-db.mjs",
     "indexnow": "node scripts/submit-indexnow.mjs",
     "test:e2e": "playwright test",
     "test:e2e:network": "playwright test tests/e2e/network-conditions.spec.ts tests/e2e/network-degradation.spec.ts",

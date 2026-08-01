@@ -168,7 +168,7 @@ export default function AboutPage() {
                 Privacy policy
               </h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-500">
-                Effective 1 August 2026
+                Effective 2 August 2026
               </p>
             </div>
 
@@ -201,8 +201,12 @@ export default function AboutPage() {
                     </strong>{" "}
                     We store generated room names, chosen call lengths, room
                     names you provide, timestamps, sharing method, call status,
-                    and limited reliability measurements. Qwickword does not
-                    record or store call audio or video.
+                    and limited reliability measurements. For troubleshooting,
+                    we may temporarily keep anonymous per-call lifecycle and
+                    clock events plus a one-way representation of the video
+                    provider&apos;s session identifiers. We do not keep participant
+                    names or provider user IDs in that diagnostic record.
+                    Qwickword does not record or store call audio or video.
                   </li>
                   <li>
                     <strong className="font-semibold text-zinc-800 dark:text-zinc-200">
@@ -286,7 +290,9 @@ export default function AboutPage() {
                   kept while the account exists. You can permanently delete
                   your account and its linked server data from Settings in the
                   app. Device-only information remains until you clear it in
-                  the app or remove the app. We may retain de-identified
+                  the app or remove the app. Raw call diagnostics and support
+                  references are automatically deleted after 14 days. We may
+                  retain de-identified
                   operational records that no longer identify or link to your
                   account, and information required for security or legal
                   obligations.

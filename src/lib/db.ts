@@ -18,6 +18,8 @@
 // One row per created call; a slug that gets reused later simply inserts a
 // new row, and lookups take the most recent row for the name.
 import { Pool } from "pg";
+import { createHmac, randomBytes } from "node:crypto";
+import type { NormalizedDailyLifecycleEvent } from "./daily-webhook";
 
 let pool: Pool | null = null;
 
@@ -804,10 +806,6 @@ export type DiagnosticEventInput = {
   errorCategory: string | null;
 };
 
-let lastDiagnosticCleanupMs = 0;
-const DIAGNOSTIC_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
-const DIAGNOSTIC_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
-
 /**
  * Stores allowlisted, per-call lifecycle evidence in one database round trip.
  * The client supplies a bearer room slug; the insert resolves it to the latest
@@ -894,21 +892,193 @@ export async function recordDiagnosticEvents(
       [JSON.stringify(rows)]
     );
 
-    const now = Date.now();
-    if (now - lastDiagnosticCleanupMs >= DIAGNOSTIC_CLEANUP_INTERVAL_MS) {
-      lastDiagnosticCleanupMs = now;
-      void p
-        .query(
-          `DELETE FROM call_diagnostic_events
-            WHERE received_at < now() - ($1::bigint * interval '1 millisecond')`,
-          [DIAGNOSTIC_RETENTION_MS]
-        )
-        .catch((err) => {
-          console.error("[Qwickword] Failed to prune call diagnostics:", err);
-        });
-    }
   } catch (err) {
     console.error("[Qwickword] Failed to record call diagnostics:", err);
+  }
+}
+
+export type ProviderEventWriteOutcome =
+  | "stored"
+  | "duplicate"
+  | "unknown_call"
+  | "unavailable";
+
+/**
+ * Persists only the allowlisted projection of a verified Daily webhook.
+ * Provider session identifiers exist only in memory and are replaced with a
+ * call-scoped HMAC before the insert. The event ID is the idempotency key.
+ */
+export async function recordProviderLifecycleEvent(
+  event: NormalizedDailyLifecycleEvent,
+  diagnosticsHmacSecret: string
+): Promise<ProviderEventWriteOutcome> {
+  const p = getPool();
+  if (!p) return "unavailable";
+  try {
+    const resolved = await p.query<{ id: string | number }>(
+      `SELECT id
+         FROM calls
+        WHERE room_name = $1
+          AND created_at <= $2::timestamptz
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [event.room, new Date(event.providerTimestampMs)]
+    );
+    const call = resolved.rows[0];
+    if (!call) return "unknown_call";
+
+    const callId = Number(call.id);
+    const sessionHash = event.providerSessionId
+      ? createHmac(
+          "sha256",
+          Buffer.from(diagnosticsHmacSecret, "base64")
+        )
+          .update(`${callId}:${event.providerSessionId}`)
+          .digest("hex")
+      : null;
+    const result = await p.query(
+      `INSERT INTO call_provider_events (
+         provider_event_id, call_id, event_type, provider_timestamp,
+         provider_session_hash, joined_at, left_at, duration_seconds,
+         scheduled_eject_at, meeting_started_at, meeting_ended_at
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+       )
+       ON CONFLICT (provider_event_id) DO NOTHING
+       RETURNING provider_event_id`,
+      [
+        event.providerEventId,
+        callId,
+        event.eventType,
+        new Date(event.providerTimestampMs),
+        sessionHash,
+        event.joinedAtMs === null ? null : new Date(event.joinedAtMs),
+        event.leftAtMs === null ? null : new Date(event.leftAtMs),
+        event.durationSeconds,
+        event.scheduledEjectAtMs === null
+          ? null
+          : new Date(event.scheduledEjectAtMs),
+        event.meetingStartedAtMs === null
+          ? null
+          : new Date(event.meetingStartedAtMs),
+        event.meetingEndedAtMs === null
+          ? null
+          : new Date(event.meetingEndedAtMs),
+      ]
+    );
+    return result.rowCount === 1 ? "stored" : "duplicate";
+  } catch (err) {
+    console.error("[Qwickword] Failed to record provider lifecycle event:", err);
+    return "unavailable";
+  }
+}
+
+export async function createIncidentReference(options: {
+  room: string;
+  clientCallSessionId: string;
+  surface: "web" | "ios";
+  appVersion: string | null;
+}): Promise<string | null> {
+  const p = getPool();
+  if (!p) return null;
+  const reference = `QW-${randomBytes(6).toString("hex").toUpperCase()}`;
+  try {
+    const result = await p.query<{ reference: string }>(
+      `INSERT INTO call_incident_references (
+         reference, call_id, client_call_session_id, surface, app_version
+       )
+       SELECT $2, id, $3, $4, $5
+         FROM calls
+        WHERE room_name = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+       RETURNING reference`,
+      [
+        options.room,
+        reference,
+        options.clientCallSessionId,
+        options.surface,
+        options.appVersion,
+      ]
+    );
+    return result.rows[0]?.reference ?? null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to create incident reference:", err);
+    return null;
+  }
+}
+
+export type DiagnosticRetentionResult = {
+  clientEventsDeleted: number;
+  providerEventsDeleted: number;
+  startAttemptsDeleted: number;
+  incidentRefsDeleted: number;
+};
+
+/** Independently scheduled enforcement of the 14-day raw-evidence boundary. */
+export async function pruneExpiredDiagnostics(): Promise<DiagnosticRetentionResult> {
+  const p = getPool();
+  if (!p) throw new Error("database_unavailable");
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE diagnostic_retention_state
+          SET last_started_at = now()
+        WHERE singleton_id = 1`
+    );
+    const clientEvents = await client.query(
+      `DELETE FROM call_diagnostic_events
+        WHERE received_at < now() - interval '14 days'`
+    );
+    const providerEvents = await client.query(
+      `DELETE FROM call_provider_events
+        WHERE received_at < now() - interval '14 days'`
+    );
+    const startAttempts = await client.query(
+      `DELETE FROM call_countdown_attempts
+        WHERE created_at < now() - interval '14 days'`
+    );
+    const incidentRefs = await client.query(
+      `DELETE FROM call_incident_references
+        WHERE expires_at <= now()`
+    );
+    const result = {
+      clientEventsDeleted: clientEvents.rowCount ?? 0,
+      providerEventsDeleted: providerEvents.rowCount ?? 0,
+      startAttemptsDeleted: startAttempts.rowCount ?? 0,
+      incidentRefsDeleted: incidentRefs.rowCount ?? 0,
+    };
+    await client.query(
+      `UPDATE diagnostic_retention_state
+          SET last_succeeded_at = now(),
+              last_error_category = NULL,
+              last_client_events_deleted = $1,
+              last_provider_events_deleted = $2,
+              last_start_attempts_deleted = $3,
+              last_incident_refs_deleted = $4
+        WHERE singleton_id = 1`,
+      [
+        result.clientEventsDeleted,
+        result.providerEventsDeleted,
+        result.startAttemptsDeleted,
+        result.incidentRefsDeleted,
+      ]
+    );
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    await p
+      .query(
+        `UPDATE diagnostic_retention_state
+            SET last_failed_at = now(), last_error_category = 'database_error'
+          WHERE singleton_id = 1`
+      )
+      .catch(() => {});
+    throw err;
+  } finally {
+    client.release();
   }
 }
 
