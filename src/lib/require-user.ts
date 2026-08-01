@@ -27,6 +27,13 @@ export function bearerToken(request: NextRequest): string | null {
   return match ? match[1] : null;
 }
 
+/** The session credential, regardless of which client transport carried it. */
+export function sessionTokenFrom(request: NextRequest): string | null {
+  return (
+    bearerToken(request) ?? request.cookies.get(SESSION_COOKIE)?.value ?? null
+  );
+}
+
 /**
  * The signed-in caller, or null.
  *
@@ -35,9 +42,7 @@ export function bearerToken(request: NextRequest): string | null {
  * should not override it.
  */
 export async function callerFrom(request: NextRequest): Promise<User | null> {
-  const token =
-    bearerToken(request) ?? request.cookies.get(SESSION_COOKIE)?.value ?? null;
-  return userForToken(token);
+  return userForToken(sessionTokenFrom(request));
 }
 
 /** Thirty days. A session is per-device and revocable, so this can be long. */

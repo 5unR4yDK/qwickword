@@ -311,8 +311,15 @@ export async function revokeSession(token: string): Promise<void> {
   if (!p) return;
   try {
     await p.query(
-      `UPDATE sessions SET revoked_at = COALESCE(revoked_at, now())
-        WHERE token_hash = $1`,
+      `WITH revoked_session AS (
+         UPDATE sessions SET revoked_at = COALESCE(revoked_at, now())
+          WHERE token_hash = $1
+          RETURNING id
+       )
+       UPDATE push_tokens
+          SET revoked_at = COALESCE(revoked_at, now())
+        WHERE session_id IN (SELECT id FROM revoked_session)
+          AND revoked_at IS NULL`,
       [hashSessionToken(token)]
     );
   } catch (err) {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import {
   DailyRoomError,
   MAX_DURATION_SECONDS,
@@ -6,6 +6,10 @@ import {
   startRoomCountdown,
 } from "@/lib/daily-rooms";
 import { recordCallStarted } from "@/lib/db";
+import { recordParticipant } from "@/lib/contacts";
+import { notifyMutualCallContact } from "@/lib/push";
+import { isUserId } from "@/lib/push-core";
+import { callerFrom } from "@/lib/require-user";
 
 /**
  * Starts the real countdown for a room (see the design note above
@@ -22,6 +26,7 @@ export const dynamic = "force-dynamic";
 
 type StartRoomBody = {
   durationSeconds?: unknown;
+  recipientUserId?: unknown;
 };
 
 export async function POST(
@@ -53,10 +58,31 @@ export async function POST(
 
   try {
     const status = await startRoomCountdown(room, durationSeconds);
-    // Stats logging (see src/lib/db.ts) — fire-and-forget. No-op if this
-    // room was never recorded in the first place (mock rooms), since the
-    // UPDATE simply matches zero rows.
-    void recordCallStarted(room);
+    // Claiming the first recorded start also deduplicates notification sends
+    // when participant events and the manual action race. A database failure
+    // never affects Daily's already-enforced countdown; it only skips push.
+    const firstRecordedStart = await recordCallStarted(room);
+    const recipientUserId = isUserId(body.recipientUserId)
+      ? body.recipientUserId
+      : null;
+    const user = recipientUserId
+      ? await callerFrom(request)
+      : null;
+    if (firstRecordedStart && user && recipientUserId) {
+      // The authenticated start request is also authoritative enough to record
+      // the caller's participation. This removes a race with the app's
+      // best-effort participation POST without changing guest behaviour.
+      await recordParticipant(room, user.id);
+      after(async () => {
+        await notifyMutualCallContact({
+          callerId: user.id,
+          callerName: user.displayName,
+          recipientId: recipientUserId,
+          callName: room,
+          durationSeconds,
+        });
+      });
+    }
     return NextResponse.json(status, { status: 200 });
   } catch (err) {
     if (err instanceof DailyRoomError) {

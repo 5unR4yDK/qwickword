@@ -123,21 +123,24 @@ export async function getRecordedDurationSeconds(
  * POST /api/rooms/[room]/start right after `startRoomCountdown` succeeds —
  * that route is called from two places (manual "Start now", and every
  * connected tab's own auto-start detection) and is itself idempotent, so
- * this mirrors that: `COALESCE(started_at, now())` only ever sets it once,
- * no matter how many times this is called for the same room.
+ * this mirrors that with an atomic first-write claim. The boolean result is
+ * used to deduplicate the one push notification for this call; a repeated
+ * start still returns Daily's existing expiry but cannot ring twice.
  */
-export async function recordCallStarted(roomName: string): Promise<void> {
+export async function recordCallStarted(roomName: string): Promise<boolean> {
   const p = getPool();
-  if (!p) return;
+  if (!p) return false;
   try {
     // Scoped to the latest row for the name — with per-call rows, an old
     // call that once used the same (reused) slug must not be touched.
-    await p.query(
-      `UPDATE calls SET started_at = COALESCE(started_at, now())
+    const result = await p.query(
+      `UPDATE calls SET started_at = now()
        WHERE id = (
          SELECT id FROM calls WHERE room_name = $1
          ORDER BY created_at DESC LIMIT 1
-       )`,
+       )
+         AND started_at IS NULL
+       RETURNING id`,
       [roomName]
     );
     void appendEvent({
@@ -145,8 +148,10 @@ export async function recordCallStarted(roomName: string): Promise<void> {
       callName: roomName,
       dedupeKey: `call.started:${roomName}`,
     });
+    return result.rowCount === 1;
   } catch (err) {
     console.error("[Qwickword] Failed to record call-started stats:", err);
+    return false;
   }
 }
 
