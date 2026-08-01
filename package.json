@@ -25,7 +25,8 @@
     "indexnow": "node scripts/submit-indexnow.mjs",
     "test:e2e": "playwright test",
     "test:e2e:network": "playwright test tests/e2e/network-conditions.spec.ts tests/e2e/network-degradation.spec.ts",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "test:unit": "node --test --experimental-strip-types \"tests/unit/*.test.mjs\""
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",
