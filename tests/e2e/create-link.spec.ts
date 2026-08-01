@@ -175,6 +175,78 @@ test("the telemetry endpoint accepts good timings and drops bad ones", async ({ 
   expect((await junk.json()).accepted).toBe(0);
 });
 
+test("the telemetry endpoint accepts bounded call diagnostics and drops malformed events", async ({ request }) => {
+  const now = Date.now();
+  const res = await request.post("/api/telemetry", {
+    data: {
+      events: [
+        {
+          schemaVersion: 1,
+          eventId: "11111111-1111-4111-8111-111111111111",
+          room: "some-room",
+          clientCallSessionId: "22222222-2222-4222-8222-222222222222",
+          sequence: 0,
+          eventName: "countdown.sync_applied",
+          surface: "web",
+          clientWallTimeMs: now,
+          clientMonotonicMs: 1234.5,
+          serverReceivedAtMs: now - 100,
+          serverNowMs: now - 20,
+          rttMs: 120,
+          serverProcessingMs: 80,
+          clockOffsetMs: 0,
+          authoritativeExpMs: now + 60_000,
+          phase: "live",
+          source: "start_response",
+          participantCount: 2,
+          // Extra input is ignored rather than stored because ingestion maps
+          // only its explicit allowlist.
+          contactName: "must not be stored",
+        },
+        {
+          schemaVersion: 1,
+          eventId: "not-a-uuid",
+          room: "some-room",
+          clientCallSessionId: "also-not-a-uuid",
+          sequence: 1,
+          eventName: "anything-goes",
+          surface: "web",
+          clientWallTimeMs: now,
+          clientMonotonicMs: 1,
+        },
+      ],
+    },
+  });
+
+  expect(res.status()).toBe(200);
+  const body = await res.json();
+  expect(body.accepted).toBe(1);
+  expect(body.eventsAccepted).toBe(1);
+  expect(body.timingsAccepted).toBe(0);
+});
+
+test("countdown responses carry a server timing sample", async ({ request }) => {
+  const createdResponse = await request.post("/api/rooms", {
+    data: { durationSeconds: 60 },
+  });
+  expect(createdResponse.status()).toBe(200);
+  const created = await createdResponse.json();
+
+  const startedResponse = await request.post(
+    `/api/rooms/${created.name}/start`,
+    { data: { durationSeconds: 60, source: "manual_start" } }
+  );
+  expect(startedResponse.status()).toBe(200);
+  const started = await startedResponse.json();
+  expect(started.started).toBe(true);
+  expect(typeof started.exp).toBe("number");
+  expect(typeof started.serverReceivedAtMs).toBe("number");
+  expect(typeof started.serverNowMs).toBe("number");
+  expect(started.serverNowMs).toBeGreaterThanOrEqual(
+    started.serverReceivedAtMs
+  );
+});
+
 test("the share-stats endpoint validates its channel", async ({ request }) => {
   for (const via of ["native", "copy", "email"]) {
     const good = await request.post("/api/rooms/some-room/shared", {

@@ -234,10 +234,10 @@ export async function createHardExpiryRoom(
  * from Daily and, if it hasn't already been started (see
  * `isCountdownStarted`), sets `exp = now + durationSeconds` — the actual,
  * server-enforced hard cutoff. If it's already started, this is a no-op that
- * echoes the existing `exp` back, which is what makes it safe to call from
- * both triggers (manual "Start now", and every connected client's own
- * daily-js detecting a second participant) without a race resetting the
- * clock — whichever trigger fires first wins.
+ * echoes the existing `exp` back. Cross-request single-flight is owned by
+ * `startAuthoritativeCountdown` in countdown-start.ts; this function is the
+ * low-level Daily GET/PATCH used only by that winner (or as a graceful
+ * database-unavailable fallback).
  *
  * Mock mode has no persisted room to check, so it always "starts" fresh —
  * documented limitation, consistent with mock mode never having a real

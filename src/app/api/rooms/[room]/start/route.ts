@@ -3,9 +3,12 @@ import {
   DailyRoomError,
   MAX_DURATION_SECONDS,
   MIN_DURATION_SECONDS,
-  startRoomCountdown,
 } from "@/lib/daily-rooms";
-import { recordCallStarted } from "@/lib/db";
+import {
+  recordCallStarted,
+  type CountdownStartSource,
+} from "@/lib/db";
+import { startAuthoritativeCountdown } from "@/lib/countdown-start";
 import { recordParticipant } from "@/lib/contacts";
 import { notifyMutualCallContact } from "@/lib/push";
 import { isUserId } from "@/lib/push-core";
@@ -27,12 +30,16 @@ export const dynamic = "force-dynamic";
 type StartRoomBody = {
   durationSeconds?: unknown;
   recipientUserId?: unknown;
+  source?: unknown;
 };
+
+const CLIENT_START_SOURCES = ["second_participant", "manual_start"] as const;
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> }
 ) {
+  const serverReceivedAtMs = Date.now();
   const { room } = await params;
 
   let body: StartRoomBody;
@@ -57,7 +64,16 @@ export async function POST(
   }
 
   try {
-    const status = await startRoomCountdown(room, durationSeconds);
+    const source: CountdownStartSource =
+      typeof body.source === "string" &&
+      (CLIENT_START_SOURCES as readonly string[]).includes(body.source)
+        ? (body.source as (typeof CLIENT_START_SOURCES)[number])
+        : "unknown";
+    const status = await startAuthoritativeCountdown(
+      room,
+      durationSeconds,
+      source
+    );
     // Claiming the first recorded start also deduplicates notification sends
     // when participant events and the manual action race. A database failure
     // never affects Daily's already-enforced countdown; it only skips push.
@@ -83,7 +99,10 @@ export async function POST(
         });
       });
     }
-    return NextResponse.json(status, { status: 200 });
+    return NextResponse.json(
+      { ...status, serverReceivedAtMs, serverNowMs: Date.now() },
+      { status: 200 }
+    );
   } catch (err) {
     if (err instanceof DailyRoomError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -45,6 +45,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ room: string }> }
 ) {
+  const serverReceivedAtMs = Date.now();
   const { room } = await params;
 
   if (!isPlausibleRoomName(room)) {
@@ -83,6 +84,8 @@ export async function GET(
         durationSeconds,
         started: status.started,
         exp: status.exp,
+        serverReceivedAtMs,
+        serverNowMs: Date.now(),
       },
       { status: 200 }
     );

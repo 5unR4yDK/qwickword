@@ -3,10 +3,10 @@ import {
   DailyRoomError,
   getRoomPresence,
   getRoomStatus,
-  startRoomCountdown,
 } from "@/lib/daily-rooms";
+import { startAuthoritativeCountdown } from "@/lib/countdown-start";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
-import { recordCallFirstJoined } from "@/lib/db";
+import { recordCallFirstJoined, recordCallStarted } from "@/lib/db";
 import {
   CREATED_ROOM_COOKIE,
   PARENT_ROOM_COOKIE,
@@ -59,6 +59,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ room: string }> }
 ) {
+  const serverReceivedAtMs = Date.now();
   const { room } = await params;
   const fallbackExpParam = request.nextUrl.searchParams.get("fallbackExp");
   const fallbackExp = fallbackExpParam ? Number(fallbackExpParam) : NaN;
@@ -110,15 +111,24 @@ export async function GET(
     }
 
     if (!status.started && hasValidDuration && presentCount !== null && presentCount >= 2) {
-      // Server-side auto-start fallback — see this file's top comment.
-      // startRoomCountdown is itself idempotent/race-safe (re-checks the
-      // room's live exp before patching), so it's safe to call here even if
-      // a client-side trigger fires in the same instant.
-      status = await startRoomCountdown(room, durationSeconds);
+      // Server-side auto-start fallback — see this file's top comment. The
+      // database claim chooses one provider PATCH even when this races a
+      // participant-triggered or manual start request.
+      status = await startAuthoritativeCountdown(
+        room,
+        durationSeconds,
+        "status_backstop"
+      );
+      await recordCallStarted(room);
     }
 
     const response = NextResponse.json(
-      { ...status, presentCount },
+      {
+        ...status,
+        presentCount,
+        serverReceivedAtMs,
+        serverNowMs: Date.now(),
+      },
       { status: 200 }
     );
     if (presentCount !== null && presentCount >= 1) {

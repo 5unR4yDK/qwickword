@@ -160,6 +160,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function RoomPage({ params, searchParams }: Props) {
   const { room } = await params;
   const { exp: rawExp, d: rawDuration } = await searchParams;
+  const buildVersion = (
+    process.env.VERCEL_GIT_COMMIT_SHA ??
+    process.env.npm_package_version ??
+    "development"
+  ).slice(0, 64);
   const expParam = Array.isArray(rawExp) ? rawExp[0] : rawExp;
   const linkExp = expParam ? Number(expParam) : NaN;
   const hasValidLinkExp = Number.isFinite(linkExp) && linkExp > 0;
@@ -205,6 +210,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
           initialRemainingMs={remainingMsUntil(linkExp)}
           mockMode={mockMode}
           joinUrl={null}
+          buildVersion={buildVersion}
         />
       </div>
     );
@@ -297,6 +303,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
         initialRemainingMs={initialRemainingMs}
         mockMode={mockMode}
         joinUrl={joinUrl}
+        buildVersion={buildVersion}
       />
     </div>
   );

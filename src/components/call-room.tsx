@@ -56,6 +56,19 @@ import {
   type NetworkMediaMode,
 } from "@/lib/network-degradation";
 import { createHttpTimingSink, Timings } from "@/lib/telemetry";
+import {
+  CallDiagnostics,
+  createHttpDiagnosticSink,
+} from "@/lib/call-diagnostics";
+import {
+  createInitialServerClockAnchor,
+  createServerClockAnchor,
+  monotonicNowMs,
+  parseServerTimePayload,
+  serverNowFromAnchor,
+  type ClientTimeSample,
+  type ServerClockAnchor,
+} from "@/lib/server-clock";
 
 type Props = {
   room: string;
@@ -88,7 +101,10 @@ type Props = {
   initialRemainingMs: number;
   mockMode: boolean;
   joinUrl: string | null;
+  buildVersion: string;
 };
+
+type LiveSyncSource = "status_poll" | "foreground" | "reconnect";
 
 /**
  * Lives inside DailyProvider so it can use daily-react's participant-count
@@ -210,6 +226,7 @@ export default function CallRoom({
   initialRemainingMs,
   mockMode,
   joinUrl,
+  buildVersion,
 }: Props) {
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [state, dispatch] = useReducer(
@@ -232,6 +249,15 @@ export default function CallRoom({
   const [clockNowMs, setClockNowMs] = useState(() =>
     initialStarted ? exp * 1000 - initialRemainingMs : 0
   );
+  const clockAnchorRef = useRef<ServerClockAnchor | null>(
+    initialStarted
+      ? createInitialServerClockAnchor(
+          exp * 1000,
+          initialRemainingMs,
+          monotonicNowMs()
+        )
+      : null
+  );
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
@@ -241,10 +267,21 @@ export default function CallRoom({
   const teardownStartedRef = useRef(false);
   const startRequestRef = useRef(false);
   const reconnectOpenRef = useRef(false);
+  const hasRecordedClockSyncRef = useRef(false);
   const networkModeRef = useRef<NetworkMediaMode>(networkPolicy.mode);
+  const liveStatusRefreshRef = useRef<
+    ((source?: LiveSyncSource) => Promise<void>) | null
+  >(null);
   const appliedNetworkModeRef = useRef<NetworkMediaMode | null>(null);
   const networkMediaMemoryRef = useRef(INITIAL_NETWORK_MEDIA_MEMORY);
   const networkSettingsQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const synchronizedNowMs = useCallback(() => {
+    const anchor = clockAnchorRef.current;
+    return anchor
+      ? serverNowFromAnchor(anchor, monotonicNowMs())
+      : Date.now();
+  }, []);
 
   useEffect(() => {
     networkModeRef.current = networkPolicy.mode;
@@ -255,15 +292,47 @@ export default function CallRoom({
     []
   );
   const timings = useMemo(() => new Timings(room, timingSink), [room, timingSink]);
+  const diagnosticSink = useMemo(
+    () => createHttpDiagnosticSink({ endpoint: "/api/telemetry" }),
+    []
+  );
+  const diagnostics = useMemo(
+    () => new CallDiagnostics(room, diagnosticSink, buildVersion),
+    [buildVersion, diagnosticSink, room]
+  );
+
+  useEffect(() => {
+    diagnostics.record("call.opened", {
+      phase: stateRef.current.phase,
+      authoritativeExpMs: stateRef.current.expiresAt ?? undefined,
+    });
+    const handleVisibilityChange = () => {
+      diagnostics.record(
+        document.visibilityState === "visible"
+          ? "app.foregrounded"
+          : "app.backgrounded",
+        {
+          phase: stateRef.current.phase,
+          authoritativeExpMs: stateRef.current.expiresAt ?? undefined,
+        }
+      );
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [diagnostics]);
 
   const emit = useCallback(
     (event: CallEvent) => {
+      const current = stateRef.current;
       switch (event.type) {
         case "JOIN":
           timings.start("join_to_audio");
+          diagnostics.record("media.join_requested", { phase: current.phase });
           break;
         case "JOINED":
           timings.end("join_to_audio");
+          diagnostics.record("media.joined", { phase: current.phase });
           break;
         case "JOIN_FAILED":
           timings.cancel("join_to_audio");
@@ -273,22 +342,72 @@ export default function CallRoom({
             reconnectOpenRef.current = true;
             timings.start("reconnect");
           }
+          diagnostics.record("transport.reconnecting", {
+            phase: current.phase,
+          });
           break;
         case "TRANSPORT_RECOVERED":
           if (reconnectOpenRef.current) {
             reconnectOpenRef.current = false;
             timings.end("reconnect");
           }
+          diagnostics.record("transport.recovered", {
+            phase: current.phase,
+          });
+          break;
+        case "TRANSPORT_LEFT": {
+          const nearExpiry =
+            current.expiresAt !== null &&
+            event.at + 1500 >= current.expiresAt;
+          diagnostics.record("transport.left", {
+            phase: current.phase,
+            authoritativeExpMs: current.expiresAt ?? undefined,
+            endTrigger: nearExpiry ? "provider_eject" : "transport_failure",
+          });
+          break;
+        }
+        case "EXPIRED":
+          diagnostics.record("countdown.local_zero", {
+            phase: current.phase,
+            authoritativeExpMs: current.expiresAt ?? undefined,
+            endTrigger: "server_deadline",
+          });
+          diagnostics.record("call.end_requested", {
+            phase: current.phase,
+            authoritativeExpMs: current.expiresAt ?? undefined,
+            endTrigger: "server_deadline",
+          });
+          break;
+        case "LEAVE":
+          diagnostics.record("call.end_requested", {
+            phase: current.phase,
+            authoritativeExpMs: current.expiresAt ?? undefined,
+            endTrigger:
+              current.expiresAt === null
+                ? "abandoned_before_start"
+                : "manual_leave",
+          });
+          break;
+        case "TEARDOWN_COMPLETE":
+          diagnostics.record("call.teardown_completed", {
+            phase: current.phase,
+            authoritativeExpMs: current.expiresAt ?? undefined,
+          });
           break;
         case "FATAL":
           reconnectOpenRef.current = false;
           timings.cancel("join_to_audio");
           timings.cancel("reconnect");
+          diagnostics.record("call.failed", {
+            phase: current.phase,
+            endTrigger: "fatal_error",
+            errorCategory: "transport_fatal",
+          });
           break;
       }
       dispatch(event);
     },
-    [timings]
+    [diagnostics, timings]
   );
 
   // Stats only — never gates the call itself, so every failure path here is
@@ -352,13 +471,15 @@ export default function CallRoom({
     callObjectDestroyedRef.current = false;
 
     const handleJoined = () => emit({ type: "JOINED" });
-    const handleLeft = () => emit({ type: "TRANSPORT_LEFT", at: Date.now() });
+    const handleLeft = () =>
+      emit({ type: "TRANSPORT_LEFT", at: synchronizedNowMs() });
     const handleNetwork = (
       event: DailyEventObject<"network-connection">
     ) => {
       if (event.event === "interrupted") emit({ type: "TRANSPORT_LOST" });
       if (event.event === "connected") {
-        emit({ type: "TRANSPORT_RECOVERED", at: Date.now() });
+        emit({ type: "TRANSPORT_RECOVERED", at: synchronizedNowMs() });
+        void liveStatusRefreshRef.current?.("reconnect");
       }
     };
     const handleNetworkQuality = (
@@ -420,7 +541,7 @@ export default function CallRoom({
         });
       }
     };
-  }, [emit, mockMode]);
+  }, [emit, mockMode, synchronizedNowMs]);
 
   useEffect(() => {
     if (!callObject) return;
@@ -482,7 +603,8 @@ export default function CallRoom({
         }
         if (active) {
           setCallObject(null);
-          dispatch({ type: "TEARDOWN_COMPLETE" });
+          emit({ type: "TEARDOWN_COMPLETE" });
+          diagnosticSink.flush();
         }
       }
     })();
@@ -490,28 +612,86 @@ export default function CallRoom({
     return () => {
       active = false;
     };
-  }, [mockMode, state.phase, timingSink, timings]);
+  }, [diagnosticSink, emit, mockMode, state.phase, timingSink, timings]);
 
   useEffect(
     () => () => {
       timingSink.flush();
       timings.discard();
+      diagnosticSink.flush();
+      diagnosticSink.discard();
     },
-    [timingSink, timings]
+    [diagnosticSink, timingSink, timings]
   );
 
   const applyCountdownStarted = useCallback(
-    (expiresAtSeconds: number) => {
-      setClockNowMs(Date.now());
-      emit({
-        type: "COUNTDOWN_STARTED",
-        expiresAt: expiresAtSeconds * 1000,
-      });
+    (
+      raw: unknown,
+      sample: ClientTimeSample,
+      source: "start_response" | LiveSyncSource
+    ) => {
+      const payload = parseServerTimePayload(raw);
+      if (!payload) {
+        throw new Error("The server returned an invalid countdown clock.");
+      }
+      const anchor = createServerClockAnchor(payload, sample);
+      if (!anchor) {
+        throw new Error("The server returned an invalid countdown clock.");
+      }
+      const previousAnchor = clockAnchorRef.current;
+      const previousRemainingMs = previousAnchor
+        ? Math.max(
+            0,
+            previousAnchor.authoritativeExpMs -
+              serverNowFromAnchor(
+                previousAnchor,
+                sample.responseReceivedMonotonicMs
+              )
+          )
+        : null;
+      const nextRemainingMs = Math.max(
+        0,
+        anchor.authoritativeExpMs - anchor.estimatedServerAtReceiptMs
+      );
+      const deadlineShiftMs =
+        previousRemainingMs === null
+          ? Number.POSITIVE_INFINITY
+          : Math.abs(nextRemainingMs - previousRemainingMs);
+      clockAnchorRef.current = anchor;
+      setClockNowMs(
+        serverNowFromAnchor(anchor, sample.responseReceivedMonotonicMs)
+      );
+      const expiresAt = payload.exp * 1000;
+      if (stateRef.current.expiresAt !== expiresAt) {
+        emit({ type: "COUNTDOWN_STARTED", expiresAt });
+      }
+      if (
+        !hasRecordedClockSyncRef.current ||
+        previousAnchor?.authoritativeExpMs !== anchor.authoritativeExpMs ||
+        deadlineShiftMs > 1000
+      ) {
+        diagnostics.recordClockSync(
+          hasRecordedClockSyncRef.current
+            ? "countdown.sync_changed"
+            : "countdown.sync_applied",
+          anchor,
+          {
+            phase: stateRef.current.phase,
+            source,
+            participantCount: stateRef.current.participantCount,
+            serverReceivedAtMs: payload.serverReceivedAtMs,
+            serverNowMs: payload.serverNowMs,
+          }
+        );
+        hasRecordedClockSyncRef.current = true;
+      }
     },
-    [emit]
+    [diagnostics, emit]
   );
 
-  const triggerStart = useCallback(async () => {
+  const triggerStart = useCallback(async (
+    startSource: "manual_start" | "second_participant" = "manual_start"
+  ) => {
     if (
       startRequestRef.current ||
       stateRef.current.expiresAt !== null ||
@@ -520,20 +700,36 @@ export default function CallRoom({
       return;
     }
     startRequestRef.current = true;
+    diagnostics.record("countdown.start_requested", {
+      phase: stateRef.current.phase,
+      source: startSource,
+      participantCount: stateRef.current.participantCount,
+    });
     emit({ type: "COUNTDOWN_STARTING" });
     try {
+      const requestStartedMonotonicMs = monotonicNowMs();
       const response = await fetch(`/api/rooms/${room}/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationSeconds }),
+        body: JSON.stringify({ durationSeconds, source: startSource }),
       });
       const data = await response.json();
+      const responseReceivedMonotonicMs = monotonicNowMs();
+      const clientWallAtReceiptMs = Date.now();
       if (!response.ok) {
         throw new Error(
           typeof data?.error === "string" ? data.error : "Couldn't start the countdown."
         );
       }
-      applyCountdownStarted(data.exp);
+      applyCountdownStarted(
+        data,
+        {
+          requestStartedMonotonicMs,
+          responseReceivedMonotonicMs,
+          clientWallAtReceiptMs,
+        },
+        "start_response"
+      );
     } catch (err) {
       emit({
         type: "COUNTDOWN_FAILED",
@@ -547,19 +743,20 @@ export default function CallRoom({
     } finally {
       startRequestRef.current = false;
     }
-  }, [applyCountdownStarted, durationSeconds, emit, room]);
+  }, [applyCountdownStarted, diagnostics, durationSeconds, emit, room]);
 
   const handleParticipantCount = useCallback(
     (count: number) => {
       emit({ type: "PARTICIPANT_COUNT", count });
-      if (count >= 2) void triggerStart();
+      if (count >= 2) void triggerStart("second_participant");
     },
     [emit, triggerStart]
   );
 
-  // Project the server-owned absolute expiry into the visible clock and emit
-  // EXPIRED exactly through the machine. Backgrounding cannot drift the end:
-  // each tick compares against the absolute server timestamp.
+  // Project the server-owned absolute expiry through a monotonic client
+  // anchor and emit EXPIRED exactly through the machine. Device wall time is
+  // deliberately absent: a manually fast/slow clock cannot end one side early
+  // or late.
   useEffect(() => {
     if (
       state.expiresAt === null ||
@@ -570,7 +767,9 @@ export default function CallRoom({
     }
     const expiresAt = state.expiresAt;
     const tick = () => {
-      const now = Date.now();
+      const anchor = clockAnchorRef.current;
+      if (!anchor) return;
+      const now = serverNowFromAnchor(anchor, monotonicNowMs());
       setClockNowMs(now);
       if (now >= expiresAt) emit({ type: "EXPIRED" });
     };
@@ -591,13 +790,23 @@ export default function CallRoom({
     if (state.expiresAt !== null || !durationSeconds || mockMode) return;
     const id = setInterval(async () => {
       try {
+        const requestStartedMonotonicMs = monotonicNowMs();
         const response = await fetch(
           `/api/rooms/${room}/status?fallbackExp=${exp}&durationSeconds=${durationSeconds}`
         );
         if (!response.ok) return;
         const data = await response.json();
+        const responseReceivedMonotonicMs = monotonicNowMs();
         if (data.started && typeof data.exp === "number") {
-          applyCountdownStarted(data.exp);
+          applyCountdownStarted(
+            data,
+            {
+              requestStartedMonotonicMs,
+              responseReceivedMonotonicMs,
+              clientWallAtReceiptMs: Date.now(),
+            },
+            "status_poll"
+          );
         }
       } catch {
         // Transient — the next poll gets another chance.
@@ -633,18 +842,27 @@ export default function CallRoom({
       return;
     }
     const currentExpSeconds = state.expiresAt / 1000;
-    const id = setInterval(async () => {
+    const refresh = async (syncSource: LiveSyncSource = "status_poll") => {
       try {
+        const requestStartedMonotonicMs = monotonicNowMs();
         const response = await fetch(
           `/api/rooms/${room}/status?fallbackExp=${currentExpSeconds}`
         );
         if (!response.ok) return;
         const data = await response.json();
-        if (
-          typeof data.exp === "number" &&
-          data.exp !== currentExpSeconds
-        ) {
-          applyCountdownStarted(data.exp);
+        const responseReceivedMonotonicMs = monotonicNowMs();
+        if (data.started && typeof data.exp === "number") {
+          // Re-anchor even when the authoritative expiry is unchanged. The
+          // new server sample corrects local suspension or oscillator drift.
+          applyCountdownStarted(
+            data,
+            {
+              requestStartedMonotonicMs,
+              responseReceivedMonotonicMs,
+              clientWallAtReceiptMs: Date.now(),
+            },
+            syncSource
+          );
         }
         if (typeof data.presentCount === "number") {
           emit({ type: "PARTICIPANT_COUNT", count: data.presentCount });
@@ -655,7 +873,7 @@ export default function CallRoom({
             emptyPollStreakRef.current >= 2 &&
             isInCall(stateRef.current)
           ) {
-            emit({ type: "TRANSPORT_LEFT", at: Date.now() });
+            emit({ type: "TRANSPORT_LEFT", at: synchronizedNowMs() });
           }
         } else {
           emptyPollStreakRef.current = 0;
@@ -663,8 +881,23 @@ export default function CallRoom({
       } catch {
         // Transient — the next poll gets another chance.
       }
-    }, 10_000);
-    return () => clearInterval(id);
+    };
+    liveStatusRefreshRef.current = refresh;
+    // Synchronize immediately on mount/foregrounded navigation, then every
+    // ten seconds while live.
+    void refresh("status_poll");
+    const id = setInterval(() => void refresh("status_poll"), 10_000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refresh("foreground");
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (liveStatusRefreshRef.current === refresh) {
+        liveStatusRefreshRef.current = null;
+      }
+    };
   }, [
     applyCountdownStarted,
     emit,
@@ -672,6 +905,7 @@ export default function CallRoom({
     room,
     state.expiresAt,
     state.phase,
+    synchronizedNowMs,
   ]);
 
   const started = state.expiresAt !== null;
@@ -705,11 +939,14 @@ export default function CallRoom({
     // separates "sat through it" from "bailed". Only report while time
     // remains: leaving after the timer has run out is just closing an ended
     // call, and `reportEnd` guards the completed case separately.
-    if (current.expiresAt !== null && Date.now() < current.expiresAt) {
+    if (
+      current.expiresAt !== null &&
+      synchronizedNowMs() < current.expiresAt
+    ) {
       reportEnd("left_early");
     }
     emit({ type: "LEAVE" });
-  }, [emit, mockMode, reportEnd, room]);
+  }, [emit, mockMode, reportEnd, room, synchronizedNowMs]);
 
   const restoreVideo = useCallback(() => {
     dispatchNetworkPolicy({ type: "RESTORE_VIDEO", at: Date.now() });

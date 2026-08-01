@@ -155,6 +155,223 @@ export async function recordCallStarted(roomName: string): Promise<boolean> {
   }
 }
 
+export type CountdownStartSource =
+  | "second_participant"
+  | "manual_start"
+  | "status_backstop"
+  | "provider_event"
+  | "unknown";
+
+export type CountdownStartClaim =
+  | { kind: "winner"; attemptId: string }
+  | { kind: "started"; exp: number }
+  | { kind: "pending" }
+  | { kind: "unavailable" };
+
+/**
+ * Atomically chooses the one request allowed to patch Daily. The transaction
+ * ends before the provider call; the active attempt ID is the lease other
+ * callers observe while they wait for the winner's accepted expiry.
+ */
+export async function claimCountdownStart(options: {
+  roomName: string;
+  durationSeconds: number;
+  source: CountdownStartSource;
+  attemptId: string;
+}): Promise<CountdownStartClaim> {
+  const p = getPool();
+  if (!p) return { kind: "unavailable" };
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{
+      id: string | number;
+      authoritative_exp_seconds: string | number | null;
+      countdown_start_attempt_id: string | null;
+      countdown_start_claimed_at: Date | string | null;
+    }>(
+      `SELECT id, authoritative_exp_seconds, countdown_start_attempt_id,
+              countdown_start_claimed_at
+         FROM calls
+        WHERE room_name = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [options.roomName]
+    );
+    const call = result.rows[0];
+    if (!call) {
+      await client.query("ROLLBACK");
+      return { kind: "unavailable" };
+    }
+
+    const callId = Number(call.id);
+    const persistedExp =
+      call.authoritative_exp_seconds === null
+        ? null
+        : Number(call.authoritative_exp_seconds);
+    const claimIsStale =
+      call.countdown_start_attempt_id !== null &&
+      call.countdown_start_claimed_at !== null &&
+      Date.now() - new Date(call.countdown_start_claimed_at).getTime() > 15_000;
+    const outcome =
+      persistedExp !== null
+        ? "reused"
+        : call.countdown_start_attempt_id === null || claimIsStale
+          ? "winner"
+          : "pending";
+
+    if (claimIsStale && call.countdown_start_attempt_id !== null) {
+      await client.query(
+        `UPDATE call_countdown_attempts
+            SET outcome = 'stale', error_category = 'claim_timeout',
+                completed_at = now()
+          WHERE attempt_id = $1 AND completed_at IS NULL`,
+        [call.countdown_start_attempt_id]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO call_countdown_attempts
+         (attempt_id, call_id, source, requested_duration_seconds, outcome,
+          accepted_exp_seconds, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6,
+               CASE WHEN $5 = 'reused' THEN now() ELSE NULL END)`,
+      [
+        options.attemptId,
+        callId,
+        options.source,
+        options.durationSeconds,
+        outcome,
+        persistedExp,
+      ]
+    );
+
+    if (outcome === "winner") {
+      await client.query(
+        `UPDATE calls
+            SET countdown_start_attempt_id = $2,
+                countdown_start_claimed_at = now()
+          WHERE id = $1`,
+        [callId, options.attemptId]
+      );
+    }
+    await client.query("COMMIT");
+
+    if (persistedExp !== null) return { kind: "started", exp: persistedExp };
+    return outcome === "winner"
+      ? { kind: "winner", attemptId: options.attemptId }
+      : { kind: "pending" };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("[Qwickword] Failed to claim countdown start:", err);
+    return { kind: "unavailable" };
+  } finally {
+    client.release();
+  }
+}
+
+export async function readPersistedCountdownStart(
+  roomName: string
+): Promise<{ exp: number | null; pending: boolean } | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query<{
+      authoritative_exp_seconds: string | number | null;
+      countdown_start_attempt_id: string | null;
+    }>(
+      `SELECT authoritative_exp_seconds, countdown_start_attempt_id
+         FROM calls
+        WHERE room_name = $1
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [roomName]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      exp:
+        row.authoritative_exp_seconds === null
+          ? null
+          : Number(row.authoritative_exp_seconds),
+      pending: row.countdown_start_attempt_id !== null,
+    };
+  } catch (err) {
+    console.error("[Qwickword] Failed to read persisted countdown start:", err);
+    return null;
+  }
+}
+
+export async function completeCountdownStart(options: {
+  roomName: string;
+  attemptId: string;
+  source: CountdownStartSource;
+  exp: number;
+}): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `WITH completed_call AS (
+         UPDATE calls
+            SET authoritative_exp_seconds = $3,
+                countdown_started_at = now(),
+                countdown_start_source = $4,
+                winning_countdown_attempt_id = $2,
+                countdown_start_attempt_id = NULL,
+                countdown_start_claimed_at = NULL
+          WHERE id = (
+            SELECT id FROM calls WHERE room_name = $1
+            ORDER BY created_at DESC LIMIT 1
+          )
+            AND countdown_start_attempt_id = $2
+         RETURNING id
+       )
+       UPDATE call_countdown_attempts a
+          SET outcome = CASE WHEN attempt_id = $2 THEN 'started' ELSE 'reused' END,
+              accepted_exp_seconds = $3,
+              completed_at = now()
+        WHERE call_id IN (SELECT id FROM completed_call)
+          AND (attempt_id = $2 OR outcome = 'pending')`,
+      [options.roomName, options.attemptId, options.exp, options.source]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to complete countdown start:", err);
+  }
+}
+
+export async function failCountdownStart(options: {
+  roomName: string;
+  attemptId: string;
+  errorCategory: string;
+}): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `WITH released_call AS (
+         UPDATE calls
+            SET countdown_start_attempt_id = NULL,
+                countdown_start_claimed_at = NULL
+          WHERE id = (
+            SELECT id FROM calls WHERE room_name = $1
+            ORDER BY created_at DESC LIMIT 1
+          )
+            AND countdown_start_attempt_id = $2
+         RETURNING id
+       )
+       UPDATE call_countdown_attempts
+          SET outcome = 'failed', error_category = $3, completed_at = now()
+        WHERE attempt_id = $2
+          AND EXISTS (SELECT 1 FROM released_call)`,
+      [options.roomName, options.attemptId, options.errorCategory]
+    );
+  } catch (err) {
+    console.error("[Qwickword] Failed to release countdown start claim:", err);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Rooms — the persistent layer above calls (see planning/ROOMS_DESIGN) */
 /* ------------------------------------------------------------------ */
@@ -561,6 +778,137 @@ export async function recordTimings(timings: TimingInput[]): Promise<void> {
     );
   } catch (err) {
     console.error("[Qwickword] Failed to record timings:", err);
+  }
+}
+
+export type DiagnosticEventInput = {
+  eventId: string;
+  room: string;
+  clientCallSessionId: string;
+  sequence: number;
+  eventName: string;
+  surface: string;
+  appVersion: string | null;
+  clientWallTimeMs: number;
+  clientMonotonicMs: number;
+  serverReceivedAtMs: number | null;
+  serverNowMs: number | null;
+  rttMs: number | null;
+  serverProcessingMs: number | null;
+  clockOffsetMs: number | null;
+  authoritativeExpMs: number | null;
+  phase: string | null;
+  source: string | null;
+  participantCount: number | null;
+  endTrigger: string | null;
+  errorCategory: string | null;
+};
+
+let lastDiagnosticCleanupMs = 0;
+const DIAGNOSTIC_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const DIAGNOSTIC_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * Stores allowlisted, per-call lifecycle evidence in one database round trip.
+ * The client supplies a bearer room slug; the insert resolves it to the latest
+ * internal call row and does not retain the slug in the diagnostics table.
+ */
+export async function recordDiagnosticEvents(
+  events: DiagnosticEventInput[]
+): Promise<void> {
+  const p = getPool();
+  if (!p || events.length === 0) return;
+  const rows = events.map((event) => ({
+    event_id: event.eventId,
+    room: event.room,
+    client_call_session_id: event.clientCallSessionId,
+    sequence: event.sequence,
+    event_name: event.eventName,
+    surface: event.surface,
+    app_version: event.appVersion,
+    client_wall_time_ms: event.clientWallTimeMs,
+    client_monotonic_ms: event.clientMonotonicMs,
+    server_received_at_ms: event.serverReceivedAtMs,
+    server_now_ms: event.serverNowMs,
+    rtt_ms: event.rttMs,
+    server_processing_ms: event.serverProcessingMs,
+    clock_offset_ms: event.clockOffsetMs,
+    authoritative_exp_ms: event.authoritativeExpMs,
+    phase: event.phase,
+    source: event.source,
+    participant_count: event.participantCount,
+    end_trigger: event.endTrigger,
+    error_category: event.errorCategory,
+  }));
+
+  try {
+    await p.query(
+      `WITH incoming AS (
+         SELECT *
+           FROM jsonb_to_recordset($1::jsonb) AS x(
+             event_id uuid,
+             room text,
+             client_call_session_id uuid,
+             sequence integer,
+             event_name text,
+             surface text,
+             app_version text,
+             client_wall_time_ms bigint,
+             client_monotonic_ms double precision,
+             server_received_at_ms bigint,
+             server_now_ms bigint,
+             rtt_ms integer,
+             server_processing_ms integer,
+             clock_offset_ms integer,
+             authoritative_exp_ms bigint,
+             phase text,
+             source text,
+             participant_count integer,
+             end_trigger text,
+             error_category text
+           )
+       ), resolved AS (
+         SELECT c.id AS call_id, i.*
+           FROM incoming i
+           JOIN LATERAL (
+             SELECT id FROM calls
+              WHERE room_name = i.room
+              ORDER BY created_at DESC
+              LIMIT 1
+           ) c ON true
+       )
+       INSERT INTO call_diagnostic_events (
+         event_id, call_id, client_call_session_id, sequence, event_name,
+         surface, app_version, client_wall_time_ms, client_monotonic_ms,
+         server_received_at_ms, server_now_ms, rtt_ms, server_processing_ms,
+         clock_offset_ms, authoritative_exp_ms, phase, source,
+         participant_count, end_trigger, error_category
+       )
+       SELECT event_id, call_id, client_call_session_id, sequence, event_name,
+              surface, app_version, client_wall_time_ms, client_monotonic_ms,
+              server_received_at_ms, server_now_ms, rtt_ms,
+              server_processing_ms, clock_offset_ms, authoritative_exp_ms,
+              phase, source, participant_count, end_trigger, error_category
+         FROM resolved
+       ON CONFLICT DO NOTHING`,
+      [JSON.stringify(rows)]
+    );
+
+    const now = Date.now();
+    if (now - lastDiagnosticCleanupMs >= DIAGNOSTIC_CLEANUP_INTERVAL_MS) {
+      lastDiagnosticCleanupMs = now;
+      void p
+        .query(
+          `DELETE FROM call_diagnostic_events
+            WHERE received_at < now() - ($1::bigint * interval '1 millisecond')`,
+          [DIAGNOSTIC_RETENTION_MS]
+        )
+        .catch((err) => {
+          console.error("[Qwickword] Failed to prune call diagnostics:", err);
+        });
+    }
+  } catch (err) {
+    console.error("[Qwickword] Failed to record call diagnostics:", err);
   }
 }
 
