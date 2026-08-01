@@ -74,7 +74,7 @@ test("about page renders", async ({ page }) => {
 });
 
 test("public copy does not use em dashes", async ({ page, request }) => {
-  for (const path of ["/", "/about", "/how-it-works", "/manifesto"]) {
+  for (const path of ["/", "/about", "/manifesto"]) {
     await page.goto(path);
     await expect(page.locator("body")).not.toContainText("—");
 
@@ -92,24 +92,26 @@ test("public copy does not use em dashes", async ({ page, request }) => {
 });
 
 test("owned discovery surfaces are crawlable", async ({ page, request }) => {
-  await page.goto("/how-it-works");
+  await page.goto("/about");
+  await expect(page.getByRole("heading", { name: "A small request you can believe" })).toBeVisible();
+
+  await page.goto("/manifesto");
   await expect(
-    page.getByRole("heading", { name: "How a Qwickword ends on time" })
+    page.getByRole("heading", { name: "The Qwickword Manifesto" })
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Create a timed call" })).toBeVisible();
 
   const feed = await request.get("/feed.xml");
   expect(feed.status()).toBe(200);
   expect(feed.headers()["content-type"]).toContain("application/rss+xml");
-  expect(await feed.text()).toContain(
-    "https://qwickword.com/how-it-works"
-  );
+  const feedText = await feed.text();
+  expect(feedText).toContain("https://qwickword.com/about");
+  expect(feedText).toContain("https://qwickword.com/manifesto");
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
-  expect(await sitemap.text()).toContain(
-    "https://qwickword.com/how-it-works"
-  );
+  const sitemapText = await sitemap.text();
+  expect(sitemapText).toContain("https://qwickword.com/about");
+  expect(sitemapText).toContain("https://qwickword.com/manifesto");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);

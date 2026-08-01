@@ -531,13 +531,6 @@ function FooterLinks() {
   return (
     <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
       <Link
-        href="/how-it-works"
-        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
-      >
-        how it works
-      </Link>
-      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
-      <Link
         href="/manifesto"
         className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
       >

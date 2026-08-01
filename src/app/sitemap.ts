@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 // Only lists the site's real, permanent, indexable pages — the homepage,
-// the about page, and the manifesto easter egg. Room links
+// the about page, and the manifesto. Room links
 // (qwickword.com/<random>) are single-use and expire, so they're
 // deliberately excluded — see the note in src/app/robots.ts for why that's
 // not a gap that needs closing.
@@ -12,12 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: "2026-07-30",
       changeFrequency: "monthly",
       priority: 1,
-    },
-    {
-      url: "https://qwickword.com/how-it-works",
-      lastModified: "2026-07-30",
-      changeFrequency: "monthly",
-      priority: 0.8,
     },
     {
       url: "https://qwickword.com/about",
