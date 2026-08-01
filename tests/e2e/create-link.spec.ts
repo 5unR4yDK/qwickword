@@ -66,6 +66,12 @@ test("about page renders", async ({ page }) => {
   await expect(page.getByText("Permission goes both ways")).toBeVisible();
   await expect(page.getByText("An opinion, not a universal rule")).toBeVisible();
   await expect(
+    page.getByRole("heading", { name: "Privacy policy" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "info@mauriceholdings.llc" }).first()
+  ).toHaveAttribute("href", "mailto:info@mauriceholdings.llc");
+  await expect(
     page.getByText(/A five-minute invitation becomes easier to accept/)
   ).toBeVisible();
   expect(
