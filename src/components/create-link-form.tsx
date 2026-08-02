@@ -375,7 +375,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       <div className="flex flex-col items-center gap-5">
         <Wordmark className="w-[540px] max-w-[86vw]" />
         <p className="text-sm font-medium tracking-[0.26em] text-zinc-600 uppercase dark:text-[#D9D9D9]">
-          This meeting could&apos;ve been a Qwickword
+          Meetings that end on time
         </p>
       </div>
 
@@ -528,21 +528,26 @@ function Wordmark({ className }: { className?: string }) {
 }
 
 function FooterLinks() {
+  const linkClass =
+    "transition-colors hover:text-zinc-600 dark:hover:text-zinc-400";
+
   return (
     <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
-      <Link
-        href="/manifesto"
-        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
-      >
+      <Link href="/manifesto" className={linkClass}>
         manifesto
       </Link>
       <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
-      <Link
-        href="/about"
-        className="transition-colors hover:text-zinc-600 dark:hover:text-zinc-400"
-      >
+      <Link href="/about" className={linkClass}>
         about
       </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
+      <Link href="/about#privacy" className={linkClass}>
+        privacy
+      </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
+      <a href="mailto:info@mauriceholdings.llc" className={linkClass}>
+        support
+      </a>
     </nav>
   );
 }

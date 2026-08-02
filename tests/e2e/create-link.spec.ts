@@ -7,8 +7,16 @@ import { test, expect } from "@playwright/test";
 test("home page offers the duration picker", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText("This meeting could've been a Qwickword")).toBeVisible();
+  await expect(page.getByText("Meetings that end on time")).toBeVisible();
   await expect(page.getByText("How long is your Qwickword?")).toBeVisible();
+  await expect(page.getByRole("link", { name: "privacy" })).toHaveAttribute(
+    "href",
+    "/about#privacy"
+  );
+  await expect(page.getByRole("link", { name: "support" })).toHaveAttribute(
+    "href",
+    "mailto:info@mauriceholdings.llc"
+  );
 
   const picker = page.getByRole("group", { name: "Call length" });
   await expect(picker).toBeVisible();
@@ -111,12 +119,14 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(feed.headers()["content-type"]).toContain("application/rss+xml");
   const feedText = await feed.text();
   expect(feedText).toContain("https://qwickword.com/about");
+  expect(feedText).toContain("About and privacy at Qwickword");
   expect(feedText).toContain("https://qwickword.com/manifesto");
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const sitemapText = await sitemap.text();
   expect(sitemapText).toContain("https://qwickword.com/about");
+  expect(sitemapText).toContain("2026-08-02");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");

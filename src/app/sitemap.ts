@@ -15,7 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: "https://qwickword.com/about",
-      lastModified: "2026-07-29",
+      lastModified: "2026-08-02",
       changeFrequency: "yearly",
       priority: 0.5,
     },

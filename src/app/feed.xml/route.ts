@@ -1,10 +1,10 @@
 const entries = [
   {
-    title: "About Qwickword",
+    title: "About and privacy at Qwickword",
     url: "https://qwickword.com/about",
     description:
-      "A plain-English overview of Qwickword and the conversations it is designed for.",
-    published: "Wed, 29 Jul 2026 00:00:00 GMT",
+      "A plain-English overview of Qwickword, the conversations it is designed for, and how it handles information.",
+    published: "Sun, 02 Aug 2026 00:00:00 GMT",
   },
   {
     title: "The Qwickword Manifesto",
@@ -45,7 +45,7 @@ export function GET() {
   <link>https://qwickword.com</link>
   <description>Product explanations and release notes from Qwickword.</description>
   <language>en</language>
-  <lastBuildDate>Wed, 29 Jul 2026 00:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 02 Aug 2026 00:00:00 GMT</lastBuildDate>
   ${items}
 </channel>
 </rss>`;
