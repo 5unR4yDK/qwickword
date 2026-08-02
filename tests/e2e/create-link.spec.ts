@@ -13,6 +13,9 @@ test("home page offers the duration picker", async ({ page }) => {
     "href",
     "/about#privacy"
   );
+  await expect(
+    page.getByRole("link", { name: "Qwickword on YouTube" })
+  ).toHaveAttribute("href", "https://www.youtube.com/@Qwickword");
   await expect(page.getByRole("link", { name: "support" })).toHaveAttribute(
     "href",
     "mailto:info@mauriceholdings.llc"

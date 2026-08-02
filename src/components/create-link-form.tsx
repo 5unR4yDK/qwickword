@@ -547,6 +547,14 @@ function FooterLinks() {
         privacy
       </Link>
       <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
+      <a
+        href="https://www.youtube.com/@Qwickword"
+        className={linkClass}
+        aria-label="Qwickword on YouTube"
+      >
+        YouTube
+      </a>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
       <a href="mailto:info@mauriceholdings.llc" className={linkClass}>
         support
       </a>
