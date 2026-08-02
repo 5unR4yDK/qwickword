@@ -6,15 +6,20 @@
 
 **Live at [qwickword.com](https://qwickword.com)**
 
-A meeting tool where you set the maximum call length in advance and it **cannot be extended**.
-When the timer hits zero, the call ends — server-enforced by Daily.co, not just a client-side
-clock. If you need more time, you schedule another Qwickword.
+**Meetings that end on time.** Pick a limit from 1 to 30 minutes, share the
+link, and start talking. Guests need no account or download. When the timer
+hits zero, the call ends for everyone and cannot be extended.
+
+[Try Qwickword](https://qwickword.com) ·
+[About and privacy](https://qwickword.com/about) ·
+[Manifesto](https://qwickword.com/manifesto) ·
+[Support](mailto:info@mauriceholdings.llc)
 
 ## Screenshots
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/home.jpg" alt="Home page: pick a call length, get a link" /><br /><sub>Pick a length, get a link — no signup.</sub></td>
+<td width="50%"><img src="docs/screenshots/home.jpg" alt="Qwickword home page with the promise Meetings that end on time and a 1 to 30 minute call-length picker" /><br /><sub>Pick a length and get a link. Guests need no account or download.</sub></td>
 <td width="50%"><img src="docs/screenshots/link-created.jpg" alt="Link created screen showing a shareable qwickword.com link" /><br /><sub>A clean, memorable link — nothing to configure after creation.</sub></td>
 </tr>
 <tr>
