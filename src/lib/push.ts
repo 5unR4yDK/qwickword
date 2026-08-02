@@ -38,6 +38,7 @@ export async function registerPushToken(input: {
     const session = await client.query<{ id: string }>(
       `SELECT id FROM sessions
         WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL
+          AND expires_at > now()
         FOR UPDATE`,
       [hashSessionToken(input.sessionToken), input.userId]
     );
@@ -287,6 +288,10 @@ async function targetsForMutualCallContact(input: {
     const result = await p.query<Target>(
       `SELECT pt.id::text, pt.token
          FROM push_tokens pt
+         JOIN sessions s
+           ON s.id = pt.session_id
+          AND s.revoked_at IS NULL
+          AND s.expires_at > now()
          JOIN users recipient
            ON recipient.id = pt.user_id AND recipient.deleted_at IS NULL
         WHERE pt.user_id = $2

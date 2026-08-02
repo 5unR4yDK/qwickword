@@ -17,6 +17,7 @@ import { Pool } from "pg";
 import {
   CHALLENGE_TTL_MS,
   MAX_ATTEMPTS,
+  SESSION_TTL_MS,
   codeMatches,
   defaultDisplayName,
   generateCode,
@@ -259,9 +260,16 @@ export async function verifyChallenge(
 
     const token = generateSessionToken();
     await client.query(
-      `INSERT INTO sessions (id, user_id, token_hash, device_label)
-       VALUES ($1, $2, $3, $4)`,
-      [newId(), user.id, hashSessionToken(token), deviceLabel]
+      `INSERT INTO sessions
+         (id, user_id, token_hash, device_label, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        newId(),
+        user.id,
+        hashSessionToken(token),
+        deviceLabel,
+        new Date(Date.now() + SESSION_TTL_MS),
+      ]
     );
 
     await client.query("COMMIT");
@@ -287,6 +295,7 @@ export async function userForToken(token: string | null): Promise<User | null> {
          JOIN users u ON u.id = s.user_id
         WHERE s.token_hash = $1
           AND s.revoked_at IS NULL
+          AND s.expires_at > now()
           AND u.deleted_at IS NULL`,
       [hashSessionToken(token)]
     );
@@ -354,6 +363,7 @@ export async function deleteAccount(
          JOIN users u ON u.id = s.user_id
         WHERE s.token_hash = $1
           AND s.revoked_at IS NULL
+          AND s.expires_at > now()
           AND u.deleted_at IS NULL
         FOR UPDATE OF u`,
       [hashSessionToken(token)]
@@ -404,6 +414,63 @@ export async function deleteAccount(
     await client.query("ROLLBACK").catch(() => {});
     console.error("[Qwickword] Failed to delete an account:", err);
     return "unavailable";
+  } finally {
+    client.release();
+  }
+}
+
+export type IdentityRetentionResult = {
+  challenges: number;
+  sessions: number;
+};
+
+/**
+ * Removes expired authentication material after a short support window.
+ *
+ * Revoked/expired sessions are retained for 30 days so an incident can be
+ * investigated without keeping credentials indefinitely. Challenges need only
+ * one day beyond expiry to diagnose delivery or replay problems.
+ */
+export async function pruneExpiredIdentityData(): Promise<IdentityRetentionResult> {
+  const p = getPool();
+  if (!p) throw new Error("DATABASE_URL is not configured.");
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+    const challenges = await client.query(
+      `DELETE FROM auth_challenges
+        WHERE expires_at < now() - interval '1 day'`
+    );
+    await client.query(
+      `DELETE FROM push_receipts
+        WHERE push_token_id IN (
+          SELECT pt.id
+            FROM push_tokens pt
+            JOIN sessions s ON s.id = pt.session_id
+           WHERE s.expires_at < now() - interval '30 days'
+              OR s.revoked_at < now() - interval '30 days'
+        )`
+    );
+    await client.query(
+      `DELETE FROM push_tokens pt
+        USING sessions s
+        WHERE pt.session_id = s.id
+          AND (s.expires_at < now() - interval '30 days'
+            OR s.revoked_at < now() - interval '30 days')`
+    );
+    const sessions = await client.query(
+      `DELETE FROM sessions
+        WHERE expires_at < now() - interval '30 days'
+           OR revoked_at < now() - interval '30 days'`
+    );
+    await client.query("COMMIT");
+    return {
+      challenges: challenges.rowCount ?? 0,
+      sessions: sessions.rowCount ?? 0,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
   } finally {
     client.release();
   }

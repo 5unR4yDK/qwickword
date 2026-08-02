@@ -11,6 +11,9 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 /** How long a code is worth trying. Long enough to switch apps and back. */
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 
+/** Browser cookies and server-side sessions expire together. */
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 /** Wrong guesses before the challenge is dead. */
 export const MAX_ATTEMPTS = 5;
 
@@ -21,6 +24,28 @@ export const RESEND_COOLDOWN_MS = 30 * 1000;
 export const MAX_PER_HOUR = 5;
 
 export type IdentityKind = "email" | "phone";
+
+/**
+ * Whether a verification request is the first-party browser flow.
+ *
+ * Browser JavaScript must never receive the bearer token that is also placed
+ * in its HttpOnly cookie. `Sec-Fetch-Site` is controlled by the browser, while
+ * the Origin comparison covers older clients. Native HTTP clients use neither
+ * browser signal and receive the token for Keychain storage.
+ */
+export function usesBrowserCookieTransport(input: {
+  secFetchSite: string | null;
+  origin: string | null;
+  requestOrigin: string;
+}): boolean {
+  if (input.secFetchSite?.toLowerCase() === "same-origin") return true;
+  if (!input.origin) return false;
+  try {
+    return new URL(input.origin).origin === new URL(input.requestOrigin).origin;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Canonical form of an email address.

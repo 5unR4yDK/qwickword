@@ -13,6 +13,7 @@ import {
   MAX_ATTEMPTS,
   MAX_PER_HOUR,
   RESEND_COOLDOWN_MS,
+  SESSION_TTL_MS,
   codeMatches,
   defaultDisplayName,
   generateCode,
@@ -23,6 +24,7 @@ import {
   maskEmail,
   normalizeEmail,
   rateDecision,
+  usesBrowserCookieTransport,
 } from "../../src/lib/identity-core.ts";
 
 const SECRET = "test-secret-not-the-real-one";
@@ -164,6 +166,41 @@ test("session tokens are long, unique, and stored only as a hash", () => {
     // database leak signs everyone in.
     assert.notEqual(hashSessionToken(token), token);
   }
+});
+
+test("server sessions and browser cookies share the 30-day lifetime", () => {
+  assert.equal(SESSION_TTL_MS, 30 * 24 * 60 * 60 * 1000);
+});
+
+test("browser verification never exposes the bearer-token transport", () => {
+  const requestOrigin = "https://qwickword.com";
+  assert.equal(
+    usesBrowserCookieTransport({
+      secFetchSite: "same-origin",
+      origin: requestOrigin,
+      requestOrigin,
+    }),
+    true
+  );
+  assert.equal(
+    usesBrowserCookieTransport({
+      secFetchSite: null,
+      origin: requestOrigin,
+      requestOrigin,
+    }),
+    true
+  );
+});
+
+test("a native client without browser fetch headers receives its Keychain token", () => {
+  assert.equal(
+    usesBrowserCookieTransport({
+      secFetchSite: null,
+      origin: null,
+      requestOrigin: "https://qwickword.com",
+    }),
+    false
+  );
 });
 
 // ---------------------------------------------------------------------------

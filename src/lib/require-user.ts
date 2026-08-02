@@ -9,6 +9,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { userForToken, type User } from "./identity";
+import { SESSION_TTL_MS } from "./identity-core";
 
 /**
  * The browser's session cookie.
@@ -46,7 +47,7 @@ export async function callerFrom(request: NextRequest): Promise<User | null> {
 }
 
 /** Thirty days. A session is per-device and revocable, so this can be long. */
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
+const SESSION_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
 
 export function setSessionCookie(response: NextResponse, token: string): void {
   response.cookies.set(SESSION_COOKIE, token, {

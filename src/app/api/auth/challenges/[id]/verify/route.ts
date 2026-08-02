@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyChallenge } from "@/lib/identity";
+import { usesBrowserCookieTransport } from "@/lib/identity-core";
 import { setSessionCookie } from "@/lib/require-user";
 
 /**
@@ -9,10 +10,9 @@ import { setSessionCookie } from "@/lib/require-user";
  * issues a session, which is what makes "sign in" and "sign up" one action.
  * There is no separate registration flow to build, explain, or get stuck in.
  *
- * The session token is returned in the body rather than set as a cookie: the
- * iPhone app stores it in the Keychain, and the browser client puts it in a
- * cookie itself. One contract, two surfaces, no divergence in what the server
- * has to know about the caller.
+ * The iPhone receives the session token for Keychain storage. The first-party
+ * browser receives only its HttpOnly cookie; browser JavaScript never sees the
+ * bearer credential.
  */
 export const dynamic = "force-dynamic";
 
@@ -79,19 +79,22 @@ export async function POST(
     }
   }
 
+  const browserCookieTransport = usesBrowserCookieTransport({
+    secFetchSite: request.headers.get("sec-fetch-site"),
+    origin: request.headers.get("origin"),
+    requestOrigin: request.nextUrl.origin,
+  });
   const response = NextResponse.json(
     {
-      token: result.token,
+      ...(browserCookieTransport ? {} : { token: result.token }),
       user: { id: result.user.id, displayName: result.user.displayName },
       isNew: result.isNew,
     },
     { status: 200 }
   );
 
-  // Both transports, always. The app reads the token from the body and puts it
-  // in the Keychain, ignoring the cookie; the browser lets the cookie do the
-  // work and never touches the token. Neither has to tell the server which it
-  // is, and there is one code path rather than two.
+  // The cookie is harmless to native clients and keeps one verification path.
+  // Only native transport receives the body token above.
   setSessionCookie(response, result.token);
   return response;
 }
