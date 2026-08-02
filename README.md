@@ -4,13 +4,13 @@
 
 [![CI](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml/badge.svg)](https://github.com/5unR4yDK/qwickword/actions/workflows/ci.yml)
 
-**Live at [qwickword.com](https://qwickword.com)**
+**Live at [qwickword.com](https://qwickword.com/?utm_source=github&utm_medium=organic_social&utm_campaign=hard_stop_30d&utm_content=github_readme_v1)**
 
 **Meetings that end on time.** Pick a limit from 1 to 30 minutes, share the
 link, and start talking. Guests need no account or download. When the timer
 hits zero, the call ends for everyone and cannot be extended.
 
-[Try Qwickword](https://qwickword.com) ·
+[Try Qwickword](https://qwickword.com/?utm_source=github&utm_medium=organic_social&utm_campaign=hard_stop_30d&utm_content=github_readme_v1) ·
 [About and privacy](https://qwickword.com/about) ·
 [Manifesto](https://qwickword.com/manifesto) ·
 [Support](mailto:info@mauriceholdings.llc)
