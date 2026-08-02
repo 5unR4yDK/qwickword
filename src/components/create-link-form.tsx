@@ -6,6 +6,7 @@ import { ArrowRight, Check, Share2 } from "lucide-react";
 import {
   DURATION_PRESETS_SECONDS,
   formatDuration,
+  formatDurationAdjective,
   MAX_DURATION_MINUTES,
   MIN_DURATION_MINUTES,
 } from "@/lib/duration";
@@ -247,12 +248,13 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   async function handleNativeShare(
     link: string,
     roomName: string,
-    minutes: number
+    durationSeconds: number
   ) {
+    const duration = formatDurationAdjective(durationSeconds);
     try {
       await navigator.share({
-        title: `Qwickword: a ${minutes} minute call`,
-        text: `Join me for a ${minutes} minute Qwickword. It ends when the timer does.`,
+        title: `Qwickword: a ${duration} call`,
+        text: `Join me for a ${duration} Qwickword. It ends when the timer does.`,
         url: link,
       });
       reportShared(roomName, "native");
@@ -266,12 +268,12 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   /* Link created (6b)                                                   */
   /* ------------------------------------------------------------------ */
   if (state.status === "success") {
-    const minutes = Math.round(state.durationSeconds / 60);
+    const duration = formatDurationAdjective(state.durationSeconds);
     const mailSubject = encodeURIComponent(
-      `Qwickword: a ${minutes} minute call`
+      `Qwickword: a ${duration} call`
     );
     const mailBody = encodeURIComponent(
-      `Join me for a ${minutes} minute Qwickword. It ends when the timer does:\n\n${state.link}`
+      `Join me for a ${duration} Qwickword. It ends when the timer does:\n\n${state.link}`
     );
 
     return (
@@ -280,7 +282,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <span className="flex h-6 items-center rounded-full bg-[rgba(61,254,241,0.14)] px-2.5 text-xs font-semibold tracking-[0.06em] text-teal-700 dark:text-[#3DFEF1]">
-            {minutes} MIN
+            {formatDuration(state.durationSeconds).toUpperCase()}
           </span>
           <span className="text-sm text-zinc-500 dark:text-[#71717A]">
             hard stop, no extend button
@@ -309,7 +311,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                     void handleNativeShare(
                       state.link,
                       state.roomName,
-                      minutes
+                      state.durationSeconds
                     )
                   }
                   className="flex h-11 cursor-pointer items-center gap-1.5 rounded-full bg-[#3DFEF1] px-5 text-sm font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"

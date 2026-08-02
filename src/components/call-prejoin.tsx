@@ -19,6 +19,7 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
+import { formatDurationAdjective } from "@/lib/duration";
 import {
   useAudioTrack,
   useDaily,
@@ -172,7 +173,9 @@ export default function CallPrejoin({
     }
   }, [daily, onEvent, phase]);
 
-  const minutes = durationSeconds ? Math.round(durationSeconds / 60) : null;
+  const duration = durationSeconds
+    ? formatDurationAdjective(durationSeconds)
+    : null;
   const starting = phase === "idle" || phase === "preparing";
   const joining = phase === "joining";
 
@@ -239,10 +242,10 @@ export default function CallPrejoin({
               className="h-auto w-[230px] opacity-80"
             />
             <h1 className="text-[26px] leading-[34px] font-medium text-[#FAFAFA]">
-              {minutes ? (
+              {duration ? (
                 <>
                   You&apos;re joining a{" "}
-                  <span className="text-[#3DFEF1]">{minutes} minute</span>{" "}
+                  <span className="text-[#3DFEF1]">{duration}</span>{" "}
                   Qwickword.
                 </>
               ) : (

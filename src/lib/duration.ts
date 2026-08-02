@@ -5,7 +5,7 @@
 // server-only logic (fetch calls, the Daily API key) into the client bundle.
 
 /** Hard bounds enforced by POST /api/rooms — see src/lib/daily-rooms.ts. */
-export const MIN_DURATION_SECONDS = 60; // 1 minute
+export const MIN_DURATION_SECONDS = 30; // temporary test preset
 export const MAX_DURATION_SECONDS = 30 * 60; // 30 minutes
 
 /**
@@ -17,7 +17,9 @@ export const MAX_DURATION_SECONDS = 30 * 60; // 30 minutes
  * ceiling — short enough to keep calls quick, with room to gate a longer or
  * premium tier behind it later.
  */
-export const MIN_DURATION_MINUTES = MIN_DURATION_SECONDS / 60; // 1
+// Custom entry remains whole minutes even while the 30-second test preset is
+// available as a one-tap option.
+export const MIN_DURATION_MINUTES = 1;
 export const MAX_DURATION_MINUTES = MAX_DURATION_SECONDS / 60; // 30
 
 /**
@@ -27,13 +29,28 @@ export const MAX_DURATION_MINUTES = MAX_DURATION_SECONDS / 60; // 30
  * a duration outside the presets, rather than the two competing with each
  * other. All presets stay within the MAX_DURATION_MINUTES cap above.
  */
-export const DURATION_PRESETS_SECONDS = [60, 120, 300, 600, 900, 1200] as const;
+export const DURATION_PRESETS_SECONDS = [30, 60, 120, 300, 600, 900, 1200] as const;
 
-/** Formats a whole number of seconds as "N min" (or "Ns" for odd values). */
+/** Formats a whole number of seconds as a compact picker label. */
 export function formatDuration(seconds: number): string {
   if (seconds > 0 && seconds % 60 === 0) {
     return `${seconds / 60} min`;
   }
-  return `${seconds}s`;
+  return `${seconds} sec`;
 }
 
+/** Adjectival duration for copy such as "a 30 second Qwickword". */
+export function formatDurationAdjective(seconds: number): string {
+  return seconds > 0 && seconds % 60 === 0
+    ? `${seconds / 60} minute`
+    : `${seconds} second`;
+}
+
+/** Standalone duration for descriptions such as "30 seconds, hard stop". */
+export function formatDurationLong(seconds: number): string {
+  if (seconds > 0 && seconds % 60 === 0) {
+    const minutes = seconds / 60;
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  }
+  return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+}

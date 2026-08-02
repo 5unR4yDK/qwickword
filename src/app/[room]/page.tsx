@@ -6,7 +6,12 @@ import {
   getRoomStatus,
   isPlausibleRoomName,
 } from "@/lib/daily-rooms";
-import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import {
+  formatDuration,
+  formatDurationLong,
+  MAX_DURATION_SECONDS,
+  MIN_DURATION_SECONDS,
+} from "@/lib/duration";
 import { getRecordedDurationSeconds } from "@/lib/db";
 import {
   SOCIAL_PREVIEW_ALT,
@@ -131,10 +136,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     };
   }
 
-  const minutes = Math.round(durationSeconds / 60);
-  const title = `Someone wants to have a Qwickword (${minutes} min)`;
+  const title = `Someone wants to have a Qwickword (${formatDuration(durationSeconds)})`;
   const description =
-    `${minutes} minutes, hard stop. It ends when the timer does and ` +
+    `${formatDurationLong(durationSeconds)}, hard stop. It ends when the timer does and ` +
     "can't be extended.";
 
   return {

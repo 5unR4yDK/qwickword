@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DURATION_PRESETS_SECONDS } from "@/lib/duration";
 
 /**
  * The secondary action on the home page: make a room instead of a one-off link.
@@ -38,7 +37,9 @@ export default function MakeRoomAction() {
         // immediately, so asking for it here would be a question before the
         // thing exists.
         body: JSON.stringify({
-          defaultDurationSeconds: DURATION_PRESETS_SECONDS[2],
+          // Keep new rooms at five minutes even when temporary test presets
+          // are inserted at the front of the one-tap list.
+          defaultDurationSeconds: 300,
         }),
       });
       const payload = await response.json();
