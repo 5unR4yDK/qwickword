@@ -346,10 +346,11 @@ export default function AboutPage() {
                   Qwickword. These include Daily for live audio and video,
                   Vercel for hosting and website analytics, Neon for database
                   hosting, Resend for sign-in emails, Expo for app updates and
-                  notification delivery, and Apple or Google for device
-                  notifications. They process information under their own
-                  terms and privacy policies. We may also disclose information
-                  when required by law or to protect Qwickword and its users.
+                  notification delivery, DiceBear for generated camera-off
+                  avatars, and Apple or Google for device notifications. They
+                  process information under their own terms and privacy
+                  policies. We may also disclose information when required by
+                  law or to protect Qwickword and its users.
                 </p>
               </div>
 
