@@ -266,6 +266,58 @@ export default function AboutPage() {
 
               <div>
                 <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  Google and YouTube account data
+                </h3>
+                <div className="mt-2 flex flex-col gap-4">
+                  <p>
+                    Qwickword&apos;s internal brand-publishing tool may ask the
+                    owner of the official Qwickword YouTube channel to authorize
+                    the Google OAuth <code>youtube.upload</code> permission. We
+                    use that permission only to verify that the authorized
+                    account controls the official Qwickword channel and to
+                    upload founder-approved Qwickword videos. Uploads created by
+                    the tool remain private for manual review unless an
+                    authorized channel owner later changes their visibility in
+                    YouTube.
+                  </p>
+                  <p>
+                    The tool stores the OAuth authorization token in restricted
+                    local credential storage outside the public application and
+                    source repository. It sends that token and approved video
+                    metadata or media only to Google&apos;s OAuth and YouTube API
+                    services. Qwickword does not sell this Google user data,
+                    share it with advertisers or data brokers, use it for
+                    advertising, or use it to train AI models. The authorization
+                    is not offered to Qwickword call participants or website
+                    users.
+                  </p>
+                  <p>
+                    The authorization is retained only while the internal
+                    publishing connection is needed. The channel owner can
+                    revoke access in{" "}
+                    <a
+                      href="https://myaccount.google.com/connections"
+                      className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-200 dark:decoration-zinc-700 dark:hover:text-white"
+                    >
+                      Google Account connections
+                    </a>{" "}
+                    or ask{" "}
+                    <a
+                      href="mailto:info@mauriceholdings.llc"
+                      className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-200 dark:decoration-zinc-700 dark:hover:text-white"
+                    >
+                      info@mauriceholdings.llc
+                    </a>{" "}
+                    to delete the locally stored authorization. Revoking or
+                    deleting it prevents further API uploads but does not delete
+                    videos already uploaded to YouTube; those can be managed in
+                    YouTube Studio.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
                   Service providers
                 </h3>
                 <p className="mt-2">
