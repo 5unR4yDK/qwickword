@@ -311,7 +311,28 @@ export default function AboutPage() {
                     to delete the locally stored authorization. Revoking or
                     deleting it prevents further API uploads but does not delete
                     videos already uploaded to YouTube; those can be managed in
-                    YouTube Studio.
+                    YouTube Studio. Qwickword deletes locally stored Google and
+                    YouTube authorization data within 30 days of a valid
+                    deletion request or when the authorization can no longer be
+                    verified.
+                  </p>
+                  <p>
+                    Qwickword&apos;s use of YouTube API Services is also subject
+                    to the{" "}
+                    <a
+                      href="https://www.youtube.com/t/terms"
+                      className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-200 dark:decoration-zinc-700 dark:hover:text-white"
+                    >
+                      YouTube Terms of Service
+                    </a>{" "}
+                    and the{" "}
+                    <a
+                      href="https://policies.google.com/privacy"
+                      className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-200 dark:decoration-zinc-700 dark:hover:text-white"
+                    >
+                      Google Privacy Policy
+                    </a>
+                    .
                   </p>
                 </div>
               </div>
