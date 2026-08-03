@@ -32,6 +32,25 @@ test("home page publishes one landscape social preview", async ({ page }) => {
   await expectSingleSocialPreview(page);
 });
 
+for (const [path, canonical] of [
+  ["/", "https://qwickword.com"],
+  ["/about", "https://qwickword.com/about"],
+  ["/manifesto", "https://qwickword.com/manifesto"],
+] as const) {
+  test(`${path} publishes one canonical URL and the RSS alternate`, async ({
+    page,
+  }) => {
+    await page.goto(path);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      canonical,
+    );
+    await expect(
+      page.locator('link[rel="alternate"][type="application/rss+xml"]'),
+    ).toHaveAttribute("href", "https://qwickword.com/feed.xml");
+  });
+}
+
 test("shared room links keep the same single social preview", async ({ page }) => {
   const futureExpiry = Math.floor(Date.now() / 1000) + 60 * 60;
   await page.goto(`/preview_room?d=420&exp=${futureExpiry}`);

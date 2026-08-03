@@ -10,6 +10,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "The Qwickword Manifesto",
   description: "On the abolition of the meeting that would not end.",
+  alternates: {
+    canonical: "/manifesto",
+    types: {
+      "application/rss+xml": "https://qwickword.com/feed.xml",
+    },
+  },
 };
 
 export default function ManifestoPage() {

@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     "Qwickword makes a short meeting invitation believable: agree the boundary before the call, then trust the room to keep it.",
   alternates: {
     canonical: "/about",
+    types: {
+      "application/rss+xml": "https://qwickword.com/feed.xml",
+    },
   },
 };
 

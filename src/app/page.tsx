@@ -1,4 +1,14 @@
 import HomeContent from "@/components/home-content";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+    types: {
+      "application/rss+xml": "https://qwickword.com/feed.xml",
+    },
+  },
+};
 
 // schema.org structured data. Gives search engines and AI crawlers a
 // machine-readable description of what
