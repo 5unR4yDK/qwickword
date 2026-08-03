@@ -18,7 +18,12 @@ test("the room API rejects a slug that could never be one", async ({ request }) 
 });
 
 test("creating a room requires a valid default length", async ({ request }) => {
-  for (const bad of [{}, { defaultDurationSeconds: 30 }, { defaultDurationSeconds: 1801 }, { defaultDurationSeconds: "300" }]) {
+  for (const bad of [
+    {},
+    { defaultDurationSeconds: 29 },
+    { defaultDurationSeconds: 1801 },
+    { defaultDurationSeconds: "300" },
+  ]) {
     const res = await request.post("/api/r", { data: bad });
     expect(res.status(), JSON.stringify(bad)).toBe(400);
     expect((await res.json()).error).toContain("defaultDurationSeconds");
