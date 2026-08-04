@@ -75,6 +75,11 @@ type Props = {
   }>;
 };
 
+const PRIVATE_LINK_ROBOTS: Metadata["robots"] = {
+  index: false,
+  follow: false,
+};
+
 /**
  * Parses and bounds-checks the `d` (durationSeconds) query param, shared by
  * both `generateMetadata` (below) and the page component — kept in one place
@@ -119,6 +124,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     return {
       title: "Qwickword",
       description,
+      robots: PRIVATE_LINK_ROBOTS,
       openGraph: {
         title: "Qwickword",
         description,
@@ -144,6 +150,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return {
     title,
     description,
+    robots: PRIVATE_LINK_ROBOTS,
     openGraph: {
       title,
       description,

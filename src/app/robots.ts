@@ -18,10 +18,8 @@ export default function robots(): MetadataRoute.Robots {
 }
 
 // Note on room links (e.g. qwickword.com/YvgkGE7B14TSaOHV261w?exp=...&d=...):
-// deliberately not explicitly disallowed here. robots.txt only supports `*`
-// wildcards, not real pattern matching, so there's no clean way to express
-// "any single-segment path that isn't one of the known static routes."
-// That's not actually a gap worth closing: those links are random,
-// unguessable, never linked to from anywhere on the site or in the sitemap
-// below, and expire — a crawler has no path to discover one in the first
-// place, so there's nothing to explicitly keep it away from.
+// deliberately not disallowed here. A disallow rule would keep a crawler from
+// reading the page-level `noindex` directive emitted by both call and
+// persistent-room routes. Those URLs stay out of the sitemap and declare
+// `noindex, nofollow` themselves, while remaining fetchable by link-preview
+// bots so an invite can still show its safe, duration-specific card.

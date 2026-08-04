@@ -21,6 +21,11 @@ import InvalidLinkScreen from "@/components/invalid-link-screen";
 
 type Props = { params: Promise<{ slug: string }> };
 
+const PRIVATE_LINK_ROBOTS: Metadata["robots"] = {
+  index: false,
+  follow: false,
+};
+
 /**
  * Link previews name the room but never its contents. A room link is meant to
  * sit in an email signature, so the card has to be safe to show to anyone who
@@ -30,12 +35,12 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   if (!isPlausibleRoomSlug(slug)) {
-    return { title: "Qwickword" };
+    return { title: "Qwickword", robots: PRIVATE_LINK_ROBOTS };
   }
 
   const room = await loadRoomView(slug, 0);
   if (!room) {
-    return { title: "Qwickword" };
+    return { title: "Qwickword", robots: PRIVATE_LINK_ROBOTS };
   }
 
   const name = room.name ?? slug.replace(/-/g, " ");
@@ -47,6 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    robots: PRIVATE_LINK_ROBOTS,
     openGraph: {
       title,
       description,
