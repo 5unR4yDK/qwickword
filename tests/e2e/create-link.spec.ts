@@ -306,8 +306,16 @@ test("landing attribution is sanitized and stored in first-party cookies", async
 
   const firstAttribution = setCookie.match(/qw_attribution=([^;]+)/)?.[1];
   expect(firstAttribution).toBeTruthy();
+  const firstTrafficClass = setCookie.match(/qw_traffic=([^;]+)/)?.[1];
+  expect(firstTrafficClass).toBe("smoke");
 
   const directReturn = await request.post("/api/attribution/landing", {
+    // The production cookies are correctly marked Secure. Playwright's local
+    // HTTP server therefore cannot resend them automatically, so emulate the
+    // HTTPS browser round trip explicitly here.
+    headers: {
+      cookie: `qw_attribution=${firstAttribution}; qw_traffic=${firstTrafficClass}`,
+    },
     data: {
       attribution: {
         source: null,
