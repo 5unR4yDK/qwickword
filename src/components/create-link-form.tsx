@@ -296,9 +296,9 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
         )}
 
         <div className="flex w-full flex-col items-center gap-4">
-          <p className="text-[13px] font-medium tracking-[0.18em] text-zinc-500 uppercase dark:text-[#71717A]">
+          <h1 className="text-[13px] font-medium tracking-[0.18em] text-zinc-500 uppercase dark:text-[#71717A]">
             Share this link
-          </p>
+          </h1>
           <div className="flex w-full flex-col items-center gap-3.5 rounded-3xl border border-teal-600/40 bg-teal-500/[0.06] px-8 py-7 dark:border-[rgba(61,254,241,0.3)] dark:bg-[rgba(61,254,241,0.04)]">
             <p className="text-3xl font-medium break-all text-teal-700 dark:text-[#3DFEF1]">
               {state.displayLink}
@@ -376,9 +376,9 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     <div className="flex w-full max-w-[720px] flex-col items-center gap-11 text-center">
       <div className="flex flex-col items-center gap-5">
         <Wordmark className="w-[540px] max-w-[86vw]" />
-        <p className="text-sm font-medium tracking-[0.26em] text-zinc-600 uppercase dark:text-[#D9D9D9]">
+        <h1 className="text-sm font-medium tracking-[0.26em] text-zinc-600 uppercase dark:text-[#D9D9D9]">
           Meetings that end on time
-        </p>
+        </h1>
       </div>
 
       {mockMode && (
@@ -422,7 +422,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                typing shifts the whole picker row up and down. */
             <div
               ref={customFieldRef}
-              className="relative box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)]"
+              className="relative box-border flex h-11 items-center gap-2 rounded-full border border-teal-600 bg-teal-500/[0.08] py-0 pr-1 pl-4 focus-within:ring-2 focus-within:ring-teal-500 focus-within:ring-offset-2 focus-within:ring-offset-zinc-50 dark:border-[#3DFEF1] dark:bg-[rgba(61,254,241,0.08)] dark:focus-within:ring-[#3DFEF1] dark:focus-within:ring-offset-black"
             >
               {isOverMax && (
                 <p

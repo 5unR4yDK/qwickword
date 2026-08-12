@@ -51,6 +51,32 @@ for (const [path, canonical] of [
   });
 }
 
+for (const [path, title, url] of [
+  ["/about", "About | Qwickword", "https://qwickword.com/about"],
+  [
+    "/manifesto",
+    "The Qwickword Manifesto | Qwickword",
+    "https://qwickword.com/manifesto",
+  ],
+] as const) {
+  test(`${path} publishes page-specific social metadata`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      "content",
+      title,
+    );
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+      "content",
+      url,
+    );
+    await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute(
+      "content",
+      title,
+    );
+    await expectSingleSocialPreview(page);
+  });
+}
+
 test("shared room links keep the same single social preview", async ({ page }) => {
   const futureExpiry = Math.floor(Date.now() / 1000) + 60 * 60;
   await page.goto(`/preview_room?d=420&exp=${futureExpiry}`);

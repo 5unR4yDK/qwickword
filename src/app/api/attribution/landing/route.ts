@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  attributionFromRequest,
   normalizeAttribution,
   normalizeTrafficClass,
   sessionFromRequest,
   setAttributionCookies,
   setSessionCookie,
+  trafficClassFromRequest,
 } from "@/lib/attribution";
 import { appendEvent } from "@/lib/db";
 
@@ -15,6 +17,12 @@ type LandingBody = {
   trafficClass?: unknown;
 };
 
+function hasCampaignAttribution(
+  attribution: ReturnType<typeof normalizeAttribution>
+): boolean {
+  return Object.values(attribution).some((value) => value !== null);
+}
+
 export async function POST(request: NextRequest) {
   let body: LandingBody = {};
   try {
@@ -23,8 +31,19 @@ export async function POST(request: NextRequest) {
     // A direct visit with no campaign fields is still a valid landing.
   }
 
-  const attribution = normalizeAttribution(body.attribution);
-  const trafficClass = normalizeTrafficClass(body.trafficClass);
+  const incomingAttribution = normalizeAttribution(body.attribution);
+  const existingAttribution = attributionFromRequest(request);
+  // Keep the source that introduced a visitor when they return directly
+  // before creating. A new tagged visit still replaces the prior source.
+  const attribution = hasCampaignAttribution(incomingAttribution)
+    ? incomingAttribution
+    : hasCampaignAttribution(existingAttribution)
+      ? existingAttribution
+      : incomingAttribution;
+  const trafficClass =
+    body.trafficClass === null || body.trafficClass === undefined
+      ? trafficClassFromRequest(request)
+      : normalizeTrafficClass(body.trafficClass);
   const { sessionId } = sessionFromRequest(request);
 
   await appendEvent({

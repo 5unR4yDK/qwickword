@@ -228,8 +228,20 @@ function LeftScreen({
 }
 
 function EndedScreen({ onReport }: { onReport: () => Promise<string | null> }) {
+  const screenRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    screenRef.current?.focus();
+  }, []);
+
   return (
-    <div className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white">
+    <div
+      ref={screenRef}
+      role="status"
+      aria-live="polite"
+      tabIndex={-1}
+      className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white outline-none"
+    >
       {/* Faint ambient glow behind the content. */}
       <div
         aria-hidden="true"

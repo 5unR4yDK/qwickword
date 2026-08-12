@@ -1,5 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import {
+  SOCIAL_PREVIEW_ALT,
+  SOCIAL_PREVIEW_IMAGE,
+  SOCIAL_PREVIEW_URL,
+} from "@/lib/social-preview";
 
 // The plain-spoken counterpart to /manifesto: the human reason for the
 // product, the business situations it fits, and an honest account of the
@@ -14,6 +19,22 @@ export const metadata: Metadata = {
     types: {
       "application/rss+xml": "https://qwickword.com/feed.xml",
     },
+  },
+  openGraph: {
+    type: "website",
+    url: "/about",
+    siteName: "Qwickword",
+    title: "About | Qwickword",
+    description:
+      "Why a short Qwickword invitation is easier to accept: the time boundary is agreed before the call and enforced for everyone.",
+    images: [SOCIAL_PREVIEW_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About | Qwickword",
+    description:
+      "Why a short Qwickword invitation is easier to accept: the time boundary is agreed before the call and enforced for everyone.",
+    images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
   },
 };
 

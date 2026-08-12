@@ -1,5 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import {
+  SOCIAL_PREVIEW_ALT,
+  SOCIAL_PREVIEW_IMAGE,
+  SOCIAL_PREVIEW_URL,
+} from "@/lib/social-preview";
 
 // A discreet easter egg (see the tiny "manifesto" link tucked in the corner
 // of the home page, src/app/page.tsx) styled like a blog post/essay rather
@@ -15,6 +20,20 @@ export const metadata: Metadata = {
     types: {
       "application/rss+xml": "https://qwickword.com/feed.xml",
     },
+  },
+  openGraph: {
+    type: "article",
+    url: "/manifesto",
+    siteName: "Qwickword",
+    title: "The Qwickword Manifesto | Qwickword",
+    description: "On the abolition of the meeting that would not end.",
+    images: [SOCIAL_PREVIEW_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Qwickword Manifesto | Qwickword",
+    description: "On the abolition of the meeting that would not end.",
+    images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
   },
 };
 

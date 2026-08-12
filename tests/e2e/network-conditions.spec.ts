@@ -94,5 +94,6 @@ test.describe("F7 network-condition harness", () => {
     await expect(
       page.getByText("This Qwickword has ended.")
     ).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByRole("status")).toBeFocused();
   });
 });
