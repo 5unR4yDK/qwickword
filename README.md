@@ -60,9 +60,24 @@ obvious when testing locally without credentials; in live mode (real credentials
 the deployed site) no banner is shown — visitors don't need to see the video provider's internal
 domain. This means the app is fully runnable and testable without any credentials.
 
-A third variable, `DATABASE_URL`, is entirely optional — it points at a Postgres database
-(this project uses Neon) that records call-creation stats. Unset, every write is a silent no-op
-(see `src/lib/db.ts`); nothing about running or testing the app depends on it.
+`DATABASE_URL` points at Postgres (this project uses Neon). One-off calls still
+run without it, but persistent Rooms, optional identities/sessions, saved
+people, notification routing, diagnostics, and durable attribution use database
+state. Unset, those writes safely no-op or their feature returns an unavailable
+response rather than inventing persistence.
+
+Optional sign-in email uses `RESEND_API_KEY` and `QWICKWORD_MAIL_FROM`. Local
+development falls back to logging the one-time code. `IDENTITY_HMAC_SECRET` is
+required anywhere identity values are stored; use a long random secret and
+never commit it.
+
+## Persistent Rooms
+
+The secondary action on the homepage creates a stable `/r/<slug>` room with a
+name and default duration. The owner capability is returned once in the URL
+fragment, stored on that device, and never placed in query strings or server
+logs. Visitors can return to the room without an account; each conversation in
+it creates a fresh timed Qwickword and appears in the room timeline.
 
 ### Other scripts
 
@@ -77,7 +92,10 @@ npm run start   # serve the production build (run npm run build first)
 - `src/app/page.tsx` — create-link page (choose a duration, get a shareable link).
 - `src/app/[room]/page.tsx` — the call page: joins the room, shows a synced countdown, and
   handles invalid/expired links.
+- `src/app/r/[slug]/page.tsx` — persistent Room page and call timeline.
 - `src/app/api/rooms/route.ts` — creates a Daily room with a hard `exp`.
+- `src/app/api/r/` — creates, reads, updates, closes, and starts calls inside
+  persistent Rooms.
 - `src/lib/` — Daily API client, env/mock-mode config, and shared duration/time helpers.
 - `src/components/` — the call UI (countdown, call media, hard-end and invalid-link screens).
 

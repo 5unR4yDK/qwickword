@@ -1,6 +1,6 @@
 # Qwickword
 
-> Qwickword is a free, no-signup video calling tool. You pick a time limit
+> Qwickword is a free video calling tool. You pick a time limit
 > (1 to 30 minutes), get a shareable link, and the call ends automatically
 > the moment the timer hits zero. There's no way to extend it.
 
@@ -8,7 +8,7 @@
 
 - Creates a single-use video call link with a hard time limit set by the
   creator.
-- Runs entirely in the browser: no account, no download, no installation.
+- Guests join in the browser without an account, download, or installation.
 - The countdown starts once a second person joins the call (or the creator
   manually starts it), not the moment the link is created, so the link can
   sit unopened without wasting the call's own time.
@@ -17,9 +17,18 @@
 
 ## Who it's for
 
-People who want a meeting, catch-up, or quick video chat that is guaranteed
-not to run long. Most video call tools are built to keep people on the call;
-this one is built to end it.
+People who want a meeting, catch-up, or quick video chat with a pre-agreed hard
+stop. Most video call tools are built to keep people on the call; this one is
+built to end it.
+
+## Persistent rooms
+
+- A room has a stable `/r/` link, a name, and a default call length so people
+  who speak regularly can return to the same place.
+- A room is not a permanent call. Each call created inside it gets a fresh,
+  separate timed link and the same hard ending.
+- Optional sign-in can remember people and recent activity. It is not required
+  for a guest to join a call.
 
 ## Links
 

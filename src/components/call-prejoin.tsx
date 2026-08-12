@@ -331,7 +331,7 @@ function DeviceRow({
 }) {
   const selected = options.find((option) => option.id === value);
   return (
-    <div className="relative flex h-11 items-center gap-2 rounded-[10px] border border-white/[0.145] bg-white/[0.03] px-3.5 transition-colors duration-150 hover:border-[rgba(61,254,241,0.5)]">
+    <div className="relative flex h-11 items-center gap-2 rounded-[10px] border border-white/[0.145] bg-white/[0.03] px-3.5 transition-colors duration-150 hover:border-[rgba(61,254,241,0.5)] focus-within:border-[#3DFEF1] focus-within:ring-2 focus-within:ring-[#3DFEF1]/70 focus-within:ring-offset-2 focus-within:ring-offset-black">
       <span className="shrink-0 text-[#71717A]">{icon}</span>
       <span className="min-w-0 flex-1 truncate text-[13px] text-[#D4D4D8]">
         {selected?.label ?? label}

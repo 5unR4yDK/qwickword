@@ -7,7 +7,12 @@ import { test, expect } from "@playwright/test";
 test("home page offers the duration picker", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText("Meetings that end on time")).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Meetings that end on time",
+    })
+  ).toBeVisible();
   await expect(page.getByText("How long is your Qwickword?")).toBeVisible();
   await expect(page.getByRole("link", { name: "privacy" })).toHaveAttribute(
     "href",
@@ -33,7 +38,9 @@ test("picking a duration produces a shareable link", async ({ page }) => {
   const picker = page.getByRole("group", { name: "Call length" });
   await picker.getByRole("button").first().click();
 
-  await expect(page.getByText("Share this link")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Share this link" })
+  ).toBeVisible();
   // The link is rendered as text, not an input, so assert on the copy control
   // and the visible URL rather than a value.
   await expect(page.getByText(/qwickword\.com\/|127\.0\.0\.1:3100\//)).toBeVisible();
@@ -128,6 +135,7 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const sitemapText = await sitemap.text();
+  expect(sitemapText).toContain("2026-08-05");
   expect(sitemapText).toContain("https://qwickword.com/about");
   expect(sitemapText).toContain("2026-08-02");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
@@ -295,6 +303,40 @@ test("landing attribution is sanitized and stored in first-party cookies", async
   expect(setCookie).toContain("qw_traffic=smoke");
   expect(setCookie).toContain("HttpOnly");
   expect(setCookie).toContain("SameSite=lax");
+
+  const firstAttribution = setCookie.match(/qw_attribution=([^;]+)/)?.[1];
+  expect(firstAttribution).toBeTruthy();
+
+  const directReturn = await request.post("/api/attribution/landing", {
+    data: {
+      attribution: {
+        source: null,
+        medium: null,
+        campaign: null,
+        content: null,
+      },
+      trafficClass: null,
+    },
+  });
+  expect(directReturn.status()).toBe(200);
+  const returnCookies = directReturn.headers()["set-cookie"];
+  expect(returnCookies.match(/qw_attribution=([^;]+)/)?.[1]).toBe(
+    firstAttribution,
+  );
+  expect(returnCookies).toContain("qw_traffic=smoke");
+});
+
+test("www requests permanently consolidate on the apex host", async ({
+  request,
+}) => {
+  const response = await request.get("/about?from=www", {
+    headers: { host: "www.qwickword.com" },
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toBe(
+    "https://qwickword.com/about?from=www",
+  );
 });
 
 test("native share opens the supported share sheet with truthful copy", async ({
