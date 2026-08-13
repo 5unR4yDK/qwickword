@@ -22,7 +22,7 @@ const structuredData = {
   name: "Qwickword",
   url: "https://qwickword.com",
   description:
-    "Set a time limit, share the link, start talking. No account, no download. The call ends the moment the timer hits zero.",
+    "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero.",
   applicationCategory: "CommunicationApplication",
   operatingSystem: "Any (web browser)",
   offers: {

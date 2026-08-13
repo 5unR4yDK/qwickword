@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     template: "%s | Qwickword",
   },
   description:
-    "Set a time limit, share the link, start talking. No account, no download. The call ends the moment the timer hits zero, so it never runs long.",
+    "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero, so it never runs long.",
   keywords: [
     "time-limited video call",
     "self-destructing video call link",
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     siteName: "Qwickword",
     title: "Qwickword: video calls that end on time",
     description:
-      "Set a time limit, share the link, start talking. No account, no download. The call ends the moment the timer hits zero.",
+      "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero.",
     // One image only. Apple Messages may render multiple og:image entries as
     // a collage, which previously duplicated and cropped the Qwickword card.
     images: [SOCIAL_PREVIEW_IMAGE],
@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Qwickword: video calls that end on time",
     description:
-      "Set a time limit, share the link, start talking. No account, no download. The call ends the moment the timer hits zero.",
+      "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero.",
     images: [{ url: SOCIAL_PREVIEW_URL, alt: SOCIAL_PREVIEW_ALT }],
   },
 };

@@ -191,7 +191,7 @@ export default function AboutPage() {
               >
                 Privacy policy
               </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-500">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Effective 2 August 2026
               </p>
             </div>
@@ -441,7 +441,7 @@ export default function AboutPage() {
           </Link>
           <Link
             href="/manifesto"
-            className="text-xs text-zinc-400 transition-colors hover:text-zinc-600 dark:text-[#52525B] dark:hover:text-zinc-400"
+            className="text-xs text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             or read the manifesto
           </Link>

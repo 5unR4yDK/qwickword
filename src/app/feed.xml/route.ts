@@ -45,7 +45,7 @@ export function GET() {
   <link>https://qwickword.com</link>
   <description>Product explanations and release notes from Qwickword.</description>
   <language>en</language>
-  <lastBuildDate>Sun, 02 Aug 2026 00:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 12 Aug 2026 00:00:00 GMT</lastBuildDate>
   ${items}
 </channel>
 </rss>`;

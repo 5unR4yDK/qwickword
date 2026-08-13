@@ -180,7 +180,7 @@ export default function ManifestoPage() {
         <div className="mt-16 text-center font-sans">
           <Link
             href="/"
-            className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-800 dark:hover:text-zinc-200"
+            className="text-sm text-zinc-600 underline underline-offset-4 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             Back to Qwickword
           </Link>

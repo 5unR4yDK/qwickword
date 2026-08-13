@@ -1,4 +1,50 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
+
+async function contrastRatio(locator: Locator): Promise<number> {
+  return locator.evaluate((element) => {
+    const parseColor = (value: string) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas color conversion is unavailable");
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      const channels = context.getImageData(0, 0, 1, 1).data;
+      return {
+        rgb: [channels[0], channels[1], channels[2]] as [number, number, number],
+        alpha: channels[3] / 255,
+      };
+    };
+    const luminance = (rgb: [number, number, number]) => {
+      const linear = rgb.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045
+          ? value / 12.92
+          : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    };
+
+    const foreground = parseColor(getComputedStyle(element).color).rgb;
+    let ancestor: Element | null = element;
+    let background = "rgb(255, 255, 255)";
+    while (ancestor) {
+      const candidate = getComputedStyle(ancestor).backgroundColor;
+      if (parseColor(candidate).alpha > 0) {
+        background = candidate;
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
+
+    const backgroundRgb = parseColor(background).rgb;
+    const lighter = Math.max(luminance(foreground), luminance(backgroundRgb));
+    const darker = Math.min(luminance(foreground), luminance(backgroundRgb));
+    return (lighter + 0.05) / (darker + 0.05);
+  });
+}
 
 // The create-a-link flow, which is the whole product on the way in. Runs in
 // mock mode (see playwright.config.ts), so no Daily room is provisioned and
@@ -97,6 +143,22 @@ test("about page renders", async ({ page }) => {
   ).toBe(true);
 });
 
+test("secondary owned-page text meets normal-text contrast", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/about");
+  for (const locator of [
+    page.getByText("Effective 2 August 2026"),
+    page.getByRole("link", { name: "or read the manifesto" }),
+  ]) {
+    expect(await contrastRatio(locator)).toBeGreaterThanOrEqual(4.5);
+  }
+
+  await page.goto("/manifesto");
+  expect(
+    await contrastRatio(page.getByRole("link", { name: "Back to Qwickword" })),
+  ).toBeGreaterThanOrEqual(4.5);
+});
+
 test("public copy does not use em dashes", async ({ page, request }) => {
   for (const path of ["/", "/about", "/manifesto"]) {
     await page.goto(path);
@@ -131,13 +193,16 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(feedText).toContain("https://qwickword.com/about");
   expect(feedText).toContain("About and privacy at Qwickword");
   expect(feedText).toContain("https://qwickword.com/manifesto");
+  expect(feedText).toContain(
+    "<lastBuildDate>Wed, 12 Aug 2026 00:00:00 GMT</lastBuildDate>"
+  );
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const sitemapText = await sitemap.text();
-  expect(sitemapText).toContain("2026-08-05");
+  expect(sitemapText).toContain("2026-08-12");
   expect(sitemapText).toContain("https://qwickword.com/about");
-  expect(sitemapText).toContain("2026-08-02");
+  expect(sitemapText).toContain("2026-08-12");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");

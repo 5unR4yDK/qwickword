@@ -30,6 +30,17 @@ async function expectSingleSocialPreview(page: Page): Promise<void> {
 test("home page publishes one landscape social preview", async ({ page }) => {
   await page.goto("/");
   await expectSingleSocialPreview(page);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    /Your guest needs no account or download/,
+  );
+  const structuredData = JSON.parse(
+    (await page.locator('script[type="application\/ld\+json"]').textContent()) ??
+      "{}",
+  );
+  expect(structuredData.description).toContain(
+    "Your guest needs no account or download",
+  );
 });
 
 for (const [path, canonical] of [
