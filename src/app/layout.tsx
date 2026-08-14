@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import {
   SOCIAL_PREVIEW_ALT,
@@ -16,16 +16,6 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
-
-// Used only for the large decorative "Q" watermark on the home page
-// (src/app/page.tsx) — a distinctive serif with an elegant, long-tailed Q,
-// not for body text. A more sculpted, editorial letterform than a plain
-// Times-style serif.
-const playfairDisplay = Playfair_Display({
-  variable: "--font-playfair-display",
-  subsets: ["latin"],
-  weight: ["700"],
 });
 
 // SEO + AI-search discoverability metadata. metadataBase turns every
@@ -95,7 +85,7 @@ export default function RootLayout({
       lang="en"
       // Defaults to dark. The `dark` class here is what src/app/globals.css's
       // `@custom-variant dark` now keys every `dark:` utility off of.
-      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <head>
         {/* Blocking (no defer/async), runs before first paint — the

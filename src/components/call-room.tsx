@@ -228,20 +228,17 @@ function LeftScreen({
 }
 
 function EndedScreen({ onReport }: { onReport: () => Promise<string | null> }) {
-  const screenRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    screenRef.current?.focus();
+    headingRef.current?.focus();
   }, []);
 
   return (
-    <div
-      ref={screenRef}
-      role="status"
-      aria-live="polite"
-      tabIndex={-1}
-      className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white outline-none"
-    >
+    <div className="relative flex h-full w-full flex-col items-center justify-center gap-7 overflow-hidden bg-black px-6 text-center text-white">
+      <p role="status" aria-live="polite" className="sr-only">
+        This Qwickword has ended.
+      </p>
       {/* Faint ambient glow behind the content. */}
       <div
         aria-hidden="true"
@@ -253,9 +250,13 @@ function EndedScreen({ onReport }: { onReport: () => Promise<string | null> }) {
         alt="qwickword.com"
         className="relative z-10 h-auto w-[300px] max-w-[80vw] opacity-80"
       />
-      <p className="relative z-10 text-[22px] font-medium text-[#FAFAFA]">
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="relative z-10 text-[22px] font-medium text-[#FAFAFA] outline-none"
+      >
         This Qwickword has ended.
-      </p>
+      </h1>
       <Link
         href="/"
         className="relative z-10 flex h-12 cursor-pointer items-center rounded-full bg-[#3DFEF1] px-[26px] text-[15px] font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"

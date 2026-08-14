@@ -91,9 +91,13 @@ test.describe("F7 network-condition harness", () => {
     await expect(page.getByRole("timer")).toBeVisible();
 
     await network.use(NETWORK_PROFILES.offline);
-    await expect(
-      page.getByText("This Qwickword has ended.")
-    ).toBeVisible({ timeout: 12_000 });
-    await expect(page.getByRole("status")).toBeFocused();
+    const endedHeading = page.getByRole("heading", {
+      name: "This Qwickword has ended.",
+    });
+    await expect(endedHeading).toBeVisible({ timeout: 12_000 });
+    await expect(endedHeading).toBeFocused();
+    await expect(page.getByRole("status")).toHaveText(
+      "This Qwickword has ended."
+    );
   });
 });
