@@ -34,6 +34,7 @@ export default defineConfig({
       DAILY_API_KEY: "",
       DAILY_DOMAIN: "",
       DATABASE_URL: "",
+      IDENTITY_HMAC_SECRET: "playwright-traffic-secret-not-for-production",
     },
   },
 });

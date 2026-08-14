@@ -11,13 +11,13 @@ import {
   clearParentRoomCookie,
   CREATED_ROOM_COOKIE,
   normalizeAttribution,
-  normalizeTrafficClass,
   PARENT_ROOM_COOKIE,
   sessionFromRequest,
   setAttributionCookies,
   setRoomCookie,
   setSessionCookie,
   trafficClassFromRequest,
+  trustedTrafficClassFromRequest,
 } from "@/lib/attribution";
 
 /** Never cache: every call must mint a fresh room. */
@@ -26,7 +26,6 @@ export const dynamic = "force-dynamic";
 type CreateRoomBody = {
   durationSeconds?: unknown;
   attribution?: unknown;
-  trafficClass?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -34,8 +33,8 @@ export async function POST(request: NextRequest) {
   // and starts a genuine one-minute Daily room, but it must not look like a
   // human-created link in the product funnel. The room is started immediately
   // by the probe, so Daily's own hard expiry removes it after one minute.
-  const isContractCheck =
-    request.headers.get("x-qwickword-contract-check") === "1";
+  const trustedTrafficClass = trustedTrafficClassFromRequest(request);
+  const isContractCheck = trustedTrafficClass === "contract";
 
   let body: CreateRoomBody;
   try {
@@ -68,11 +67,7 @@ export async function POST(request: NextRequest) {
         ? cookieAttribution
         : bodyAttribution;
     const cookieTrafficClass = trafficClassFromRequest(request);
-    const trafficClass = isContractCheck
-      ? "contract"
-      : cookieTrafficClass === "public"
-        ? normalizeTrafficClass(body.trafficClass)
-        : cookieTrafficClass;
+    const trafficClass = trustedTrafficClass ?? cookieTrafficClass;
     const parentCallName =
       request.cookies.get(PARENT_ROOM_COOKIE)?.value ?? null;
     // The database row is what lets the shared link be clean (slug only, no

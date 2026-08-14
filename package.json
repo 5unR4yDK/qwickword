@@ -28,6 +28,7 @@
     "test:e2e": "playwright test",
     "test:e2e:network": "playwright test tests/e2e/network-conditions.spec.ts tests/e2e/network-degradation.spec.ts",
     "migrate": "node scripts/migrate.mjs",
+    "traffic-token": "node --experimental-strip-types scripts/create-traffic-token.mjs",
     "test:unit": "node --test --experimental-strip-types \"tests/unit/*.test.mjs\""
   },
   "dependencies": {

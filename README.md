@@ -97,6 +97,16 @@ npm run start   # serve the production build (run npm run build first)
 - `src/app/api/r/` — creates, reads, updates, closes, and starts calls inside
   persistent Rooms.
 - `src/lib/` — Daily API client, env/mock-mode config, and shared duration/time helpers.
+
+### Production probes
+
+Public requests are always counted as public traffic. First-party smoke and
+contract probes use a five-minute, server-verified traffic token signed by
+`IDENTITY_HMAC_SECRET`; a URL parameter, request body, or unsigned cookie cannot
+exclude activity from demand reporting. Operators can mint a token with
+`npm run traffic-token -- smoke` (or `contract`) and send it in the
+`x-qwickword-traffic-token` request header. Tokens and secrets must not be
+committed or written to reports.
 - `src/components/` — the call UI (countdown, call media, hard-end and invalid-link screens).
 
 ## Deployment

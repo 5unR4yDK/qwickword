@@ -74,11 +74,6 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
         campaign: params.get("utm_campaign"),
         content: params.get("utm_content"),
       },
-      trafficClass:
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1"
-          ? "developer"
-          : params.get("traffic_class"),
     };
   }
 

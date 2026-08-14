@@ -1,4 +1,7 @@
 import { test, expect, type Locator } from "@playwright/test";
+import { createProbeTrafficToken } from "../../src/lib/traffic-classification";
+
+const TEST_TRAFFIC_SECRET = "playwright-traffic-secret-not-for-production";
 
 async function contrastRatio(locator: Locator): Promise<number> {
   return locator.evaluate((element) => {
@@ -347,7 +350,7 @@ test("the share-stats endpoint validates its channel", async ({ request }) => {
   }
 });
 
-test("landing attribution is sanitized and stored in first-party cookies", async ({
+test("landing attribution is sanitized while traffic classification stays server-owned", async ({
   request,
 }) => {
   const response = await request.post("/api/attribution/landing", {
@@ -365,21 +368,21 @@ test("landing attribution is sanitized and stored in first-party cookies", async
   const setCookie = response.headers()["set-cookie"];
   expect(setCookie).toContain("qw_session=");
   expect(setCookie).toContain("qw_attribution=");
-  expect(setCookie).toContain("qw_traffic=smoke");
+  expect(setCookie).toContain("qw_traffic=public");
   expect(setCookie).toContain("HttpOnly");
   expect(setCookie).toContain("SameSite=lax");
 
   const firstAttribution = setCookie.match(/qw_attribution=([^;]+)/)?.[1];
   expect(firstAttribution).toBeTruthy();
   const firstTrafficClass = setCookie.match(/qw_traffic=([^;]+)/)?.[1];
-  expect(firstTrafficClass).toBe("smoke");
+  expect(firstTrafficClass).toBe("public");
 
   const directReturn = await request.post("/api/attribution/landing", {
     // The production cookies are correctly marked Secure. Playwright's local
     // HTTP server therefore cannot resend them automatically, so emulate the
     // HTTPS browser round trip explicitly here.
     headers: {
-      cookie: `qw_attribution=${firstAttribution}; qw_traffic=${firstTrafficClass}`,
+      cookie: `qw_attribution=${firstAttribution}; qw_traffic=smoke`,
     },
     data: {
       attribution: {
@@ -396,7 +399,19 @@ test("landing attribution is sanitized and stored in first-party cookies", async
   expect(returnCookies.match(/qw_attribution=([^;]+)/)?.[1]).toBe(
     firstAttribution,
   );
-  expect(returnCookies).toContain("qw_traffic=smoke");
+  expect(returnCookies).toContain("qw_traffic=public");
+});
+
+test("a short-lived server token classifies an authorized probe", async ({
+  request,
+}) => {
+  const token = createProbeTrafficToken("smoke", TEST_TRAFFIC_SECRET);
+  const response = await request.post("/api/attribution/landing", {
+    headers: { "x-qwickword-traffic-token": token },
+    data: { attribution: null },
+  });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["set-cookie"]).toContain("qw_traffic=v1.smoke.");
 });
 
 test("www requests permanently consolidate on the apex host", async ({

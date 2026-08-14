@@ -1,4 +1,10 @@
 import type { NextRequest, NextResponse } from "next/server";
+import {
+  decodeProbeTrafficToken,
+  decodeTrafficCookie,
+  encodeTrafficCookie,
+  type TrafficClass,
+} from "@/lib/traffic-classification";
 
 export const SESSION_COOKIE = "qw_session";
 export const ATTRIBUTION_COOKIE = "qw_attribution";
@@ -10,17 +16,6 @@ const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const SAFE_VALUE = /^[a-z0-9_]+$/;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export const TRAFFIC_CLASSES = [
-  "public",
-  "founder",
-  "developer",
-  "contract",
-  "smoke",
-  "preview_fetch",
-] as const;
-
-export type TrafficClass = (typeof TRAFFIC_CLASSES)[number];
 
 export type CampaignAttribution = {
   source: string | null;
@@ -58,11 +53,8 @@ export function normalizeAttribution(raw: unknown): CampaignAttribution {
   };
 }
 
-export function normalizeTrafficClass(raw: unknown): TrafficClass {
-  return typeof raw === "string" &&
-    (TRAFFIC_CLASSES as readonly string[]).includes(raw)
-    ? (raw as TrafficClass)
-    : "public";
+function trafficSecret(): string | null {
+  return process.env.IDENTITY_HMAC_SECRET?.trim() || null;
 }
 
 export function sessionFromRequest(request: NextRequest): {
@@ -91,7 +83,19 @@ export function attributionFromRequest(
 }
 
 export function trafficClassFromRequest(request: NextRequest): TrafficClass {
-  return normalizeTrafficClass(request.cookies.get(TRAFFIC_COOKIE)?.value);
+  return decodeTrafficCookie(
+    request.cookies.get(TRAFFIC_COOKIE)?.value,
+    trafficSecret()
+  );
+}
+
+export function trustedTrafficClassFromRequest(
+  request: NextRequest
+): TrafficClass | null {
+  return decodeProbeTrafficToken(
+    request.headers.get("x-qwickword-traffic-token"),
+    trafficSecret()
+  );
 }
 
 export function setSessionCookie(
@@ -123,13 +127,17 @@ export function setAttributionCookies(
       maxAge: COOKIE_MAX_AGE_SECONDS,
     }
   );
-  response.cookies.set(TRAFFIC_COOKIE, trafficClass, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: COOKIE_MAX_AGE_SECONDS,
-  });
+  response.cookies.set(
+    TRAFFIC_COOKIE,
+    encodeTrafficCookie(trafficClass, trafficSecret()),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: COOKIE_MAX_AGE_SECONDS,
+    }
+  );
 }
 
 export function setRoomCookie(

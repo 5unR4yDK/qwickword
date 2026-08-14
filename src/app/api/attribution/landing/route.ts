@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   attributionFromRequest,
   normalizeAttribution,
-  normalizeTrafficClass,
   sessionFromRequest,
   setAttributionCookies,
   setSessionCookie,
   trafficClassFromRequest,
+  trustedTrafficClassFromRequest,
 } from "@/lib/attribution";
 import { appendEvent } from "@/lib/db";
 
@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 type LandingBody = {
   attribution?: unknown;
-  trafficClass?: unknown;
 };
 
 function hasCampaignAttribution(
@@ -41,9 +40,8 @@ export async function POST(request: NextRequest) {
       ? existingAttribution
       : incomingAttribution;
   const trafficClass =
-    body.trafficClass === null || body.trafficClass === undefined
-      ? trafficClassFromRequest(request)
-      : normalizeTrafficClass(body.trafficClass);
+    trustedTrafficClassFromRequest(request) ??
+    trafficClassFromRequest(request);
   const { sessionId } = sessionFromRequest(request);
 
   await appendEvent({
