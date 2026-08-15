@@ -279,7 +279,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
           <span className="flex h-6 items-center rounded-full bg-[rgba(61,254,241,0.14)] px-2.5 text-xs font-semibold tracking-[0.06em] text-teal-700 dark:text-[#3DFEF1]">
             {formatDuration(state.durationSeconds).toUpperCase()}
           </span>
-          <span className="text-sm text-zinc-500 dark:text-[#71717A]">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
             hard stop, no extend button
           </span>
         </div>
@@ -291,7 +291,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
         )}
 
         <div className="flex w-full flex-col items-center gap-4">
-          <h1 className="text-[13px] font-medium tracking-[0.18em] text-zinc-500 uppercase dark:text-[#71717A]">
+          <h1 className="text-[13px] font-medium tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
             Share this link
           </h1>
           <div className="flex w-full flex-col items-center gap-3.5 rounded-3xl border border-teal-600/40 bg-teal-500/[0.06] px-8 py-7 dark:border-[rgba(61,254,241,0.3)] dark:bg-[rgba(61,254,241,0.04)]">
@@ -354,7 +354,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
               setCustomOpen(false);
               setCustomValue("");
             }}
-            className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-[#71717A] dark:hover:text-zinc-400"
+            className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             Create another
           </button>
@@ -383,7 +383,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       )}
 
       <div className="flex w-full flex-col items-center gap-4">
-        <p className="text-sm font-medium text-zinc-500 dark:text-[#71717A]">
+        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
           How long is your Qwickword?
         </p>
 
@@ -473,7 +473,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
               type="button"
               disabled={isLoading}
               onClick={() => setCustomOpen(true)}
-              className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-dashed border-black/20 text-sm font-medium text-zinc-500 transition-colors duration-150 hover:border-teal-600/60 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/20 dark:text-[#71717A] dark:hover:border-[rgba(61,254,241,0.55)] dark:hover:text-[#3DFEF1]"
+              className="flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border border-dashed border-black/20 text-sm font-medium text-zinc-500 transition-colors duration-150 hover:border-teal-600/60 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/20 dark:text-zinc-400 dark:hover:border-[rgba(61,254,241,0.55)] dark:hover:text-[#3DFEF1]"
             >
               custom
             </button>
@@ -488,7 +488,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        <p className="text-[15px] leading-6 text-zinc-500 dark:text-[#71717A]">
+        <p className="text-[15px] leading-6 text-zinc-500 dark:text-zinc-400">
           Set a time limit, share the link. When the timer hits zero, the call
           ends.
         </p>

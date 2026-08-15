@@ -61,7 +61,7 @@ export default function MakeRoomAction() {
         type="button"
         onClick={() => void makeRoom()}
         disabled={busy}
-        className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#71717A] dark:hover:text-zinc-400"
+        className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-200"
       >
         {busy ? "Making a room…" : "Or make a room you can come back to"}
       </button>

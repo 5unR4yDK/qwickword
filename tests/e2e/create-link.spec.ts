@@ -200,6 +200,27 @@ test("secondary owned-page text meets normal-text contrast", async ({ page }) =>
   ).toBeGreaterThanOrEqual(4.5);
 });
 
+test("optional sign-in keeps helper text legible and keyboard focus visible", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const signIn = page.getByRole("button", { name: "Sign in" });
+  await expect(signIn).toBeVisible();
+  expect(await contrastRatio(signIn)).toBeGreaterThanOrEqual(4.5);
+  await signIn.click();
+
+  const input = page.getByPlaceholder("you@work.com");
+  await expect(input).toBeFocused();
+  const helper = page.getByText(
+    "No password. We email you a six-digit code that works once."
+  );
+  expect(await contrastRatio(helper)).toBeGreaterThanOrEqual(4.5);
+  expect(
+    await input.evaluate((element) => getComputedStyle(element).boxShadow)
+  ).not.toBe("none");
+});
+
 test("public copy does not use em dashes", async ({ page, request }) => {
   for (const path of ["/", "/about", "/manifesto", "/how-qwickword-works"]) {
     await page.goto(path);

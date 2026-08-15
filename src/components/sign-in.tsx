@@ -165,7 +165,7 @@ function SignInForm({
               // The dialog was opened on purpose; there is nothing else in it
               // to read first.
               autoFocus
-              className="mt-4 h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-[15px] text-zinc-950 outline-none focus:border-teal-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1]"
+              className="mt-4 h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-[15px] text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
               <p role="alert" className="mt-2 text-sm text-red-500">
@@ -180,7 +180,7 @@ function SignInForm({
             >
               {busy ? "Sending…" : "Send me a code"}
             </button>
-            <p className="mt-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
+            <p className="mt-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
               No password. We email you a six-digit code that works once.
             </p>
           </>
@@ -202,7 +202,7 @@ function SignInForm({
               autoComplete="one-time-code"
               autoFocus
               maxLength={6}
-              className="mt-4 h-14 w-full rounded-xl border border-zinc-300 bg-white text-center text-2xl font-semibold tracking-[0.4em] tabular-nums text-zinc-950 outline-none focus:border-teal-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1]"
+              className="mt-4 h-14 w-full rounded-xl border border-zinc-300 bg-white text-center text-2xl font-semibold tracking-[0.4em] tabular-nums text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
               <p role="alert" className="mt-2 text-sm text-red-500">
@@ -280,7 +280,7 @@ export function SignInLink() {
   return (
     <>
       {account ? (
-        <span className="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-[#71717A]">
+        <span className="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
           <span>{account.displayName}</span>
           <button
             type="button"
@@ -294,7 +294,7 @@ export function SignInLink() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-[#71717A] dark:hover:text-zinc-400"
+          className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           Sign in
         </button>
