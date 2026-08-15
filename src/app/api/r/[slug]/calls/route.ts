@@ -110,7 +110,9 @@ export async function POST(
       { status: 200 }
     );
     setSessionCookie(response, sessionId);
-    setRoomCookie(response, CREATED_ROOM_COOKIE, activeCall.callName);
+    // Reusing the room does not prove this browser created the call. Giving
+    // every recipient the creator cookie would corrupt role-specific opens and
+    // expose creator-only call controls.
     return response;
   }
 
