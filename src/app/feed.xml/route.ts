@@ -1,5 +1,12 @@
 const entries = [
   {
+    title: "How Qwickword ends a video call on time",
+    url: "https://qwickword.com/how-qwickword-works",
+    description:
+      "When the shared countdown starts, how the room enforces its deadline, and the practical limits of a timed browser call.",
+    published: "Sat, 15 Aug 2026 00:00:00 GMT",
+  },
+  {
     title: "About and privacy at Qwickword",
     url: "https://qwickword.com/about",
     description:
@@ -45,7 +52,7 @@ export function GET() {
   <link>https://qwickword.com</link>
   <description>Product explanations and release notes from Qwickword.</description>
   <language>en</language>
-  <lastBuildDate>Wed, 12 Aug 2026 00:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 15 Aug 2026 00:00:00 GMT</lastBuildDate>
   ${items}
 </channel>
 </rss>`;

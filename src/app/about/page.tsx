@@ -177,6 +177,16 @@ export default function AboutPage() {
               link is created. The call runs in the browser, and the room
               enforces the ending for everyone.
             </p>
+            <p className="mt-3">
+              Read the step-by-step explanation of the shared deadline in{" "}
+              <Link
+                href="/how-qwickword-works"
+                className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-100 dark:decoration-zinc-600 dark:hover:text-white"
+              >
+                how Qwickword works
+              </Link>
+              .
+            </p>
           </section>
 
           <section

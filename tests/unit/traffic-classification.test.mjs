@@ -5,6 +5,7 @@ import {
   decodeProbeTrafficToken,
   decodeTrafficCookie,
   encodeTrafficCookie,
+  trafficClassFromUserAgent,
 } from "../../src/lib/traffic-classification.ts";
 
 const SECRET = "test-secret-not-the-real-one";
@@ -29,4 +30,24 @@ test("public traffic remains public without a configured secret", () => {
   assert.equal(encodeTrafficCookie("smoke", null), "public");
   assert.equal(decodeTrafficCookie("smoke", null), "public");
   assert.equal(decodeProbeTrafficToken("anything", null), null);
+});
+
+test("declared crawlers and preview fetchers stay out of public demand", () => {
+  assert.equal(
+    trafficClassFromUserAgent(
+      "Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)"
+    ),
+    "preview_fetch"
+  );
+  assert.equal(
+    trafficClassFromUserAgent("facebookexternalhit/1.1"),
+    "preview_fetch"
+  );
+  assert.equal(
+    trafficClassFromUserAgent(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15"
+    ),
+    "public"
+  );
+  assert.equal(trafficClassFromUserAgent(null), "public");
 });

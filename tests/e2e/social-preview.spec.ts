@@ -46,6 +46,10 @@ test("home page publishes one landscape social preview", async ({ page }) => {
 for (const [path, canonical] of [
   ["/", "https://qwickword.com"],
   ["/about", "https://qwickword.com/about"],
+  [
+    "/how-qwickword-works",
+    "https://qwickword.com/how-qwickword-works",
+  ],
   ["/manifesto", "https://qwickword.com/manifesto"],
 ] as const) {
   test(`${path} publishes one canonical URL and the RSS alternate`, async ({
@@ -64,6 +68,11 @@ for (const [path, canonical] of [
 
 for (const [path, title, url] of [
   ["/about", "About | Qwickword", "https://qwickword.com/about"],
+  [
+    "/how-qwickword-works",
+    "How Qwickword ends a video call on time | Qwickword",
+    "https://qwickword.com/how-qwickword-works",
+  ],
   [
     "/manifesto",
     "The Qwickword Manifesto | Qwickword",

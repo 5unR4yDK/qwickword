@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     template: "%s | Qwickword",
   },
   description:
-    "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero, so it never runs long.",
+    "Set a time limit, share the link, start talking. Your guest needs no account or download. The call ends the moment the timer hits zero.",
   keywords: [
     "time-limited video call",
     "self-destructing video call link",

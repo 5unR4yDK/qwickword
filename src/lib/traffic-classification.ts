@@ -11,6 +11,9 @@ export const TRAFFIC_CLASSES = [
 
 export type TrafficClass = (typeof TRAFFIC_CLASSES)[number];
 
+const AUTOMATED_USER_AGENT =
+  /(?:googlebot|google-inspectiontool|bingbot|applebot|duckduckbot|yandexbot|baiduspider|gptbot|chatgpt-user|oai-searchbot|claudebot|claude-web|perplexitybot|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot)/i;
+
 const TOKEN_VERSION = "v1";
 const MAX_PROBE_TOKEN_AGE_SECONDS = 5 * 60;
 
@@ -19,6 +22,19 @@ function isTrafficClass(value: unknown): value is TrafficClass {
     typeof value === "string" &&
     (TRAFFIC_CLASSES as readonly string[]).includes(value)
   );
+}
+
+/**
+ * Keep search indexing and link-preview fetches out of product-demand counts.
+ * This is deliberately a narrow allowlist of declared crawler user agents;
+ * an unknown or missing user agent remains public so we do not hide real use.
+ */
+export function trafficClassFromUserAgent(
+  userAgent: string | null | undefined
+): TrafficClass {
+  return userAgent && AUTOMATED_USER_AGENT.test(userAgent)
+    ? "preview_fetch"
+    : "public";
 }
 
 function signature(secret: string, purpose: string, payload: string): string {

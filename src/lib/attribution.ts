@@ -3,6 +3,7 @@ import {
   decodeProbeTrafficToken,
   decodeTrafficCookie,
   encodeTrafficCookie,
+  trafficClassFromUserAgent,
   type TrafficClass,
 } from "@/lib/traffic-classification";
 
@@ -83,10 +84,13 @@ export function attributionFromRequest(
 }
 
 export function trafficClassFromRequest(request: NextRequest): TrafficClass {
-  return decodeTrafficCookie(
+  const cookieClass = decodeTrafficCookie(
     request.cookies.get(TRAFFIC_COOKIE)?.value,
     trafficSecret()
   );
+  return cookieClass === "public"
+    ? trafficClassFromUserAgent(request.headers.get("user-agent"))
+    : cookieClass;
 }
 
 export function trustedTrafficClassFromRequest(

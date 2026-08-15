@@ -70,6 +70,10 @@ test("home page offers the duration picker", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "Qwickword on YouTube" })
   ).toHaveAttribute("href", "https://www.youtube.com/@Qwickword");
+  await expect(page.getByRole("link", { name: "how it works" })).toHaveAttribute(
+    "href",
+    "/how-qwickword-works"
+  );
   await expect(page.getByRole("link", { name: "support" })).toHaveAttribute(
     "href",
     "mailto:info@mauriceholdings.llc"
@@ -146,8 +150,42 @@ test("about page renders", async ({ page }) => {
   ).toBe(true);
 });
 
+test("mechanism guide explains the hard stop without hiding its limits", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/how-qwickword-works");
+    await expect(
+      page.getByRole("heading", {
+        name: "A shared deadline, not a polite suggestion",
+      })
+    ).toBeVisible();
+    await expect(page.getByText("There is no extend button.")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "What the hard stop does not promise" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "privacy policy" })
+    ).toHaveAttribute("href", "/about#privacy");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth
+      )
+    ).toBe(true);
+  }
+});
+
 test("secondary owned-page text meets normal-text contrast", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  expect(
+    await contrastRatio(page.getByRole("link", { name: "how it works" }))
+  ).toBeGreaterThanOrEqual(4.5);
+
   await page.goto("/about");
   for (const locator of [
     page.getByText("Effective 2 August 2026"),
@@ -163,7 +201,7 @@ test("secondary owned-page text meets normal-text contrast", async ({ page }) =>
 });
 
 test("public copy does not use em dashes", async ({ page, request }) => {
-  for (const path of ["/", "/about", "/manifesto"]) {
+  for (const path of ["/", "/about", "/manifesto", "/how-qwickword-works"]) {
     await page.goto(path);
     await expect(page.locator("body")).not.toContainText("—");
 
@@ -189,6 +227,11 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
     page.getByRole("heading", { name: "The Qwickword Manifesto" })
   ).toBeVisible();
 
+  await page.goto("/how-qwickword-works");
+  await expect(
+    page.getByRole("heading", { name: "A shared deadline, not a polite suggestion" })
+  ).toBeVisible();
+
   const feed = await request.get("/feed.xml");
   expect(feed.status()).toBe(200);
   expect(feed.headers()["content-type"]).toContain("application/rss+xml");
@@ -196,8 +239,9 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(feedText).toContain("https://qwickword.com/about");
   expect(feedText).toContain("About and privacy at Qwickword");
   expect(feedText).toContain("https://qwickword.com/manifesto");
+  expect(feedText).toContain("https://qwickword.com/how-qwickword-works");
   expect(feedText).toContain(
-    "<lastBuildDate>Wed, 12 Aug 2026 00:00:00 GMT</lastBuildDate>"
+    "<lastBuildDate>Sat, 15 Aug 2026 00:00:00 GMT</lastBuildDate>"
   );
 
   const sitemap = await request.get("/sitemap.xml");
@@ -207,6 +251,8 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(sitemapText).toContain("https://qwickword.com/about");
   expect(sitemapText).toContain("2026-08-12");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
+  expect(sitemapText).toContain("https://qwickword.com/how-qwickword-works");
+  expect(sitemapText).toContain("2026-08-15");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);
@@ -412,6 +458,19 @@ test("a short-lived server token classifies an authorized probe", async ({
   });
   expect(response.status()).toBe(200);
   expect(response.headers()["set-cookie"]).toContain("qw_traffic=v1.smoke.");
+});
+
+test("declared crawler landings are classified as preview fetches", async ({
+  request,
+}) => {
+  const response = await request.post("/api/attribution/landing", {
+    headers: { "user-agent": "Google-InspectionTool/1.0" },
+    data: { attribution: null },
+  });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["set-cookie"]).toContain(
+    "qw_traffic=v1.preview_fetch."
+  );
 });
 
 test("www requests permanently consolidate on the apex host", async ({

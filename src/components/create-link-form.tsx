@@ -529,7 +529,11 @@ function FooterLinks() {
     "transition-colors hover:text-zinc-600 dark:hover:text-zinc-400";
 
   return (
-    <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 dark:text-[#52525B]">
+    <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+      <Link href="/how-qwickword-works" className={linkClass}>
+        how it works
+      </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
       <Link href="/manifesto" className={linkClass}>
         manifesto
       </Link>
