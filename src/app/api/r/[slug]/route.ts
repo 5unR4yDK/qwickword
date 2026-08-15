@@ -8,6 +8,12 @@ import {
 } from "@/lib/rooms";
 import { OWNER_KEY_HEADER, verifyOwnerKey } from "@/lib/room-keys";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import {
+  sessionFromRequest,
+  setSessionCookie,
+  trafficClassFromRequest,
+  trustedTrafficClassFromRequest,
+} from "@/lib/attribution";
 
 /**
  * Read, rename, re-length or retire one room.
@@ -155,6 +161,11 @@ export async function DELETE(
   // Closing is not deleting. The row stays, so the calls and events that
   // reference it keep their history, and a later visitor is told the room is
   // over rather than that it never existed.
-  await closeRoom(slug);
-  return NextResponse.json({ closed: true }, { status: 200 });
+  const { sessionId } = sessionFromRequest(request);
+  const trafficClass =
+    trustedTrafficClassFromRequest(request) ?? trafficClassFromRequest(request);
+  await closeRoom(slug, { sessionId, trafficClass });
+  const response = NextResponse.json({ closed: true }, { status: 200 });
+  setSessionCookie(response, sessionId);
+  return response;
 }

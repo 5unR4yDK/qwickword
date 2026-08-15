@@ -512,17 +512,27 @@ export async function touchRoom(roomId: number): Promise<void> {
 }
 
 /** Retires a room immediately, without waiting for idle expiry. */
-export async function closeRoom(slug: string): Promise<void> {
+export async function closeRoom(
+  slug: string,
+  context?: { sessionId: string; trafficClass: string }
+): Promise<void> {
   const p = getPool();
   if (!p) return;
   try {
-    await p.query(
-      `UPDATE rooms SET closed_at = COALESCE(closed_at, now()) WHERE slug = $1`,
+    const result = await p.query(
+      `UPDATE rooms SET closed_at = COALESCE(closed_at, now())
+        WHERE slug = $1
+        RETURNING id`,
       [slug]
     );
     void appendEvent({
       kind: "room.closed",
-      payload: { slug },
+      roomId: result.rows[0] ? Number(result.rows[0].id) : null,
+      payload: {
+        slug,
+        sessionId: context?.sessionId ?? null,
+        trafficClass: context?.trafficClass ?? "public",
+      },
       dedupeKey: `room.closed:${slug}`,
     });
   } catch (err) {
