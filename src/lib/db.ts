@@ -428,7 +428,15 @@ export async function createRoom(
    * SHA-256 of the owner key. Only the hash is ever stored; the key itself is
    * returned to the creator once and never again. See lib/room-keys.ts.
    */
-  ownerKeyHash?: string
+  ownerKeyHash?: string,
+  eventContext?: {
+    sessionId: string;
+    trafficClass: string;
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    content: string | null;
+  }
 ): Promise<Room | null> {
   const p = getPool();
   if (!p) return null;
@@ -444,7 +452,16 @@ export async function createRoom(
       void appendEvent({
         kind: "room.created",
         roomId: room.id,
-        payload: { slug, defaultDurationSeconds },
+        payload: {
+          slug,
+          defaultDurationSeconds,
+          creatorSessionId: eventContext?.sessionId ?? null,
+          trafficClass: eventContext?.trafficClass ?? "public",
+          source: eventContext?.source ?? null,
+          medium: eventContext?.medium ?? null,
+          campaign: eventContext?.campaign ?? null,
+          content: eventContext?.content ?? null,
+        },
       });
     }
     return room;
@@ -597,13 +614,26 @@ export async function getRoomCalls(
     createdAt: string;
     startedAt: string | null;
     endReason: string | null;
+    active: boolean;
+    exp: number;
   }>
 > {
   const p = getPool();
   if (!p) return [];
   try {
     const result = await p.query(
-      `SELECT room_name, duration_seconds, created_at, started_at, end_reason
+      `SELECT room_name, duration_seconds, created_at, started_at, end_reason,
+              ended_at IS NULL
+                AND abandoned_at IS NULL
+                AND CASE
+                  WHEN started_at IS NULL
+                    THEN created_at + interval '24 hours' > now()
+                  ELSE started_at + duration_seconds * interval '1 second' > now()
+                END AS active,
+              EXTRACT(EPOCH FROM CASE
+                WHEN started_at IS NULL THEN created_at + interval '24 hours'
+                ELSE started_at + duration_seconds * interval '1 second'
+              END)::bigint AS exp
          FROM calls WHERE room_id = $1
         ORDER BY created_at DESC LIMIT $2`,
       [roomId, limit]
@@ -614,6 +644,8 @@ export async function getRoomCalls(
       createdAt: String(r.created_at),
       startedAt: r.started_at ? String(r.started_at) : null,
       endReason: r.end_reason,
+      active: Boolean(r.active),
+      exp: Number(r.exp),
     }));
   } catch (err) {
     console.error("[Qwickword] Failed to read room calls:", err);
@@ -647,6 +679,8 @@ export type EventKind =
   | "call.ended"
   | "call.abandoned"
   | "room.created"
+  | "room.opened"
+  | "room.shared"
   | "room.closed";
 
 export type AppendedEvent = {
@@ -780,6 +814,48 @@ export async function recordTimings(timings: TimingInput[]): Promise<void> {
     );
   } catch (err) {
     console.error("[Qwickword] Failed to record timings:", err);
+  }
+}
+
+/** The newest still-joinable call in a persistent room, if one exists. */
+export async function getActiveRoomCall(roomId: number): Promise<{
+  callName: string;
+  durationSeconds: number;
+  exp: number;
+} | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const result = await p.query(
+      `SELECT room_name, duration_seconds,
+              EXTRACT(EPOCH FROM CASE
+                WHEN started_at IS NULL THEN created_at + interval '24 hours'
+                ELSE started_at + duration_seconds * interval '1 second'
+              END)::bigint AS exp
+         FROM calls
+        WHERE room_id = $1
+          AND ended_at IS NULL
+          AND abandoned_at IS NULL
+          AND CASE
+            WHEN started_at IS NULL
+              THEN created_at + interval '24 hours' > now()
+            ELSE started_at + duration_seconds * interval '1 second' > now()
+          END
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [roomId]
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          callName: row.room_name,
+          durationSeconds: row.duration_seconds,
+          exp: Number(row.exp),
+        }
+      : null;
+  } catch (err) {
+    console.error("[Qwickword] Failed to read the active room call:", err);
+    return null;
   }
 }
 

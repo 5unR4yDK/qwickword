@@ -41,6 +41,10 @@ export type RoomCall = {
   startedAt: string | null;
   /** "completed" | "left_early" | "abandoned" | "error", or null if unknown. */
   endReason: string | null;
+  /** True only while the provider room should still be joinable. */
+  active: boolean;
+  /** Provider-room expiry, in Unix seconds, for active-call handoff. */
+  exp: number;
 };
 
 export type RoomView = {
@@ -59,6 +63,7 @@ export type RoomView = {
  * being quietly omitted, because that is the number worth acting on.
  */
 export function callOutcome(call: RoomCall): string {
+  if (call.active) return "open now";
   if (!call.startedAt) return "never started";
   switch (call.endReason) {
     case "completed":

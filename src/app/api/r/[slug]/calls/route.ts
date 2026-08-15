@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHardExpiryRoom, DailyRoomError } from "@/lib/daily-rooms";
-import { getRoom, recordCallCreated, touchRoom } from "@/lib/db";
+import {
+  getActiveRoomCall,
+  getRoom,
+  recordCallCreated,
+  touchRoom,
+} from "@/lib/db";
 import {
   isPlausibleRoomSlug,
   isValidDefaultDuration,
@@ -13,6 +18,7 @@ import {
   setRoomCookie,
   setSessionCookie,
   trafficClassFromRequest,
+  trustedTrafficClassFromRequest,
 } from "@/lib/attribution";
 
 /**
@@ -84,6 +90,30 @@ export async function POST(
     );
   }
 
+  // A stable room is a rendezvous point. If one call is already open, every
+  // visitor must be handed that same call rather than silently creating a
+  // second conversation under the same room link.
+  const activeCall = await getActiveRoomCall(room.id);
+  if (activeCall) {
+    const { sessionId } = sessionFromRequest(request);
+    const response = NextResponse.json(
+      {
+        url: `https://qwickword.com/${activeCall.callName}`,
+        name: activeCall.callName,
+        exp: activeCall.exp,
+        durationSeconds: activeCall.durationSeconds,
+        mockMode: false,
+        clean: true,
+        roomSlug: room.slug,
+        reused: true,
+      },
+      { status: 200 }
+    );
+    setSessionCookie(response, sessionId);
+    setRoomCookie(response, CREATED_ROOM_COOKIE, activeCall.callName);
+    return response;
+  }
+
   try {
     const call = await createHardExpiryRoom(durationSeconds);
     const { sessionId } = sessionFromRequest(request);
@@ -95,7 +125,9 @@ export async function POST(
       ? false
       : await recordCallCreated(call.name, call.durationSeconds, room.id, {
           sessionId,
-          trafficClass: trafficClassFromRequest(request),
+          trafficClass:
+            trustedTrafficClassFromRequest(request) ??
+            trafficClassFromRequest(request),
           ...attributionFromRequest(request),
           parentCallName: null,
         });

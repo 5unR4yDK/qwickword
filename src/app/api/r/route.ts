@@ -8,6 +8,14 @@ import {
 } from "@/lib/rooms";
 import { generateOwnerKey, hashOwnerKey } from "@/lib/room-keys";
 import { MAX_DURATION_SECONDS, MIN_DURATION_SECONDS } from "@/lib/duration";
+import {
+  attributionFromRequest,
+  sessionFromRequest,
+  setAttributionCookies,
+  setSessionCookie,
+  trafficClassFromRequest,
+  trustedTrafficClassFromRequest,
+} from "@/lib/attribution";
 
 /**
  * Creates a persistent room.
@@ -59,6 +67,10 @@ export async function POST(request: NextRequest) {
   // reproduce it — losing it is permanent by design, because any recovery path
   // would be a way to seize a room by asking.
   const ownerKey = generateOwnerKey();
+  const { sessionId } = sessionFromRequest(request);
+  const attribution = attributionFromRequest(request);
+  const trafficClass =
+    trustedTrafficClassFromRequest(request) ?? trafficClassFromRequest(request);
 
   // The slug namespace only has to be unique among rooms, and two-word slugs
   // collide rarely — but a room is durable, so a collision here would be
@@ -69,13 +81,17 @@ export async function POST(request: NextRequest) {
       generateRoomSlug(),
       defaultDurationSeconds,
       name ?? undefined,
-      hashOwnerKey(ownerKey)
+      hashOwnerKey(ownerKey),
+      { sessionId, trafficClass, ...attribution }
     );
     if (room) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { ...toRoomView(room, []), ownerKey },
         { status: 201 }
       );
+      setSessionCookie(response, sessionId);
+      setAttributionCookies(response, attribution, trafficClass);
+      return response;
     }
   }
 

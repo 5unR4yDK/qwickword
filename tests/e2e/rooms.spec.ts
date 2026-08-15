@@ -111,6 +111,31 @@ test("starting a call in an unknown room fails rather than minting an orphan", a
   expect(res.status()).toBe(404);
 });
 
+test("room open and explicit share events validate their public contract", async ({
+  request,
+}) => {
+  const badOpen = await request.post("/api/r/ab/opened");
+  expect(badOpen.status()).toBe(400);
+
+  const missingOpen = await request.post(
+    "/api/r/definitely-not-a-real-room-92f4a1/opened"
+  );
+  expect(missingOpen.status()).toBe(404);
+
+  for (const via of ["native", "copy", "email"]) {
+    const missingShare = await request.post(
+      "/api/r/definitely-not-a-real-room-92f4a1/shared",
+      { data: { via } }
+    );
+    expect(missingShare.status()).toBe(404);
+  }
+
+  const invalidShare = await request.post("/api/r/quiet-otter/shared", {
+    data: { via: "automatic" },
+  });
+  expect(invalidShare.status()).toBe(400);
+});
+
 test("the room page shows the closed screen for a room that isn't there", async ({
   page,
 }) => {

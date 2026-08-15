@@ -45,6 +45,8 @@ export async function loadRoomView(
       createdAt: call.createdAt,
       startedAt: call.startedAt,
       endReason: call.endReason,
+      active: call.active,
+      exp: call.exp,
     }))
   );
 }
