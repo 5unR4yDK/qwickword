@@ -10,13 +10,13 @@ import {
   MIN_DURATION_SECONDS,
 } from "../../src/lib/duration.ts";
 
-test("the temporary 30-second preset is valid without changing custom minutes", () => {
+test("the 30-second API floor does not appear in public presets", () => {
   assert.equal(MIN_DURATION_SECONDS, 30);
   assert.equal(MAX_DURATION_SECONDS, 1800);
   assert.equal(MIN_DURATION_MINUTES, 1);
   assert.deepEqual(
     [...DURATION_PRESETS_SECONDS],
-    [30, 60, 120, 300, 600, 900, 1200]
+    [60, 120, 300, 600, 900, 1200]
   );
 });
 

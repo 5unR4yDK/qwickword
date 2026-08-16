@@ -23,8 +23,7 @@ import { DURATION_PRESETS_SECONDS, formatDuration } from "@/lib/duration";
  * link is meant to live.
  *
  * Everything here is visible to whoever holds the link: the name, the default
- * length, and the timeline of past calls. Files are not, and are not fetched;
- * the locked card is a statement of what exists, not a hidden list.
+ * length, and the timeline of past calls.
  */
 export default function RoomPage({ room }: { room: RoomView }) {
   const router = useRouter();
@@ -74,6 +73,44 @@ export default function RoomPage({ room }: { room: RoomView }) {
       keepalive: true,
     }).catch(() => {});
   }, [ownerKey, room.slug]);
+
+  // A room is a rendezvous, so someone who opened it first needs to see a call
+  // that the other person starts later. Poll only while the page is visible,
+  // refresh immediately when it becomes visible again, and keep failures
+  // silent: the existing room state is still usable, and pressing Start safely
+  // reuses any active call on the server.
+  useEffect(() => {
+    let cancelled = false;
+    let fetching = false;
+
+    async function refreshRoom() {
+      if (document.visibilityState === "hidden" || fetching) return;
+      fetching = true;
+      try {
+        const response = await fetch(`/api/r/${room.slug}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as RoomView;
+        if (!cancelled && payload.slug === room.slug) setCurrentRoom(payload);
+      } catch {
+        // A transient poll failure must not replace a usable room with an error.
+      } finally {
+        fetching = false;
+      }
+    }
+
+    const intervalId = window.setInterval(() => void refreshRoom(), 5_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void refreshRoom();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [room.slug]);
 
   const shareUrl = `https://qwickword.com/r/${room.slug}`;
   const title = currentRoom.name ?? room.slug.replace(/-/g, " ");
@@ -269,7 +306,11 @@ export default function RoomPage({ room }: { room: RoomView }) {
           </p>
         </header>
 
-        <section className="flex flex-col items-center gap-3">
+        <section
+          aria-live="polite"
+          aria-atomic="true"
+          className="flex flex-col items-center gap-3"
+        >
           {activeCall ? (
             <>
               <Link
@@ -448,24 +489,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
             Room timeline
           </h2>
 
-          {/* Files are profile-gated and not built yet. The card states that
-              plainly rather than pretending the section does not exist. */}
-          <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-            <span aria-hidden="true" className="text-zinc-400">
-              &#128274;
-            </span>
-            <span className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                Room files are private
-              </span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                Sharing files needs a profile, which isn&apos;t built yet. Calls
-                never require one.
-              </span>
-            </span>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
             <span className="text-xs tracking-widest text-zinc-400 uppercase">
               Calls

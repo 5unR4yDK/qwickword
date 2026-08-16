@@ -37,8 +37,8 @@ export default function MakeRoomAction() {
         // immediately, so asking for it here would be a question before the
         // thing exists.
         body: JSON.stringify({
-          // Keep new rooms at five minutes even when temporary test presets
-          // are inserted at the front of the one-tap list.
+          // Keep new rooms at a useful middle preset without asking another
+          // question before the room exists.
           defaultDurationSeconds: 300,
         }),
       });
