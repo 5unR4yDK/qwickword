@@ -45,11 +45,21 @@ test("signing in is offered but never in the way", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await signIn.click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  // Shift+Tab from the first control wraps to the last control, and Tab wraps
+  // back again instead of escaping to the page behind the modal.
+  await expect(page.getByPlaceholder("you@work.com")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Not now" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByPlaceholder("you@work.com")).toBeFocused();
 
   // A dialog with no keyboard way out is a trap.
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(signIn).toBeFocused();
 });
 
 test("an address then a code signs you in, and the footer says who you are", async ({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Signing in from a browser: an address, then a code.
@@ -53,11 +53,44 @@ function SignInForm({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Escape closes. A dialog with no keyboard way out is a trap.
+  // Escape closes, and Tab stays within the modal surface. `aria-modal` is a
+  // behavioural promise as well as an announcement: keyboard focus must not
+  // move into the page behind it.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(
+        (element) =>
+          element.getClientRects().length > 0 &&
+          element.getAttribute("aria-hidden") !== "true"
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (!dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -135,6 +168,7 @@ function SignInForm({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="signin-title"
@@ -249,6 +283,12 @@ export function SignInLink() {
   const [account, setAccount] = useState<Account | null>(null);
   const [open, setOpen] = useState(false);
   const [known, setKnown] = useState(false);
+  const openerRef = useRef<HTMLButtonElement>(null);
+
+  const closeDialog = useCallback(() => {
+    setOpen(false);
+    window.requestAnimationFrame(() => openerRef.current?.focus());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -292,6 +332,7 @@ export function SignInLink() {
         </span>
       ) : (
         <button
+          ref={openerRef}
           type="button"
           onClick={() => setOpen(true)}
           className="cursor-pointer text-[13px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -301,7 +342,7 @@ export function SignInLink() {
       )}
       <SignInDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeDialog}
         onSignedIn={(signedIn) => {
           setAccount(signedIn);
           setOpen(false);
