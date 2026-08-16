@@ -39,5 +39,7 @@ built to end it.
 ## Site
 
 - Homepage (create a link): https://qwickword.com
+- How the shared hard stop works, including practical limits:
+  https://qwickword.com/how-qwickword-works
 - What Qwickword is, in plain terms: https://qwickword.com/about
 - Manifesto (the case for short calls): https://qwickword.com/manifesto

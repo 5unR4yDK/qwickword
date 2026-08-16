@@ -83,6 +83,9 @@ test("home page offers the duration picker", async ({ page }) => {
   await expect(picker).toBeVisible();
   // Presets plus the custom-duration pill.
   expect(await picker.getByRole("button").count()).toBeGreaterThan(1);
+  await expect(
+    picker.getByRole("button", { name: "30 sec" })
+  ).toHaveCount(0);
 });
 
 test("picking a duration produces a shareable link", async ({ page }) => {
@@ -236,7 +239,9 @@ test("public copy does not use em dashes", async ({ page, request }) => {
 
   const llms = await request.get("/llms.txt");
   expect(llms.status()).toBe(200);
-  expect(await llms.text()).not.toContain("—");
+  const llmsText = await llms.text();
+  expect(llmsText).not.toContain("—");
+  expect(llmsText).toContain("https://qwickword.com/how-qwickword-works");
 });
 
 test("owned discovery surfaces are crawlable", async ({ page, request }) => {
@@ -273,7 +278,7 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(sitemapText).toContain("2026-08-12");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
   expect(sitemapText).toContain("https://qwickword.com/how-qwickword-works");
-  expect(sitemapText).toContain("2026-08-15");
+  expect(sitemapText).toContain("2026-08-16");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);
@@ -479,6 +484,48 @@ test("a short-lived server token classifies an authorized probe", async ({
   });
   expect(response.status()).toBe(200);
   expect(response.headers()["set-cookie"]).toContain("qw_traffic=v1.smoke.");
+});
+
+test("the mechanism guide CTA preserves external attribution before returning home", async ({
+  page,
+  context,
+}) => {
+  await page.goto(
+    "/how-qwickword-works?utm_source=youtube&utm_medium=organic_social&utm_campaign=hard_stop_30d&utm_content=kinetic_short_v1"
+  );
+  const recorded = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/attribution/content-cta") &&
+      response.request().method() === "POST"
+  );
+  await page.getByRole("link", { name: "Create a Qwickword" }).click();
+  expect((await recorded).status()).toBe(200);
+  await expect(
+    page.getByRole("heading", { name: "Meetings that end on time" })
+  ).toBeVisible();
+
+  const attribution = (await context.cookies()).find(
+    (cookie) => cookie.name === "qw_attribution"
+  );
+  expect(attribution).toBeTruthy();
+  const decoded = JSON.parse(
+    Buffer.from(attribution!.value, "base64url").toString("utf8")
+  );
+  expect(decoded).toMatchObject({
+    source: "youtube",
+    medium: "organic_social",
+    campaign: "hard_stop_30d",
+    content: "kinetic_short_v1",
+  });
+});
+
+test("the owned-content CTA endpoint rejects arbitrary content identifiers", async ({
+  request,
+}) => {
+  const response = await request.post("/api/attribution/content-cta", {
+    data: { contentId: "a-user-supplied-url" },
+  });
+  expect(response.status()).toBe(400);
 });
 
 test("declared crawler landings are classified as preview fetches", async ({

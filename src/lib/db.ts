@@ -682,6 +682,7 @@ export async function getRoomCalls(
  */
 export type EventKind =
   | "landing.view"
+  | "content.cta_clicked"
   | "call.created"
   | "call.shared"
   | "call.opened"

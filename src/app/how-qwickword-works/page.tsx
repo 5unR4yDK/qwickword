@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import OwnedContentCta from "@/components/owned-content-cta";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -41,7 +42,7 @@ const structuredData = {
   headline: title,
   description,
   datePublished: "2026-08-15",
-  dateModified: "2026-08-15",
+  dateModified: "2026-08-16",
   author: { "@type": "Organization", name: "Qwickword" },
   publisher: { "@type": "Organization", name: "Qwickword" },
   mainEntityOfPage: "https://qwickword.com/how-qwickword-works",
@@ -168,12 +169,13 @@ export default function HowQwickwordWorksPage() {
             Choose a duration, send one link, and let the shared deadline do the
             awkward part for both people.
           </p>
-          <Link
+          <OwnedContentCta
             href="/"
+            contentId="how_qwickword_works"
             className="inline-flex min-h-11 items-center rounded-full bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:focus-visible:ring-offset-black"
           >
             Create a Qwickword
-          </Link>
+          </OwnedContentCta>
         </section>
       </article>
     </div>

@@ -9,13 +9,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: "https://qwickword.com",
-      lastModified: "2026-08-12",
+      lastModified: "2026-08-16",
       changeFrequency: "monthly",
       priority: 1,
     },
     {
       url: "https://qwickword.com/how-qwickword-works",
-      lastModified: "2026-08-15",
+      lastModified: "2026-08-16",
       changeFrequency: "monthly",
       priority: 0.7,
     },

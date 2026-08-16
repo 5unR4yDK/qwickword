@@ -11,6 +11,7 @@ link, and start talking. Guests need no account or download. When the timer
 hits zero, the call ends for everyone and cannot be extended.
 
 [Try Qwickword](https://qwickword.com/?utm_source=github&utm_medium=organic_social&utm_campaign=hard_stop_30d&utm_content=github_readme_v1) ·
+[How the hard stop works](https://qwickword.com/how-qwickword-works?utm_source=github&utm_medium=organic_social&utm_campaign=hard_stop_30d&utm_content=github_readme_guide_v1) ·
 [About and privacy](https://qwickword.com/about) ·
 [Manifesto](https://qwickword.com/manifesto) ·
 [Support](mailto:info@mauriceholdings.llc)
