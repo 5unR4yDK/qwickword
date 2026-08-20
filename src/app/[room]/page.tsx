@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getDailyConfig } from "@/lib/daily-config";
 import { remainingMsUntil } from "@/lib/time";
 import {
@@ -181,14 +182,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
   const hasValidLinkExp = Number.isFinite(linkExp) && linkExp > 0;
 
   if (!isPlausibleRoomName(room)) {
-    return (
-      <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
-        <InvalidLinkScreen
-          heading="This link isn't valid"
-          message="It doesn't look like a Qwickword link. It may have been copied incorrectly or cut off."
-        />
-      </div>
-    );
+    notFound();
   }
 
   const { mockMode, domain } = getDailyConfig();
@@ -198,14 +192,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
     // own `exp`/`d` — there is nothing to look up. Mock links always do
     // (POST /api/rooms marks them `clean: false`).
     if (!hasValidLinkExp) {
-      return (
-        <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
-          <InvalidLinkScreen
-            heading="This link isn't valid"
-            message="It's missing information Qwickword needs to connect you. The link may have been copied incorrectly or cut off."
-          />
-        </div>
-      );
+      notFound();
     }
     const mockDuration = parseDurationParam(rawDuration);
     return (
@@ -243,25 +230,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
     started = status.started;
   } catch (err) {
     if (err instanceof DailyRoomError && err.status === 404) {
-      // A room Daily doesn't know but the database does was real once —
-      // it's over (expired, ended, or abandoned before it started), not
-      // mistyped. Only a name with no record anywhere gets the
-      // "doesn't exist" framing.
-      const wasReal = durationSeconds !== null;
-      return (
-        <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden overscroll-none bg-black">
-          <InvalidLinkScreen
-            heading={
-              wasReal ? "This Qwickword is over" : "This Qwickword doesn't exist"
-            }
-            message={
-              wasReal
-                ? "The call ended or the link expired. Every Qwickword is single-use. Ask for a fresh link, or create one yourself."
-                : "The room can't be found. The link may have been mistyped, or it's already gone."
-            }
-          />
-        </div>
-      );
+      notFound();
     }
     // Transient failure (network blip, Daily hiccup). A link carrying its
     // own `exp` can still render the waiting state from that; a clean link

@@ -231,9 +231,9 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
   }
 
   async function handleCopy(link: string, roomName: string) {
-    reportShared(roomName, "copy");
     try {
       await navigator.clipboard.writeText(link);
+      reportShared(roomName, "copy");
       setCopied(true);
     } catch {
       setCopied(false);
@@ -492,6 +492,10 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
           Set a time limit, share the link. When the timer hits zero, the call
           ends.
         </p>
+        <p className="max-w-md text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+          Your guest joins in the browser, with no account or download. The countdown
+          starts when the second person joins, or when you start it.
+        </p>
         {/* Second, and quiet. A one-off Qwickword stays one tap; a room answers
             a different question and must not compete with it. */}
         <MakeRoomAction />
@@ -532,6 +536,10 @@ function FooterLinks() {
     <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
       <Link href="/how-qwickword-works" className={linkClass}>
         how it works
+      </Link>
+      <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
+      <Link href="/persistent-rooms" className={linkClass}>
+        rooms
       </Link>
       <span aria-hidden="true" className="h-[11px] w-px bg-zinc-300 dark:bg-[#3F3F46]" />
       <Link href="/manifesto" className={linkClass}>

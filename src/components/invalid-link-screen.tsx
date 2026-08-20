@@ -21,7 +21,7 @@ export default function InvalidLinkScreen({
       role="status"
       className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white"
     >
-      <p className="text-lg font-medium">{heading}</p>
+      <h1 className="text-lg font-medium">{heading}</h1>
       <p className="max-w-sm text-sm text-white/60">{message}</p>
       <Link
         href="/"

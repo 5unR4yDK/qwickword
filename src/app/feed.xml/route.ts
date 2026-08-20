@@ -1,5 +1,12 @@
 const entries = [
   {
+    title: "One-off calls and Persistent Rooms in Qwickword",
+    url: "https://qwickword.com/persistent-rooms",
+    description:
+      "When to use a single-use call link or a stable Room, how fresh timed calls work inside it, and what the private owner link controls.",
+    published: "Thu, 20 Aug 2026 00:00:00 GMT",
+  },
+  {
     title: "How Qwickword ends a video call on time",
     url: "https://qwickword.com/how-qwickword-works",
     description:
@@ -46,13 +53,14 @@ export function GET() {
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
   <title>Qwickword</title>
   <link>https://qwickword.com</link>
+  <atom:link href="https://qwickword.com/feed.xml" rel="self" type="application/rss+xml" />
   <description>Product explanations and release notes from Qwickword.</description>
   <language>en</language>
-  <lastBuildDate>Sat, 15 Aug 2026 00:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 20 Aug 2026 00:00:00 GMT</lastBuildDate>
   ${items}
 </channel>
 </rss>`;

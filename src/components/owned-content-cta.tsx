@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 type Props = {
   children: ReactNode;
   className: string;
-  contentId: "how_qwickword_works";
+  contentId: "how_qwickword_works" | "persistent_rooms_guide_v1";
   href: "/";
 };
 

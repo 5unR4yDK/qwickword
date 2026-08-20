@@ -364,7 +364,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-sm break-words text-[#0E9E93] dark:text-[#3DFEF1]">
+          <p className="text-sm break-words text-teal-700 dark:text-[#3DFEF1]">
             qwickword.com/r/{room.slug}
           </p>
           <div className="mt-2 flex flex-wrap gap-1">
@@ -372,7 +372,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
               <button
                 type="button"
                 onClick={() => void nativeShare()}
-                className="min-h-11 rounded-full px-3 text-sm font-medium text-[#0E9E93] dark:text-[#3DFEF1]"
+                className="min-h-11 rounded-full px-3 text-sm font-medium text-teal-700 dark:text-[#3DFEF1]"
               >
                 Share
               </button>
@@ -380,14 +380,14 @@ export default function RoomPage({ room }: { room: RoomView }) {
             <button
               type="button"
               onClick={() => void copyLink()}
-              className="min-h-11 rounded-full px-3 text-sm font-medium text-[#0E9E93] dark:text-[#3DFEF1]"
+              className="min-h-11 rounded-full px-3 text-sm font-medium text-teal-700 dark:text-[#3DFEF1]"
             >
               {copied ? "Copied" : "Copy"}
             </button>
             <a
               href={`mailto:?subject=${encodeURIComponent(`${title} · Qwickword room`)}&body=${encodeURIComponent(`Open this room for ${formatDuration(currentRoom.defaultDurationSeconds)} calls that end when the timer does. ${shareUrl}`)}`}
               onClick={() => recordShare("email")}
-              className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-[#0E9E93] dark:text-[#3DFEF1]"
+              className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-teal-700 dark:text-[#3DFEF1]"
             >
               Email it
             </a>
@@ -412,7 +412,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
             <button
               type="button"
               onClick={() => void copyOwnerLink()}
-              className="mt-2 min-h-11 rounded-full px-3 text-sm font-medium text-[#0E9E93] dark:text-[#3DFEF1]"
+              className="mt-2 min-h-11 rounded-full px-3 text-sm font-medium text-teal-700 dark:text-[#3DFEF1]"
             >
               {ownerCopied ? "Copied" : "Copy owner link"}
             </button>

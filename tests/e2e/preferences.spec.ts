@@ -39,3 +39,13 @@ test("camera and microphone start choices survive a reload", async ({
     page.getByRole("button", { name: "Start with mic" })
   ).toHaveAttribute("aria-pressed", "false");
 });
+
+test("Escape closes settings and returns focus to its trigger", async ({ page }) => {
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: "Call settings" });
+  await trigger.click();
+  await expect(page.getByRole("dialog", { name: "Call settings" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Call settings" })).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});

@@ -86,6 +86,34 @@ test("home page offers the duration picker", async ({ page }) => {
   await expect(
     picker.getByRole("button", { name: "30 sec" })
   ).toHaveCount(0);
+  await expect(
+    page.getByText("Your guest joins in the browser, with no account or download.", {
+      exact: false,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByText("The countdown starts when the second person joins", {
+      exact: false,
+    })
+  ).toBeVisible();
+});
+
+test("an arbitrary path returns a branded, index-safe 404", async ({ page }) => {
+  const response = await page.goto("/contact");
+  expect(response?.status()).toBe(404);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "This Qwickword isn't available",
+    })
+  ).toBeVisible();
+  expect(
+    await page.locator('meta[name="robots"]').evaluateAll((elements) =>
+      elements.every((element) =>
+        (element.getAttribute("content") ?? "").includes("noindex")
+      )
+    )
+  ).toBe(true);
 });
 
 test("picking a duration produces a shareable link", async ({ page }) => {
@@ -182,6 +210,32 @@ test("mechanism guide explains the hard stop without hiding its limits", async (
   }
 });
 
+test("Persistent Rooms guide explains the stable link without inventing features", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/persistent-rooms");
+    await expect(
+      page.getByRole("heading", {
+        name: "One familiar door, a fresh deadline every time",
+      })
+    ).toBeVisible();
+    await expect(page.getByText("It is not a ringing, scheduling, messaging, or file-sharing service.", { exact: false })).toBeVisible();
+    await expect(page.getByText("90 days without use", { exact: false })).toBeVisible();
+    await expect(page.getByRole("link", { name: "privacy policy" })).toHaveAttribute(
+      "href",
+      "/about#privacy"
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    ).toBe(true);
+  }
+});
+
 test("secondary owned-page text meets normal-text contrast", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -225,7 +279,13 @@ test("optional sign-in keeps helper text legible and keyboard focus visible", as
 });
 
 test("public copy does not use em dashes", async ({ page, request }) => {
-  for (const path of ["/", "/about", "/manifesto", "/how-qwickword-works"]) {
+  for (const path of [
+    "/",
+    "/about",
+    "/manifesto",
+    "/how-qwickword-works",
+    "/persistent-rooms",
+  ]) {
     await page.goto(path);
     await expect(page.locator("body")).not.toContainText("—");
 
@@ -242,6 +302,7 @@ test("public copy does not use em dashes", async ({ page, request }) => {
   const llmsText = await llms.text();
   expect(llmsText).not.toContain("—");
   expect(llmsText).toContain("https://qwickword.com/how-qwickword-works");
+  expect(llmsText).toContain("https://qwickword.com/persistent-rooms");
 });
 
 test("owned discovery surfaces are crawlable", async ({ page, request }) => {
@@ -258,6 +319,11 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
     page.getByRole("heading", { name: "A shared deadline, not a polite suggestion" })
   ).toBeVisible();
 
+  await page.goto("/persistent-rooms");
+  await expect(
+    page.getByRole("heading", { name: "One familiar door, a fresh deadline every time" })
+  ).toBeVisible();
+
   const feed = await request.get("/feed.xml");
   expect(feed.status()).toBe(200);
   expect(feed.headers()["content-type"]).toContain("application/rss+xml");
@@ -266,8 +332,10 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(feedText).toContain("About and privacy at Qwickword");
   expect(feedText).toContain("https://qwickword.com/manifesto");
   expect(feedText).toContain("https://qwickword.com/how-qwickword-works");
+  expect(feedText).toContain("https://qwickword.com/persistent-rooms");
+  expect(feedText).toContain('atom:link href="https://qwickword.com/feed.xml"');
   expect(feedText).toContain(
-    "<lastBuildDate>Sat, 15 Aug 2026 00:00:00 GMT</lastBuildDate>"
+    "<lastBuildDate>Thu, 20 Aug 2026 00:00:00 GMT</lastBuildDate>"
   );
 
   const sitemap = await request.get("/sitemap.xml");
@@ -279,6 +347,8 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
   expect(sitemapText).toContain("https://qwickword.com/how-qwickword-works");
   expect(sitemapText).toContain("2026-08-16");
+  expect(sitemapText).toContain("https://qwickword.com/persistent-rooms");
+  expect(sitemapText).toContain("2026-08-20");
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);
@@ -313,6 +383,47 @@ test("share controls fit mobile and desktop viewports", async ({ page }) => {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
     ).toBe(true);
   }
+});
+
+test("a refused clipboard write does not count as share intent", async ({ page }) => {
+  let shareRequests = 0;
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new DOMException("Clipboard blocked", "NotAllowedError");
+        },
+      },
+    });
+  });
+  await page.route("**/api/rooms", (route) =>
+    route.fulfill({
+      status: 201,
+      json: {
+        url: "https://qwickword.com/copy-failure-room",
+        name: "copy-failure-room",
+        exp: Math.floor(Date.now() / 1000) + 600,
+        durationSeconds: 60,
+        mockMode: false,
+        clean: true,
+      },
+    })
+  );
+  await page.route("**/api/rooms/copy-failure-room/shared", (route) => {
+    shareRequests += 1;
+    return route.fulfill({ status: 200, json: { accepted: true } });
+  });
+
+  await page.goto("/");
+  await page
+    .getByRole("group", { name: "Call length" })
+    .getByRole("button")
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  expect(shareRequests).toBe(0);
 });
 
 test("the telemetry endpoint accepts good timings and drops bad ones", async ({ request }) => {
@@ -526,6 +637,13 @@ test("the owned-content CTA endpoint rejects arbitrary content identifiers", asy
     data: { contentId: "a-user-supplied-url" },
   });
   expect(response.status()).toBe(400);
+});
+
+test("the Rooms guide content identifier is allowlisted", async ({ request }) => {
+  const response = await request.post("/api/attribution/content-cta", {
+    data: { contentId: "persistent_rooms_guide_v1" },
+  });
+  expect(response.status()).toBe(200);
 });
 
 test("declared crawler landings are classified as preview fetches", async ({

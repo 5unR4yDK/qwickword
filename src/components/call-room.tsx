@@ -208,9 +208,17 @@ function LeftScreen({
   preStart: boolean;
   onReport: () => Promise<string | null>;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
-      <p className="text-lg font-medium">You&apos;ve left this call.</p>
+      <h1 ref={headingRef} tabIndex={-1} className="text-lg font-medium outline-none">
+        You&apos;ve left this call.
+      </h1>
       <p className="max-w-sm text-sm text-white/60">
         {preStart
           ? "The call never started, so this link is done. Anyone opening it now will see that it's over."
@@ -277,9 +285,17 @@ function FailedScreen({
   message: string | null;
   onReport: () => Promise<string | null>;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black px-6 text-center text-white">
-      <p className="text-lg font-medium">This call ended unexpectedly.</p>
+      <h1 ref={headingRef} tabIndex={-1} className="text-lg font-medium outline-none">
+        This call ended unexpectedly.
+      </h1>
       <p className="max-w-sm text-sm text-white/60">
         {message ?? "The connection could not be recovered."}
       </p>

@@ -12,7 +12,10 @@ import { appendEvent } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-const CONTENT_IDS = new Set(["how_qwickword_works"]);
+const CONTENT_IDS = new Set([
+  "how_qwickword_works",
+  "persistent_rooms_guide_v1",
+]);
 
 type Body = {
   contentId?: unknown;

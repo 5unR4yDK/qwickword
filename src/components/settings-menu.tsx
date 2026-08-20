@@ -122,7 +122,11 @@ export default function SettingsMenu() {
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        queueMicrotask(() => buttonRef.current?.focus());
+      }
     }
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -186,6 +190,7 @@ export default function SettingsMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Call settings"
         aria-expanded={open}
+        aria-controls="call-settings-panel"
         className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-black/[.08] bg-white/70 text-zinc-700 backdrop-blur-sm transition-colors hover:bg-white dark:border-white/[.145] dark:bg-white/[.06] dark:text-zinc-300 dark:hover:bg-white/[.12]"
       >
         <Settings size={16} />
@@ -193,7 +198,10 @@ export default function SettingsMenu() {
 
       {open && (
         <div
+          id="call-settings-panel"
           ref={panelRef}
+          role="dialog"
+          aria-label="Call settings"
           className="absolute top-11 right-0 flex w-72 flex-col gap-4 rounded-2xl border border-black/[.08] bg-white/95 p-4 text-left shadow-lg backdrop-blur-sm dark:border-white/[.145] dark:bg-zinc-900/95"
         >
           <div className="flex flex-col gap-1">
