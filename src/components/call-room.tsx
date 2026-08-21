@@ -49,7 +49,6 @@ import {
   applyParticipantNetworkMode,
   BAD_NETWORK_GRACE_MS,
   INITIAL_NETWORK_MEDIA_MEMORY,
-  INITIAL_NETWORK_RECEIVE_SETTINGS,
   INITIAL_NETWORK_POLICY,
   NETWORK_MEDIA_PROFILES,
   normalizeNetworkQuality,
@@ -586,13 +585,7 @@ export default function CallRoom({
     if (mockMode) return;
     const co = DailyIframe.createCallObject({
       sendSettings: NETWORK_MEDIA_PROFILES.standard.sendSettings,
-      receiveSettings: INITIAL_NETWORK_RECEIVE_SETTINGS,
     });
-    // Daily requires receive settings to be supplied at construction time
-    // before join. Mark the initial profile as applied so the policy effect
-    // does not call updateReceiveSettings() while this browser is still in
-    // prejoin.
-    appliedNetworkModeRef.current = "standard";
     callObjectRef.current = co;
     callObjectDestroyedRef.current = false;
 
@@ -670,12 +663,7 @@ export default function CallRoom({
   }, [emit, mockMode, synchronizedNowMs]);
 
   useEffect(() => {
-    if (
-      !callObject ||
-      networkPolicy.mode === appliedNetworkModeRef.current
-    ) {
-      return;
-    }
+    if (!callObject) return;
     enqueueNetworkMode(callObject, networkPolicy.mode);
   }, [callObject, enqueueNetworkMode, networkPolicy.mode]);
 

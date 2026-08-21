@@ -692,7 +692,6 @@ export type EventKind =
   | "room.created"
   | "room.opened"
   | "room.shared"
-  | "room.call_reused"
   | "room.closed";
 
 export type AppendedEvent = {

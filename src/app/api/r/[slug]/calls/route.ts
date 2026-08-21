@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHardExpiryRoom, DailyRoomError } from "@/lib/daily-rooms";
 import {
-  appendEvent,
   getActiveRoomCall,
   getRoom,
   recordCallCreated,
@@ -97,15 +96,6 @@ export async function POST(
   const activeCall = await getActiveRoomCall(room.id);
   if (activeCall) {
     const { sessionId } = sessionFromRequest(request);
-    const trafficClass =
-      trustedTrafficClassFromRequest(request) ?? trafficClassFromRequest(request);
-    await appendEvent({
-      kind: "room.call_reused",
-      roomId: room.id,
-      callName: activeCall.callName,
-      payload: { slug, sessionId, trafficClass },
-      dedupeKey: `room.call_reused:${room.id}:${activeCall.callName}:${sessionId}`,
-    });
     const response = NextResponse.json(
       {
         url: `https://qwickword.com/${activeCall.callName}`,

@@ -1,6 +1,5 @@
 import type {
   DailyCall,
-  DailyReceiveSettings,
   DailyReceiveSettingsUpdates,
   DailySendSettings,
 } from "@daily-co/daily-js";
@@ -121,18 +120,16 @@ type MediaProfile = {
   subscribeToVideo: boolean;
 };
 
-export const INITIAL_NETWORK_RECEIVE_SETTINGS: DailyReceiveSettings = {
-  base: { video: { layer: 2 }, screenVideo: { layer: 0 } },
-  "*": { video: { layer: 2 }, screenVideo: { layer: 0 } },
-};
-
 export const NETWORK_MEDIA_PROFILES: Record<NetworkMediaMode, MediaProfile> = {
   standard: {
     sendSettings: {
       video: { allowAdaptiveLayers: true },
       screenVideo: "default-screen-video",
     },
-    receiveSettings: INITIAL_NETWORK_RECEIVE_SETTINGS,
+    receiveSettings: {
+      base: { video: { layer: 2 }, screenVideo: { layer: 0 } },
+      "*": { video: { layer: 2 }, screenVideo: { layer: 0 } },
+    },
     subscribeToVideo: true,
   },
   reduced: {
