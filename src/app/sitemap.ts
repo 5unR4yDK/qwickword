@@ -9,7 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: "https://qwickword.com",
-      lastModified: "2026-08-16",
+      lastModified: "2026-08-20",
       changeFrequency: "monthly",
       priority: 1,
     },

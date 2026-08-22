@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { isPlausibleRoomSlug, loadRoomView } from "@/lib/rooms";
 import { formatDuration } from "@/lib/duration";
 import {
@@ -35,12 +36,18 @@ const PRIVATE_LINK_ROBOTS: Metadata["robots"] = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   if (!isPlausibleRoomSlug(slug)) {
-    return { title: "Qwickword", robots: PRIVATE_LINK_ROBOTS };
+    return {
+      title: { absolute: "Invalid Qwickword room link" },
+      robots: PRIVATE_LINK_ROBOTS,
+    };
   }
 
   const room = await loadRoomView(slug, 0);
   if (!room) {
-    return { title: "Qwickword", robots: PRIVATE_LINK_ROBOTS };
+    return {
+      title: { absolute: "This Qwickword room is closed" },
+      robots: PRIVATE_LINK_ROBOTS,
+    };
   }
 
   const name = room.name ?? slug.replace(/-/g, " ");
@@ -93,10 +100,7 @@ export default async function Room({ params }: Props) {
     // Closed, expired after 90 idle days, or never real. One message for all
     // three: a visitor can act on none of them differently, and telling them
     // apart would confirm whether a given slug ever existed.
-    return deadLink(
-      "This room is closed",
-      "It was retired, or it went unused for long enough to expire. Ask for a fresh link, or create a Qwickword of your own."
-    );
+    notFound();
   }
 
   return <RoomPage room={room} />;

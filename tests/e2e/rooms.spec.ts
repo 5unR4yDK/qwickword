@@ -140,10 +140,11 @@ test("the room page shows the closed screen for a room that isn't there", async 
   page,
 }) => {
   const response = await page.goto("/r/definitely-not-a-real-room-92f4a1");
-  expect(response?.status()).toBeLessThan(500);
+  expect(response?.status()).toBe(404);
   // `InvalidLinkScreen` renders its heading as a <p> inside a role="status"
   // region, not as a heading element — asserted as it is, not as it might be.
   await expect(page.getByText("This room is closed")).toBeVisible();
+  await expect(page).toHaveTitle("This Qwickword room is closed");
   await expect(page.locator("body")).not.toContainText("Application error");
 });
 
