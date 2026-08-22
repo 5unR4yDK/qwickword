@@ -112,8 +112,7 @@ test("shared room links keep the same single social preview", async ({ page }) =
 
 test("persistent room links stay out of search indexes", async ({ page }) => {
   await page.goto("/r/nonexistent-room-12345");
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-    "content",
-    "noindex, nofollow",
-  );
+  await expect(
+    page.locator('meta[name="robots"][content="noindex, nofollow"]')
+  ).toHaveCount(1);
 });
