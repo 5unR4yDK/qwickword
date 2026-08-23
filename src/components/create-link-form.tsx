@@ -249,7 +249,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     try {
       await navigator.share({
         title: `Qwickword: a ${duration} call`,
-        text: `Join me for a ${duration} Qwickword. It ends when the timer does.`,
+        text: `Join me for a ${duration} Qwickword. It ends when the timer does. No account or download needed.`,
         url: link,
       });
       reportShared(roomName, "native");
@@ -268,7 +268,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
       `Qwickword: a ${duration} call`
     );
     const mailBody = encodeURIComponent(
-      `Join me for a ${duration} Qwickword. It ends when the timer does:\n\n${state.link}`
+      `Join me for a ${duration} Qwickword. It ends when the timer does. No account or download needed:\n\n${state.link}`
     );
 
     return (

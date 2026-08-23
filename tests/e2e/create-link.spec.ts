@@ -128,6 +128,10 @@ test("picking a duration produces a shareable link", async ({ page }) => {
   // The link is rendered as text, not an input, so assert on the copy control
   // and the visible URL rather than a value.
   await expect(page.getByText(/qwickword\.com\/|127\.0\.0\.1:3100\//)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Email it" })).toHaveAttribute(
+    "href",
+    /No%20account%20or%20download%20needed/
+  );
 });
 
 test("the custom field reverts to a pill on an outside click", async ({ page }) => {
@@ -709,6 +713,7 @@ test("native share opens the supported share sheet with truthful copy", async ({
   );
   expect(payload?.title).toContain("Qwickword");
   expect(payload?.text).toContain("ends when the timer does");
+  expect(payload?.text).toContain("No account or download needed");
   expect(payload?.url).toMatch(/^http:\/\/127\.0\.0\.1:3100\//);
 });
 

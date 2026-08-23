@@ -178,7 +178,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
     try {
       await navigator.share({
         title: `${title} · Qwickword room`,
-        text: `Open this room for ${formatDuration(currentRoom.defaultDurationSeconds)} calls that end when the timer does.`,
+        text: `Open this room for ${formatDuration(currentRoom.defaultDurationSeconds)} calls that end when the timer does. No account or download needed.`,
         url: shareUrl,
       });
       recordShare("native");
@@ -385,7 +385,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
               {copied ? "Copied" : "Copy"}
             </button>
             <a
-              href={`mailto:?subject=${encodeURIComponent(`${title} · Qwickword room`)}&body=${encodeURIComponent(`Open this room for ${formatDuration(currentRoom.defaultDurationSeconds)} calls that end when the timer does. ${shareUrl}`)}`}
+              href={`mailto:?subject=${encodeURIComponent(`${title} · Qwickword room`)}&body=${encodeURIComponent(`Open this room for ${formatDuration(currentRoom.defaultDurationSeconds)} calls that end when the timer does. No account or download needed. ${shareUrl}`)}`}
               onClick={() => recordShare("email")}
               className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-teal-700 dark:text-[#3DFEF1]"
             >
