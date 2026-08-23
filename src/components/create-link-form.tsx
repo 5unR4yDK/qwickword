@@ -423,7 +423,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                 <p
                   id="custom-duration-warning"
                   role="alert"
-                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-medium whitespace-nowrap text-red-400/80 dark:text-red-400/70"
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-medium whitespace-nowrap text-red-600 dark:text-red-400"
                 >
                   Max {MAX_DURATION_MINUTES} min
                 </p>

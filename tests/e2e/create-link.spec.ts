@@ -32,17 +32,20 @@ async function contrastRatio(locator: Locator): Promise<number> {
 
     const foreground = parseColor(getComputedStyle(element).color).rgb;
     let ancestor: Element | null = element;
-    let background = "rgb(255, 255, 255)";
+    const layers: ReturnType<typeof parseColor>[] = [];
     while (ancestor) {
-      const candidate = getComputedStyle(ancestor).backgroundColor;
-      if (parseColor(candidate).alpha > 0) {
-        background = candidate;
-        break;
-      }
+      const candidate = parseColor(getComputedStyle(ancestor).backgroundColor);
+      if (candidate.alpha > 0) layers.push(candidate);
       ancestor = ancestor.parentElement;
     }
 
-    const backgroundRgb = parseColor(background).rgb;
+    const backgroundRgb = layers.reverse().reduce<[number, number, number]>(
+      (under, layer) =>
+        layer.rgb.map((channel, index) =>
+          Math.round(channel * layer.alpha + under[index] * (1 - layer.alpha))
+        ) as [number, number, number],
+      [255, 255, 255]
+    );
     const lighter = Math.max(luminance(foreground), luminance(backgroundRgb));
     const darker = Math.min(luminance(foreground), luminance(backgroundRgb));
     return (lighter + 0.05) / (darker + 0.05);
@@ -280,6 +283,25 @@ test("optional sign-in keeps helper text legible and keyboard focus visible", as
   expect(
     await input.evaluate((element) => getComputedStyle(element).boxShadow)
   ).not.toBe("none");
+});
+
+test("interactive warnings meet normal-text contrast", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  const picker = page.getByRole("group", { name: "Call length" });
+  await picker.getByRole("button", { name: "custom" }).click();
+  await page.getByLabel("Custom call length in minutes").fill("31");
+  expect(
+    await contrastRatio(page.getByText("Max 30 min", { exact: true }))
+  ).toBeGreaterThanOrEqual(4.5);
+
+  await page.getByRole("button", {
+    name: /make a room you can come back to/i,
+  }).click();
+  const roomError = page.getByText(/couldn't create the room|no connection/i);
+  await expect(roomError).toBeVisible({ timeout: 10_000 });
+  expect(await contrastRatio(roomError)).toBeGreaterThanOrEqual(4.5);
 });
 
 test("public copy does not use em dashes", async ({ page, request }) => {

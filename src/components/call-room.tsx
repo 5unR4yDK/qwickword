@@ -1144,7 +1144,7 @@ export default function CallRoom({
 
   if (!callObject) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-black text-sm text-zinc-500">
+      <div className="flex h-full w-full items-center justify-center bg-black text-sm text-zinc-400">
         Loading…
       </div>
     );

@@ -66,7 +66,7 @@ export default function MakeRoomAction() {
         {busy ? "Making a room…" : "Or make a room you can come back to"}
       </button>
       {error && (
-        <p role="alert" className="text-[13px] text-red-500">
+        <p role="alert" className="text-[13px] text-red-600 dark:text-red-400">
           {error}
         </p>
       )}

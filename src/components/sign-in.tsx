@@ -202,7 +202,7 @@ function SignInForm({
               className="mt-4 h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-[15px] text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
-              <p role="alert" className="mt-2 text-sm text-red-500">
+              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {error}
               </p>
             )}
@@ -239,7 +239,7 @@ function SignInForm({
               className="mt-4 h-14 w-full rounded-xl border border-zinc-300 bg-white text-center text-2xl font-semibold tracking-[0.4em] tabular-nums text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
-              <p role="alert" className="mt-2 text-sm text-red-500">
+              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {error}
               </p>
             )}
@@ -254,7 +254,7 @@ function SignInForm({
             <button
               type="button"
               onClick={() => setStep({ name: "email" })}
-              className="mt-2 h-11 w-full cursor-pointer text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-700 dark:hover:text-zinc-300"
+              className="mt-2 h-11 w-full cursor-pointer text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               Use a different address
             </button>
@@ -264,7 +264,7 @@ function SignInForm({
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 h-11 w-full cursor-pointer text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+          className="mt-2 h-11 w-full cursor-pointer text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
         >
           Not now
         </button>

@@ -357,7 +357,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {error}
             </p>
           )}
@@ -447,7 +447,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
                 </select>
               </label>
               {managementError && (
-                <p role="alert" className="mt-3 text-sm text-red-500">
+                <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
                   {managementError}
                 </p>
               )}
@@ -525,7 +525,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
                     <span
                       className={
                         outcome === "never started"
-                          ? "text-sm text-amber-500"
+                          ? "text-sm text-amber-700 dark:text-amber-400"
                           : "text-sm text-zinc-500 dark:text-zinc-400"
                       }
                     >
