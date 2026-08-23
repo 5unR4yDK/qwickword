@@ -42,7 +42,7 @@ const structuredData = {
   headline: title,
   description,
   datePublished: "2026-08-20",
-  dateModified: "2026-08-20",
+  dateModified: "2026-08-23",
   author: { "@type": "Organization", name: "Qwickword" },
   publisher: { "@type": "Organization", name: "Qwickword" },
   mainEntityOfPage: "https://qwickword.com/persistent-rooms",
@@ -133,6 +133,13 @@ export default function PersistentRoomsPage() {
               visitor to that same active call instead of creating a competing
               conversation. Once it is over, the stable Room remains available
               for the next fresh call.
+            </p>
+            <p>
+              Every call inside the Room uses the same{" "}
+              <Link href="/how-qwickword-works" className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-100 dark:decoration-zinc-600 dark:hover:text-white">
+                server-enforced hard-stop mechanism
+              </Link>{" "}
+              as a one-off Qwickword.
             </p>
           </div>
         </section>

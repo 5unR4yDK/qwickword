@@ -42,7 +42,7 @@ const structuredData = {
   headline: title,
   description,
   datePublished: "2026-08-15",
-  dateModified: "2026-08-16",
+  dateModified: "2026-08-23",
   author: { "@type": "Organization", name: "Qwickword" },
   publisher: { "@type": "Organization", name: "Qwickword" },
   mainEntityOfPage: "https://qwickword.com/how-qwickword-works",
@@ -136,6 +136,13 @@ export default function HowQwickwordWorksPage() {
               There is no extend button. If the conversation deserves more
               time, the participants can make a new decision after the first
               commitment has been honoured.
+            </p>
+            <p>
+              For people who expect to talk again, a{" "}
+              <Link href="/persistent-rooms" className="font-medium text-zinc-800 underline decoration-zinc-300 underline-offset-4 hover:text-zinc-950 dark:text-zinc-100 dark:decoration-zinc-600 dark:hover:text-white">
+                Persistent Room keeps one stable doorway
+              </Link>{" "}
+              while each conversation still gets a fresh timed call.
             </p>
           </div>
         </section>

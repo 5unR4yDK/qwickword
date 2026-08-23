@@ -209,6 +209,11 @@ test("mechanism guide explains the hard stop without hiding its limits", async (
     await expect(
       page.getByRole("link", { name: "privacy policy" })
     ).toHaveAttribute("href", "/about#privacy");
+    await expect(
+      page.getByRole("link", {
+        name: "Persistent Room keeps one stable doorway",
+      })
+    ).toHaveAttribute("href", "/persistent-rooms");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth
@@ -237,6 +242,11 @@ test("Persistent Rooms guide explains the stable link without inventing features
       "href",
       "/about#privacy"
     );
+    await expect(
+      page.getByRole("link", {
+        name: "server-enforced hard-stop mechanism",
+      })
+    ).toHaveAttribute("href", "/how-qwickword-works");
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
     ).toBe(true);
@@ -361,7 +371,7 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(feedText).toContain("https://qwickword.com/persistent-rooms");
   expect(feedText).toContain('atom:link href="https://qwickword.com/feed.xml"');
   expect(feedText).toContain(
-    "<lastBuildDate>Thu, 20 Aug 2026 00:00:00 GMT</lastBuildDate>"
+    "<lastBuildDate>Sun, 23 Aug 2026 00:00:00 GMT</lastBuildDate>"
   );
 
   const sitemap = await request.get("/sitemap.xml");
@@ -371,10 +381,12 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   expect(sitemapText).toContain("https://qwickword.com/about");
   expect(sitemapText).toContain("2026-08-12");
   expect(sitemapText).toContain("https://qwickword.com/manifesto");
-  expect(sitemapText).toContain("https://qwickword.com/how-qwickword-works");
-  expect(sitemapText).toContain("2026-08-16");
-  expect(sitemapText).toContain("https://qwickword.com/persistent-rooms");
-  expect(sitemapText).toContain("2026-08-20");
+  expect(sitemapText).toMatch(
+    /<loc>https:\/\/qwickword\.com\/how-qwickword-works<\/loc>\s*<lastmod>2026-08-23<\/lastmod>/
+  );
+  expect(sitemapText).toMatch(
+    /<loc>https:\/\/qwickword\.com\/persistent-rooms<\/loc>\s*<lastmod>2026-08-23<\/lastmod>/
+  );
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);

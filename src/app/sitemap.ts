@@ -15,13 +15,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: "https://qwickword.com/how-qwickword-works",
-      lastModified: "2026-08-16",
+      lastModified: "2026-08-23",
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: "https://qwickword.com/persistent-rooms",
-      lastModified: "2026-08-20",
+      lastModified: "2026-08-23",
       changeFrequency: "monthly",
       priority: 0.7,
     },

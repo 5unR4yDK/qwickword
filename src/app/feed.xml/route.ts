@@ -60,7 +60,7 @@ export function GET() {
   <atom:link href="https://qwickword.com/feed.xml" rel="self" type="application/rss+xml" />
   <description>Product explanations and release notes from Qwickword.</description>
   <language>en</language>
-  <lastBuildDate>Thu, 20 Aug 2026 00:00:00 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 23 Aug 2026 00:00:00 GMT</lastBuildDate>
   ${items}
 </channel>
 </rss>`;
