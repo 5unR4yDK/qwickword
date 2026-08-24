@@ -121,7 +121,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   if (!durationSeconds) {
     const description =
-      "Set a time limit, share the link. When the timer hits zero, the call ends.";
+      "Set a time limit, share the link. No account or download needed. When the timer hits zero, the call ends.";
     return {
       title: "Qwickword",
       description,
@@ -146,7 +146,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const title = `Someone wants to have a Qwickword (${formatDuration(durationSeconds)})`;
   const description =
     `${formatDurationLong(durationSeconds)}, hard stop. It ends when the timer does and ` +
-    "can't be extended.";
+    "can't be extended. No account or download needed.";
 
   return {
     title,

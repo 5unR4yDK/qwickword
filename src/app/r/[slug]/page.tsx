@@ -54,7 +54,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${name} · Qwickword room`;
   const description =
     `A room for ${formatDuration(room.defaultDurationSeconds)} calls. ` +
-    "Opening it doesn't ring anyone; calls still end when the timer does.";
+    "Opening it doesn't ring anyone; calls still end when the timer does. " +
+    "No account or download needed.";
 
   return {
     title,
