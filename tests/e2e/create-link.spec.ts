@@ -298,6 +298,7 @@ test("optional sign-in keeps helper text legible and keyboard focus visible", as
 test("interactive warnings meet normal-text contrast", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
 
   const picker = page.getByRole("group", { name: "Call length" });
   await picker.getByRole("button", { name: "custom" }).click();

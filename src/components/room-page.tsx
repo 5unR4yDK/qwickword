@@ -357,7 +357,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
               {error}
             </p>
           )}
@@ -447,7 +447,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
                 </select>
               </label>
               {managementError && (
-                <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+                <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
                   {managementError}
                 </p>
               )}
@@ -464,7 +464,7 @@ export default function RoomPage({ room }: { room: RoomView }) {
                   type="button"
                   onClick={() => void closeCurrentRoom()}
                   disabled={managementBusy}
-                  className="min-h-11 rounded-full px-4 text-sm font-medium text-red-600 disabled:opacity-50 dark:text-red-400"
+                  className="min-h-11 rounded-full px-4 text-sm font-medium text-red-700 disabled:opacity-50 dark:text-red-400"
                 >
                   Close room
                 </button>

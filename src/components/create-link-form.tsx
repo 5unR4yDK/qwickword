@@ -423,7 +423,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
                 <p
                   id="custom-duration-warning"
                   role="alert"
-                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-medium whitespace-nowrap text-red-600 dark:text-red-400"
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-medium whitespace-nowrap text-red-700 dark:text-red-400"
                 >
                   Max {MAX_DURATION_MINUTES} min
                 </p>
@@ -481,7 +481,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
         </div>
 
         {state.status === "error" && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
             {state.message}
           </p>
         )}

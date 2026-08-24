@@ -202,7 +202,7 @@ function SignInForm({
               className="mt-4 h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-[15px] text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
-              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+              <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
                 {error}
               </p>
             )}
@@ -239,7 +239,7 @@ function SignInForm({
               className="mt-4 h-14 w-full rounded-xl border border-zinc-300 bg-white text-center text-2xl font-semibold tracking-[0.4em] tabular-nums text-zinc-950 outline-none focus:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-[#3DFEF1] dark:focus-visible:ring-[#3DFEF1] dark:focus-visible:ring-offset-zinc-950"
             />
             {error && (
-              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+              <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
                 {error}
               </p>
             )}
