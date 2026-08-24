@@ -400,7 +400,7 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
               onClick={() => handleCreate(seconds)}
               className={`flex h-11 w-20 cursor-pointer items-center justify-center rounded-full border text-sm font-medium transition-colors duration-150 hover:border-[#3DFEF1] hover:bg-[#3DFEF1] hover:text-[#062B28] disabled:cursor-not-allowed disabled:opacity-60 ${
                 customOpen
-                  ? "border-teal-600/25 text-teal-700/60 dark:border-[rgba(61,254,241,0.25)] dark:text-[rgba(61,254,241,0.6)]"
+                  ? "border-teal-600/25 text-teal-700 dark:border-[rgba(61,254,241,0.25)] dark:text-[rgba(61,254,241,0.6)]"
                   : "border-teal-600/50 text-teal-700 dark:border-[rgba(61,254,241,0.45)] dark:text-[#3DFEF1]"
               }`}
             >

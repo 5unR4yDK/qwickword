@@ -193,7 +193,7 @@ function ProblemReportButton({
         {requesting ? "Creating support code…" : "Report a timing problem"}
       </button>
       {failed && (
-        <p className="text-xs text-white/45" role="status">
+        <p className="text-xs text-white/50" role="status">
           A support code could not be created. Please try again.
         </p>
       )}

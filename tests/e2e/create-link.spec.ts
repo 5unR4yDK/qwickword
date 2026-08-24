@@ -301,6 +301,9 @@ test("interactive warnings meet normal-text contrast", async ({ page }) => {
 
   const picker = page.getByRole("group", { name: "Call length" });
   await picker.getByRole("button", { name: "custom" }).click();
+  expect(
+    await contrastRatio(picker.getByRole("button", { name: "1 min" }))
+  ).toBeGreaterThanOrEqual(4.5);
   await page.getByLabel("Custom call length in minutes").fill("31");
   expect(
     await contrastRatio(page.getByText("Max 30 min", { exact: true }))
