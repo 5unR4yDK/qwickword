@@ -222,6 +222,29 @@ test("mechanism guide explains the hard stop without hiding its limits", async (
   }
 });
 
+test("permanent content pages expose one main landmark", async ({ page }) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const path of [
+      "/about",
+      "/manifesto",
+      "/how-qwickword-works",
+      "/persistent-rooms",
+    ]) {
+      await page.goto(path);
+      await expect(page.getByRole("main")).toHaveCount(1);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth
+        )
+      ).toBe(true);
+    }
+  }
+});
+
 test("Persistent Rooms guide explains the stable link without inventing features", async ({
   page,
 }) => {
@@ -672,6 +695,38 @@ test("the mechanism guide CTA preserves external attribution before returning ho
   });
 });
 
+test("About and manifesto CTAs record their content source before returning home", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const content of [
+      { path: "/about", label: "Try it", id: "about_v1" },
+      {
+        path: "/manifesto",
+        label: "Create a Qwickword",
+        id: "manifesto_v1",
+      },
+    ]) {
+      await page.goto(content.path);
+      const recorded = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/attribution/content-cta") &&
+          response.request().method() === "POST" &&
+          response.request().postDataJSON().contentId === content.id
+      );
+      await page.getByRole("link", { name: content.label }).click();
+      expect((await recorded).status()).toBe(200);
+      await expect(
+        page.getByRole("heading", { name: "Meetings that end on time" })
+      ).toBeVisible();
+    }
+  }
+});
+
 test("the owned-content CTA endpoint rejects arbitrary content identifiers", async ({
   request,
 }) => {
@@ -681,11 +736,18 @@ test("the owned-content CTA endpoint rejects arbitrary content identifiers", asy
   expect(response.status()).toBe(400);
 });
 
-test("the Rooms guide content identifier is allowlisted", async ({ request }) => {
-  const response = await request.post("/api/attribution/content-cta", {
-    data: { contentId: "persistent_rooms_guide_v1" },
-  });
-  expect(response.status()).toBe(200);
+test("the owned content identifiers are allowlisted", async ({ request }) => {
+  for (const contentId of [
+    "about_v1",
+    "how_qwickword_works",
+    "manifesto_v1",
+    "persistent_rooms_guide_v1",
+  ]) {
+    const response = await request.post("/api/attribution/content-cta", {
+      data: { contentId },
+    });
+    expect(response.status()).toBe(200);
+  }
 });
 
 test("declared crawler landings are classified as preview fetches", async ({

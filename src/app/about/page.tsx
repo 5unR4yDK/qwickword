@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import OwnedContentCta from "@/components/owned-content-cta";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
+    <main className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
       {/* Same ambient glow language as the rest of the site; a no-op on the
           light theme via mix-blend-screen. */}
       <div
@@ -443,12 +444,13 @@ export default function AboutPage() {
         </div>
 
         <footer className="flex flex-col items-center gap-4">
-          <Link
+          <OwnedContentCta
             href="/"
+            contentId="about_v1"
             className="flex h-12 items-center rounded-full bg-[#3DFEF1] px-[26px] text-[15px] font-semibold text-[#062B28] transition-colors duration-150 hover:bg-[#7FFFF5]"
           >
             Try it
-          </Link>
+          </OwnedContentCta>
           <Link
             href="/manifesto"
             className="text-xs text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -457,6 +459,6 @@ export default function AboutPage() {
           </Link>
         </footer>
       </article>
-    </div>
+    </main>
   );
 }

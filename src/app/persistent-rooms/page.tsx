@@ -50,7 +50,7 @@ const structuredData = {
 
 export default function PersistentRoomsPage() {
   return (
-    <div className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
+    <main className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -203,6 +203,6 @@ export default function PersistentRoomsPage() {
           </OwnedContentCta>
         </section>
       </article>
-    </div>
+    </main>
   );
 }

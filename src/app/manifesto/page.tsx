@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import OwnedContentCta from "@/components/owned-content-cta";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function ManifestoPage() {
   return (
-    <div className="flex flex-1 justify-center bg-zinc-50 px-6 py-20 dark:bg-black">
+    <main className="flex flex-1 justify-center bg-zinc-50 px-6 py-20 dark:bg-black">
       <article className="w-full max-w-2xl font-serif text-zinc-800 dark:text-zinc-200">
         <header className="mb-10 text-center">
           <h1 className="text-2xl font-bold uppercase tracking-wide text-black dark:text-zinc-50">
@@ -178,14 +178,15 @@ export default function ManifestoPage() {
         </p>
 
         <div className="mt-16 text-center font-sans">
-          <Link
+          <OwnedContentCta
             href="/"
+            contentId="manifesto_v1"
             className="text-sm text-zinc-600 underline underline-offset-4 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
-            Back to Qwickword
-          </Link>
+            Create a Qwickword
+          </OwnedContentCta>
         </div>
       </article>
-    </div>
+    </main>
   );
 }

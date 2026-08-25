@@ -13,7 +13,9 @@ import { appendEvent } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 const CONTENT_IDS = new Set([
+  "about_v1",
   "how_qwickword_works",
+  "manifesto_v1",
   "persistent_rooms_guide_v1",
 ]);
 
