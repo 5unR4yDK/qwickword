@@ -293,7 +293,7 @@ test("secondary owned-page text meets normal-text contrast", async ({ page }) =>
 
   await page.goto("/manifesto");
   expect(
-    await contrastRatio(page.getByRole("link", { name: "Back to Qwickword" })),
+    await contrastRatio(page.getByRole("link", { name: "Create a Qwickword" })),
   ).toBeGreaterThanOrEqual(4.5);
 });
 
@@ -322,6 +322,11 @@ test("interactive warnings meet normal-text contrast", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => !document.documentElement.classList.contains("dark"))
+    )
+    .toBe(true);
 
   const picker = page.getByRole("group", { name: "Call length" });
   await picker.getByRole("button", { name: "custom" }).click();
