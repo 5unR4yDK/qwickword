@@ -43,7 +43,7 @@ const structuredData = {
   headline: title,
   description,
   datePublished: "2026-08-20",
-  dateModified: "2026-08-23",
+  dateModified: "2026-08-25",
   author: { "@type": "Organization", name: "Qwickword" },
   publisher: { "@type": "Organization", name: "Qwickword" },
   mainEntityOfPage: "https://qwickword.com/persistent-rooms",

@@ -386,11 +386,23 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   await expect(
     page.getByRole("heading", { name: "A shared deadline, not a polite suggestion" })
   ).toBeVisible();
+  expect(
+    JSON.parse(
+      (await page.locator('script[type="application/ld+json"]').textContent()) ??
+        "{}"
+    ).dateModified
+  ).toBe("2026-08-25");
 
   await page.goto("/persistent-rooms");
   await expect(
     page.getByRole("heading", { name: "One familiar door, a fresh deadline every time" })
   ).toBeVisible();
+  expect(
+    JSON.parse(
+      (await page.locator('script[type="application/ld+json"]').textContent()) ??
+        "{}"
+    ).dateModified
+  ).toBe("2026-08-25");
 
   const feed = await request.get("/feed.xml");
   expect(feed.status()).toBe(200);
@@ -409,16 +421,16 @@ test("owned discovery surfaces are crawlable", async ({ page, request }) => {
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const sitemapText = await sitemap.text();
-  expect(sitemapText).toContain("2026-08-12");
-  expect(sitemapText).toContain("https://qwickword.com/about");
-  expect(sitemapText).toContain("2026-08-12");
-  expect(sitemapText).toContain("https://qwickword.com/manifesto");
-  expect(sitemapText).toMatch(
-    /<loc>https:\/\/qwickword\.com\/how-qwickword-works<\/loc>\s*<lastmod>2026-08-23<\/lastmod>/
-  );
-  expect(sitemapText).toMatch(
-    /<loc>https:\/\/qwickword\.com\/persistent-rooms<\/loc>\s*<lastmod>2026-08-23<\/lastmod>/
-  );
+  for (const path of [
+    "about",
+    "manifesto",
+    "how-qwickword-works",
+    "persistent-rooms",
+  ]) {
+    expect(sitemapText).toContain(
+      `<loc>https://qwickword.com/${path}</loc>\n<lastmod>2026-08-25</lastmod>`
+    );
+  }
 
   const key = await request.get("/10f8619456c2ea84499dd5e46ca68a4c.txt");
   expect(key.status()).toBe(200);
