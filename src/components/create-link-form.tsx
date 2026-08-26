@@ -12,6 +12,7 @@ import {
 } from "@/lib/duration";
 import MakeRoomAction from "./make-room-action";
 import { SignInLink } from "./sign-in";
+import { classifyReferrer } from "@/lib/referrer-category";
 
 type CreateRoomResponse = {
   url: string;
@@ -85,7 +86,13 @@ export default function CreateLinkForm({ mockMode }: { mockMode: boolean }) {
     void fetch("/api/attribution/landing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(clientAttribution()),
+      body: JSON.stringify({
+        ...clientAttribution(),
+        referrerCategory: classifyReferrer(
+          document.referrer,
+          window.location.origin
+        ),
+      }),
       keepalive: true,
     }).catch(() => {});
     return () => clearTimeout(capabilityCheck);

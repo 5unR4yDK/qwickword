@@ -9,15 +9,9 @@ import {
   trustedTrafficClassFromRequest,
 } from "@/lib/attribution";
 import { appendEvent } from "@/lib/db";
+import { isOwnedContentId } from "@/lib/owned-content";
 
 export const dynamic = "force-dynamic";
-
-const CONTENT_IDS = new Set([
-  "about_v1",
-  "how_qwickword_works",
-  "manifesto_v1",
-  "persistent_rooms_guide_v1",
-]);
 
 type Body = {
   contentId?: unknown;
@@ -38,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  if (typeof body.contentId !== "string" || !CONTENT_IDS.has(body.contentId)) {
+  if (!isOwnedContentId(body.contentId)) {
     return NextResponse.json({ error: "Unknown content CTA." }, { status: 400 });
   }
 

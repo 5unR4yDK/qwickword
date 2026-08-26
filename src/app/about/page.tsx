@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import OwnedContentCta from "@/components/owned-content-cta";
+import OwnedContentEntry from "@/components/owned-content-entry";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -42,6 +43,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <main className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
+      <OwnedContentEntry contentId="about_v1" />
       {/* Same ambient glow language as the rest of the site; a no-op on the
           light theme via mix-blend-screen. */}
       <div

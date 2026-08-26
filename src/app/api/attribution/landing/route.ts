@@ -9,11 +9,15 @@ import {
   trustedTrafficClassFromRequest,
 } from "@/lib/attribution";
 import { appendEvent } from "@/lib/db";
+import { isOwnedContentId } from "@/lib/owned-content";
+import { isReferrerCategory } from "@/lib/referrer-category";
 
 export const dynamic = "force-dynamic";
 
 type LandingBody = {
   attribution?: unknown;
+  contentId?: unknown;
+  referrerCategory?: unknown;
 };
 
 function hasCampaignAttribution(
@@ -28,6 +32,22 @@ export async function POST(request: NextRequest) {
     body = (await request.json()) as LandingBody;
   } catch {
     // A direct visit with no campaign fields is still a valid landing.
+  }
+
+  if (body.contentId !== undefined && !isOwnedContentId(body.contentId)) {
+    return NextResponse.json(
+      { error: "Unknown owned content." },
+      { status: 400 }
+    );
+  }
+  if (
+    body.referrerCategory !== undefined &&
+    !isReferrerCategory(body.referrerCategory)
+  ) {
+    return NextResponse.json(
+      { error: "Unknown referrer category." },
+      { status: 400 }
+    );
   }
 
   const incomingAttribution = normalizeAttribution(body.attribution);
@@ -50,6 +70,8 @@ export async function POST(request: NextRequest) {
       sessionId,
       trafficClass,
       surface: "web",
+      contentId: body.contentId ?? null,
+      referrerCategory: body.referrerCategory ?? null,
       ...attribution,
     },
     dedupeKey: [
@@ -58,6 +80,8 @@ export async function POST(request: NextRequest) {
       attribution.campaign ?? "none",
       attribution.source ?? "direct",
       attribution.content ?? "none",
+      body.contentId ?? "home",
+      body.referrerCategory ?? "unknown",
     ].join(":"),
   });
 

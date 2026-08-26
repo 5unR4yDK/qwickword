@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import OwnedContentCta from "@/components/owned-content-cta";
+import OwnedContentEntry from "@/components/owned-content-entry";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -51,6 +52,7 @@ const structuredData = {
 export default function PersistentRoomsPage() {
   return (
     <main className="relative flex flex-1 justify-center overflow-hidden bg-zinc-50 px-6 py-20 dark:bg-black">
+      <OwnedContentEntry contentId="persistent_rooms_guide_v1" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

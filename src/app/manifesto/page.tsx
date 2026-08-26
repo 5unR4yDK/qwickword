@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import OwnedContentCta from "@/components/owned-content-cta";
+import OwnedContentEntry from "@/components/owned-content-entry";
 import {
   SOCIAL_PREVIEW_ALT,
   SOCIAL_PREVIEW_IMAGE,
@@ -40,6 +41,7 @@ export const metadata: Metadata = {
 export default function ManifestoPage() {
   return (
     <main className="flex flex-1 justify-center bg-zinc-50 px-6 py-20 dark:bg-black">
+      <OwnedContentEntry contentId="manifesto_v1" />
       <article className="w-full max-w-2xl font-serif text-zinc-800 dark:text-zinc-200">
         <header className="mb-10 text-center">
           <h1 className="text-2xl font-bold uppercase tracking-wide text-black dark:text-zinc-50">

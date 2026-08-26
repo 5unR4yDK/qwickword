@@ -3,15 +3,12 @@
 import { useRef, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { OwnedContentId } from "@/lib/owned-content";
 
 type Props = {
   children: ReactNode;
   className: string;
-  contentId:
-    | "about_v1"
-    | "how_qwickword_works"
-    | "manifesto_v1"
-    | "persistent_rooms_guide_v1";
+  contentId: OwnedContentId;
   href: "/";
 };
 

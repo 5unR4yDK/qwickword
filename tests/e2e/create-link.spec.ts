@@ -755,6 +755,69 @@ test("the owned content identifiers are allowlisted", async ({ request }) => {
   }
 });
 
+test("owned-page entries keep only an allowlisted page ID and coarse referrer category", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const recorded = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/attribution/landing") &&
+        request.method() === "POST" &&
+        request.postDataJSON().contentId === "about_v1"
+    );
+    await page.goto("/about", {
+      referer: "https://www.google.com/search?q=terms+that+must+not+be+sent",
+    });
+
+    const payload = (await recorded).postDataJSON();
+    expect(payload).toMatchObject({
+      contentId: "about_v1",
+      referrerCategory: "search",
+    });
+    expect(JSON.stringify(payload)).not.toContain("google.com");
+    expect(JSON.stringify(payload)).not.toContain("terms+that+must+not+be+sent");
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    ).toBe(true);
+  }
+});
+
+test("client navigation to owned content is classified as internal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const recorded = page.waitForRequest(
+    (request) =>
+      request.url().endsWith("/api/attribution/landing") &&
+      request.method() === "POST" &&
+      request.postDataJSON().contentId === "about_v1"
+  );
+  await page.getByRole("link", { name: "about", exact: true }).click();
+
+  expect((await recorded).postDataJSON()).toMatchObject({
+    contentId: "about_v1",
+    referrerCategory: "internal",
+  });
+});
+
+test("landing attribution rejects arbitrary page IDs and referrer values", async ({
+  request,
+}) => {
+  const badContent = await request.post("/api/attribution/landing", {
+    data: { contentId: "a-user-supplied-url" },
+  });
+  expect(badContent.status()).toBe(400);
+
+  const badReferrer = await request.post("/api/attribution/landing", {
+    data: { referrerCategory: "https://example.org/private/path?q=secret" },
+  });
+  expect(badReferrer.status()).toBe(400);
+});
+
 test("declared crawler landings are classified as preview fetches", async ({
   request,
 }) => {
