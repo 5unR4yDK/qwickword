@@ -1,4 +1,4 @@
-<img src="public/brand/qmark.png" width="72" height="72" alt="Qwickword icon" align="left" />
+<img src="public/brand/colormark.png" width="72" height="72" alt="Qwickword colormark" align="left" />
 
 # Qwickword
 

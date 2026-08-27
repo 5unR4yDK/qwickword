@@ -25,22 +25,20 @@ kit the maintainer commissioned (2026-07-25).
 - `social-card-square.png`: 1000x1000 wordmark + tagline on the dark
   background, sized for Twitter's "summary" card format.
 - `qmark.png`: the superseded favicon mark, a cyan rounded square with a
-  black lowercase "q", transparent corners. Still used in `README.md`'s
-  header. It stopped being the source for the favicon slots on 26 August
-  2026.
+  black lowercase "q", transparent corners. It stopped being the source
+  for the favicon slots and `README.md` header on 26 August 2026. The native
+  mobile app still uses this mark as its app icon.
 - `colormark.png`: the two-tile colormark, blue and yellow offset
   diagonally, on transparency. The founder's artwork, from
   `Brand & Comms Library/Branding & Logos` in the PKP Shared Folder. This
-  is the mark the desktop app, the iPhone app and now the browser tab all
-  wear.
+  is the mark the desktop app and browser tab wear.
 
 ## What's wired up already
 
 - `src/app/icon.png`, `apple-icon.png`, `favicon.ico`: the colormark on the
-  `#0B1D33` navy, redrawn 26 August 2026. They were cut from `qmark.png`;
-  the cyan `q` was the last surface still wearing it after the desktop app
-  and the phone app had both moved, so a browser tab, a taskbar and a home
-  screen showed three different products.
+  `#0B1D33` navy, redrawn 26 August 2026. They replace the former
+  `qmark.png`-derived cyan `q`, so the browser tab and desktop app now use
+  the same mark.
 
   The mark is redrawn from measured geometry rather than resampled from
   `colormark.png`, so the edges are correct at every size. On a 460 x 558
@@ -85,10 +83,10 @@ Deleted 31 July 2026. Nothing referenced them. The mark is the `q` in
 The homepage's current visual identity (the indigo/violet ambient glow, the
 serif Playfair Display "Q" watermark) and the cursive wordmark kit are still
 two different visual treatments, and the favicon is now a third - the
-colormark, shared with the desktop and phone apps.
+colormark, shared with the desktop app.
 
-That was the point of the favicon change: a browser tab, a taskbar and a home
-screen should not show three different products. It does not settle the rest.
+That was the point of the favicon change: a browser tab and a desktop taskbar
+should not show two different products. It does not settle the rest.
 `src/app/opengraph-image.png` is still the cursive wordmark on `#292929`, so a
 link preview and a tab still disagree. Rolling one look across the link-preview
 image and the homepage itself is a deliberate design call rather than an
