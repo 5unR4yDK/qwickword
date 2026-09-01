@@ -51,6 +51,7 @@ for (const [path, canonical] of [
     "https://qwickword.com/how-qwickword-works",
   ],
   ["/manifesto", "https://qwickword.com/manifesto"],
+  ["/join", "https://qwickword.com/join"],
 ] as const) {
   test(`${path} publishes one canonical URL and the RSS alternate`, async ({
     page,
@@ -78,6 +79,7 @@ for (const [path, title, url] of [
     "The Qwickword Manifesto | Qwickword",
     "https://qwickword.com/manifesto",
   ],
+  ["/join", "Join Qwickword | Qwickword", "https://qwickword.com/join"],
 ] as const) {
   test(`${path} publishes page-specific social metadata`, async ({ page }) => {
     await page.goto(path);
